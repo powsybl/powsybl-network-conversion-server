@@ -23,7 +23,7 @@ import static com.powsybl.iidm.converter.server.IidmConverterConstants.IIDM_CONV
  */
 
 @RestController
-@RequestMapping(value = "/" + IIDM_CONVERTER_API_VERSION + "/iidm-converter-server")
+@RequestMapping(value = "/" + IIDM_CONVERTER_API_VERSION + "/")
 @Api(tags = "iidm-converter-server")
 public class IidmConverterController {
 

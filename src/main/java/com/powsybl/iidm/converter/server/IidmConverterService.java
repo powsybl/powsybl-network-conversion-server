@@ -107,14 +107,7 @@ public class IidmConverterService {
                     byte[].class);
             return responseEntity.getBody();
         } catch (HttpStatusCodeException e) {
-            LOGGER.error("getCaseAsByte HttpStatusCodeException :", e);
-            HttpStatus exceptionCode = e.getStatusCode();
-            if (exceptionCode == HttpStatus.CONFLICT || exceptionCode == HttpStatus.INTERNAL_SERVER_ERROR
-                || exceptionCode == HttpStatus.UNPROCESSABLE_ENTITY || exceptionCode == HttpStatus.NO_CONTENT) {
-                throw new PowsyblException(e.getMessage());
-            } else {
-                throw e;
-            }
+            throw new PowsyblException("getCaseAsByte HttpStatusCodeException", e);
         }
     }
 
