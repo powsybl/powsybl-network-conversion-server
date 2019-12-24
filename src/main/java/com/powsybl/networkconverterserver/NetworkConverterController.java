@@ -4,39 +4,36 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
-import com.powsybl.iidm.converter.server.dto.NetworkIds;
+import com.powsybl.networkconverterserver.dto.NetworkIds;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import javax.inject.Inject;
-
-import static com.powsybl.iidm.converter.server.IidmConverterConstants.IIDM_CONVERTER_API_VERSION;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
 
 @RestController
-@RequestMapping(value = "/" + IIDM_CONVERTER_API_VERSION + "/")
+@RequestMapping(value = "/" + NetworkConverterConstants.IIDM_CONVERTER_API_VERSION + "/")
 @Api(tags = "iidm-converter-server")
-public class IidmConverterController {
+public class NetworkConverterController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IidmConverterController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConverterController.class);
 
-    @Inject
-    private IidmConverterService iidmConverterService;
+    @Autowired
+    private NetworkConverterService networkConverterService;
 
     @PostMapping(value = "/persistent-store/{caseName}")
     @ApiOperation(value = "Get a case file and stores it in DB")
     public ResponseEntity<NetworkIds> persistantStore(@PathVariable("caseName") String caseName) {
         LOGGER.debug("persistentStore request received with parameter caseName = {}", caseName);
-        NetworkIds networkIds = iidmConverterService.persistentStore(caseName);
+        NetworkIds networkIds = networkConverterService.persistentStore(caseName);
         return ResponseEntity.ok().body(networkIds);
     }
 }

@@ -1,4 +1,4 @@
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.iidm.import_.Importers;
@@ -34,9 +34,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(IidmConverterController.class)
-@ContextConfiguration(classes = {IidmConverterApplication.class, IidmConverterService.class})
-public class IidmConverterTest {
+@WebMvcTest(NetworkConverterController.class)
+@ContextConfiguration(classes = {NetworkConverterApplication.class, NetworkConverterService.class})
+public class NetworkConverterTest {
 
     @Autowired
     private MockMvc mvc;
@@ -48,7 +48,7 @@ public class IidmConverterTest {
     private RestTemplate geoDataRest;
 
     @Autowired
-    private IidmConverterService iidmConverterService;
+    private NetworkConverterService networkConverterService;
 
     @MockBean
     private NetworkStoreService networkStoreClient;
@@ -63,8 +63,8 @@ public class IidmConverterTest {
         ClassLoader classLoader = getClass().getClassLoader();
         try (InputStream inputStream = classLoader.getResourceAsStream("testCase.xiidm")) {
             byte[] networkByte = IOUtils.toByteArray(inputStream);
-            iidmConverterService.setCaseServerRest(caseServerRest);
-            iidmConverterService.setGeoDataRest(geoDataRest);
+            networkConverterService.setCaseServerRest(caseServerRest);
+            networkConverterService.setGeoDataRest(geoDataRest);
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
                     .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
             InputStream byteArrayInputStream = new ByteArrayInputStream(networkByte);

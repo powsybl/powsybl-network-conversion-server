@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -24,13 +24,13 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 @Configuration
 @EnableSwagger2
-public class IidmConverterSwaggerConfig {
+public class NetworkConverterSwaggerConfig {
     @Bean
     public Docket produceApi() {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage(IidmConverterController.class.getPackage().getName()))
+                .apis(RequestHandlerSelectors.basePackage(NetworkConverterController.class.getPackage().getName()))
                 .paths(paths())
                 .build();
     }

@@ -4,11 +4,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
-import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyMemDataSource;
-import com.powsybl.iidm.converter.server.dto.NetworkIds;
+import com.powsybl.networkconverterserver.dto.NetworkIds;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.store.client.NetworkStoreClient;
 import com.powsybl.network.store.client.NetworkStoreService;
@@ -29,17 +28,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.powsybl.iidm.converter.server.IidmConverterConstants.CASE_API_VERSION;
-
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
 
 @Service
 @ComponentScan(basePackageClasses = {NetworkStoreClient.class})
-public class IidmConverterService {
+public class NetworkConverterService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IidmConverterService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConverterService.class);
     private String caseServerBaseUri;
     private String geoDataBaseUri;
     private RestTemplate caseServerRest;
@@ -50,8 +47,8 @@ public class IidmConverterService {
     private NetworkStoreService networkStoreService;
 
     @Autowired
-    public IidmConverterService(@Value("${backing-services.case.base-uri:http://case-server/}") String caseServerBaseUri,
-                                @Value("${backing-services.geo-data.base-uri:http://geo-data-server/}") String geoDataBaseUri) {
+    public NetworkConverterService(@Value("${backing-services.case.base-uri:http://case-server/}") String caseServerBaseUri,
+                                   @Value("${backing-services.geo-data.base-uri:http://geo-data-server/}") String geoDataBaseUri) {
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
@@ -97,7 +94,7 @@ public class IidmConverterService {
         Map<String, Object> urlParams = new HashMap<>();
         urlParams.put("caseName", caseName);
 
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(caseServerBaseUri + "/" + CASE_API_VERSION + "/case-server/cases/{caseName}")
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(caseServerBaseUri + "/" + NetworkConverterConstants.CASE_API_VERSION + "/cases/{caseName}")
                 .uriVariables(urlParams);
 
         try {
@@ -107,7 +104,7 @@ public class IidmConverterService {
                     byte[].class);
             return responseEntity.getBody();
         } catch (HttpStatusCodeException e) {
-            throw new PowsyblException("getCaseAsByte HttpStatusCodeException", e);
+            throw new NetworkConverterException("getCaseAsByte HttpStatusCodeException", e);
         }
     }
 

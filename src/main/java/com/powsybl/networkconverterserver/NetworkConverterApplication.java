@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -14,9 +14,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 
 @SpringBootApplication
-public class IidmConverterApplication {
+public class NetworkConverterApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(IidmConverterApplication.class, args);
+        SpringApplication.run(NetworkConverterApplication.class, args);
     }
 }

@@ -4,15 +4,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.iidm.converter.server;
+package com.powsybl.networkconverterserver;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
 
-public final class IidmConverterConstants {
+public final class NetworkConverterConstants {
 
-    private IidmConverterConstants() {
+    private NetworkConverterConstants() {
     }
 
     static final String IIDM_CONVERTER_API_VERSION = "v1";
