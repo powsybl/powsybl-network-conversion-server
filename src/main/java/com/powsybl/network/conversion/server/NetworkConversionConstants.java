@@ -4,19 +4,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.networkconverterserver;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+package com.powsybl.network.conversion.server;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
 
-@SpringBootApplication
-public class NetworkConverterApplication {
+final class NetworkConversionConstants {
 
-    public static void main(String[] args) {
-        SpringApplication.run(NetworkConverterApplication.class, args);
+    private NetworkConversionConstants() {
     }
+
+    static final String API_VERSION = "v1";
+    static final String CASE_API_VERSION = "v1";
 }

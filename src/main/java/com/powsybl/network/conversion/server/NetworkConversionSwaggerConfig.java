@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.networkconverterserver;
+package com.powsybl.network.conversion.server;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -24,13 +24,13 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 @Configuration
 @EnableSwagger2
-public class NetworkConverterSwaggerConfig {
+public class NetworkConversionSwaggerConfig {
     @Bean
     public Docket produceApi() {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage(NetworkConverterController.class.getPackage().getName()))
+                .apis(RequestHandlerSelectors.basePackage(NetworkConversionController.class.getPackage().getName()))
                 .paths(paths())
                 .build();
     }
@@ -38,8 +38,8 @@ public class NetworkConverterSwaggerConfig {
     // Describe your apis
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("Iidm converter API")
-                .description("This is the documentation of the iidm converter REST API")
+                .title("Network conversion API")
+                .description("This is the documentation of the network conversion REST API")
                 .build();
     }
 

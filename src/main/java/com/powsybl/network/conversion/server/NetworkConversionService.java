@@ -4,13 +4,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.powsybl.networkconverterserver;
+package com.powsybl.network.conversion.server;
 
 import com.powsybl.commons.datasource.ReadOnlyMemDataSource;
-import com.powsybl.networkconverterserver.dto.NetworkIds;
+import com.powsybl.network.conversion.server.dto.NetworkIds;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.store.client.NetworkStoreClient;
 import com.powsybl.network.store.client.NetworkStoreService;
+import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,30 +35,30 @@ import java.util.UUID;
 
 @Service
 @ComponentScan(basePackageClasses = {NetworkStoreClient.class})
-public class NetworkConverterService {
+public class NetworkConversionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConverterService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
     private String caseServerBaseUri;
-    private String geoDataBaseUri;
+    private String geoDataServerBaseUri;
     private RestTemplate caseServerRest;
-    private RestTemplate geoDataRest;
+    private RestTemplate geoDataServerRest;
     private static final  String IIDM_GEO_DATA_API_VERSION = "v1";
 
     @Autowired
     private NetworkStoreService networkStoreService;
 
     @Autowired
-    public NetworkConverterService(@Value("${backing-services.case.base-uri:http://case-server/}") String caseServerBaseUri,
-                                   @Value("${backing-services.geo-data.base-uri:http://geo-data-server/}") String geoDataBaseUri) {
+    public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
+                                    @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri) {
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
         this.caseServerBaseUri = caseServerBaseUri;
 
         restTemplateBuilder = new RestTemplateBuilder();
-        geoDataRest = restTemplateBuilder.build();
-        geoDataRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataBaseUri));
-        this.geoDataBaseUri = geoDataBaseUri;
+        geoDataServerRest = restTemplateBuilder.build();
+        geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
+        this.geoDataServerBaseUri = geoDataServerBaseUri;
     }
 
     NetworkIds persistentStore(String caseName) {
@@ -67,24 +68,7 @@ public class NetworkConverterService {
         readOnlyMemDataSource.putData(caseName, networkByte);
         Network network = networkStoreService.importNetwork(readOnlyMemDataSource);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        precalculateLines(networkUuid);
         return new NetworkIds(networkUuid, network.getId());
-    }
-
-    private void precalculateLines(UUID idNetwork) {
-        HttpHeaders requestHeaders = new HttpHeaders();
-        HttpEntity requestEntity = new HttpEntity(requestHeaders);
-
-        Map<String, Object> urlParams = new HashMap<>();
-        urlParams.put("idNetwork", idNetwork);
-
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(geoDataBaseUri + "/" + IIDM_GEO_DATA_API_VERSION +
-                "/precalculate-lines/{idNetwork}").uriVariables(urlParams);
-
-        geoDataRest.exchange(uriBuilder.toUriString(),
-               HttpMethod.GET,
-               requestEntity,
-               String.class);
     }
 
     byte[] getCaseAsByte(String caseName) {
@@ -94,7 +78,7 @@ public class NetworkConverterService {
         Map<String, Object> urlParams = new HashMap<>();
         urlParams.put("caseName", caseName);
 
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(caseServerBaseUri + "/" + NetworkConverterConstants.CASE_API_VERSION + "/cases/{caseName}")
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(caseServerBaseUri + "/" + NetworkConversionConstants.CASE_API_VERSION + "/cases/{caseName}")
                 .uriVariables(urlParams);
 
         try {
@@ -104,7 +88,7 @@ public class NetworkConverterService {
                     byte[].class);
             return responseEntity.getBody();
         } catch (HttpStatusCodeException e) {
-            throw new NetworkConverterException("getCaseAsByte HttpStatusCodeException", e);
+            throw new NetworkConversionException("getCaseAsByte HttpStatusCodeException", e);
         }
     }
 
@@ -113,10 +97,12 @@ public class NetworkConverterService {
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {
+        Validate.notNull(caseServerRest, "caseServerRest can't be null");
         this.caseServerRest = caseServerRest;
     }
 
-    void setGeoDataRest(RestTemplate geoDataRest) {
-        this.geoDataRest = geoDataRest;
+    void setGeoDataServerRest(RestTemplate geoDataServerRest) {
+        Validate.notNull(geoDataServerRest, "geoDataServerRest can't be null");
+        this.geoDataServerRest = geoDataServerRest;
     }
 }

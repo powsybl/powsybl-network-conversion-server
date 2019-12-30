@@ -13,9 +13,9 @@ network-store-server:
 
 
 backing-services:
-    case:
+    case-server:
       base-uri: http://localhost:5000
-    geo-data:
+    geo-data-server:
       base-uri: http://localhost:8087
 
 
