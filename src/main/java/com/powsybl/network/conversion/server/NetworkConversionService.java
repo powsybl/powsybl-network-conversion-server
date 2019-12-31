@@ -12,8 +12,6 @@ import com.powsybl.iidm.network.Network;
 import com.powsybl.network.store.client.NetworkStoreClient;
 import com.powsybl.network.store.client.NetworkStoreService;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -37,12 +35,9 @@ import java.util.UUID;
 @ComponentScan(basePackageClasses = {NetworkStoreClient.class})
 public class NetworkConversionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
     private String caseServerBaseUri;
-    private String geoDataServerBaseUri;
     private RestTemplate caseServerRest;
     private RestTemplate geoDataServerRest;
-    private static final  String IIDM_GEO_DATA_API_VERSION = "v1";
 
     @Autowired
     private NetworkStoreService networkStoreService;
@@ -58,7 +53,6 @@ public class NetworkConversionService {
         restTemplateBuilder = new RestTemplateBuilder();
         geoDataServerRest = restTemplateBuilder.build();
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
-        this.geoDataServerBaseUri = geoDataServerBaseUri;
     }
 
     NetworkIds persistentStore(String caseName) {
