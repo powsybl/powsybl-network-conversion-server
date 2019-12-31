@@ -30,7 +30,7 @@ jobs:
 
       - name: Run SonarCloud analysis
         run: >
-          mvn --batch-mode -Pjacoco verify sonar:sonar
+          mvn --batch-mode -Pjacoco package sonar:sonar
           -Dsonar.host.url=https://sonarcloud.io
           -Dsonar.organization=powsybl-ci-github
           -Dsonar.projectKey=com.powsybl:powsybl-network-conversion-server
