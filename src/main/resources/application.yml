@@ -1,0 +1,23 @@
+server:
+  port: 5003
+
+spring:
+  application:
+    name: network-network-conversion-server
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 103MB
+
+network-store-server:
+  preloading-strategy: COLLECTION
+  base-uri: http://localhost:8080/
+
+
+backing-services:
+    case-server:
+      base-uri: http://localhost:5000
+    geo-data-server:
+      base-uri: http://localhost:8087
+
+
