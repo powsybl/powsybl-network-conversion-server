@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -34,11 +34,11 @@ public class NetworkConversionController {
     @Autowired
     private NetworkConversionService networkConversionService;
 
-    @PostMapping(value = "/cases/{caseName}/to-network")
-    @ApiOperation(value = "Get a case file and stores it in DB")
-    public ResponseEntity<NetworkInfos> storeCase(@PathVariable("caseName") String caseName) {
-        LOGGER.debug("Storing case {}...", caseName);
-        NetworkInfos networkInfos = networkConversionService.storeCase(caseName);
+    @PostMapping(value = "/networks")
+    @ApiOperation(value = "Get a case file from its name and import it into the store")
+    public ResponseEntity<NetworkInfos> importCase(@RequestParam("caseName") String caseName) {
+        LOGGER.debug("Importing case {}...", caseName);
+        NetworkInfos networkInfos = networkConversionService.importCase(caseName);
         return ResponseEntity.ok().body(networkInfos);
     }
 }

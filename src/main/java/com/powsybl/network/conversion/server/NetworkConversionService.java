@@ -54,7 +54,7 @@ public class NetworkConversionService {
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
     }
 
-    NetworkInfos storeCase(String caseName) {
+    NetworkInfos importCase(String caseName) {
         byte[] networkByte = getCaseAsByte(caseName);
         String[] baseName = caseName.split("\\.");
         ReadOnlyMemDataSource readOnlyMemDataSource = new ReadOnlyMemDataSource(baseName[0]);
