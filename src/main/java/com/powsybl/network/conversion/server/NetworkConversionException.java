@@ -5,12 +5,7 @@ package com.powsybl.network.conversion.server;
  */
 class NetworkConversionException extends RuntimeException {
 
-    NetworkConversionException(String msg) {
-        super(msg);
-    }
-
     NetworkConversionException(String message, Throwable cause) {
         super(message, cause);
     }
 }
-

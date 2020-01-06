@@ -149,11 +149,6 @@
             <version>${powsybl-network-store-client.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-xml-converter</artifactId>
-            <version>${powsybl-core.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger-ui</artifactId>
             <version>${springfox.version}</version>
@@ -173,6 +168,7 @@
             <artifactId>spring-boot-starter-web</artifactId>
             <version>${springboot.version}</version>
         </dependency>
+
         <!-- runtime dependencies -->
         <dependency>
             <groupId>com.powsybl</groupId>
@@ -186,13 +182,14 @@
             <version>${powsybl-core.version}</version>
             <scope>runtime</scope>
         </dependency>
-        <!-- test dependencies -->
         <dependency>
             <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-test</artifactId>
+            <artifactId>powsybl-iidm-xml-converter</artifactId>
             <version>${powsybl-core.version}</version>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
+
+        <!-- test dependencies -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

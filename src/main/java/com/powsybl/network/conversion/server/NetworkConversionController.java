@@ -6,14 +6,18 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.powsybl.network.conversion.server.dto.NetworkIds;
+import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -21,7 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(value = "/" + NetworkConversionConstants.API_VERSION + "/")
-@Api(tags = "iidm-converter-server")
+@Api(tags = "network-converter-server")
+@ComponentScan(basePackageClasses = NetworkConversionService.class)
 public class NetworkConversionController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionController.class);
@@ -31,9 +36,9 @@ public class NetworkConversionController {
 
     @PostMapping(value = "/cases/{caseName}/to-network")
     @ApiOperation(value = "Get a case file and stores it in DB")
-    public ResponseEntity<NetworkIds> persistantStore(@PathVariable("caseName") String caseName) {
-        LOGGER.debug("persistentStore request received with parameter caseName = {}", caseName);
-        NetworkIds networkIds = networkConversionService.persistentStore(caseName);
-        return ResponseEntity.ok().body(networkIds);
+    public ResponseEntity<NetworkInfos> storeCase(@PathVariable("caseName") String caseName) {
+        LOGGER.debug("Storing case {}...", caseName);
+        NetworkInfos networkInfos = networkConversionService.storeCase(caseName);
+        return ResponseEntity.ok().body(networkInfos);
     }
 }

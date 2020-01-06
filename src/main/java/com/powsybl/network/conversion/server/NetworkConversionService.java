@@ -6,25 +6,26 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.google.common.collect.ImmutableMap;
 import com.powsybl.commons.datasource.ReadOnlyMemDataSource;
-import com.powsybl.network.conversion.server.dto.NetworkIds;
 import com.powsybl.iidm.network.Network;
-import com.powsybl.network.store.client.NetworkStoreClient;
+import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
-import org.apache.commons.lang3.Validate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -32,7 +33,7 @@ import java.util.UUID;
  */
 
 @Service
-@ComponentScan(basePackageClasses = {NetworkStoreClient.class})
+@ComponentScan(basePackageClasses = {NetworkStoreService.class})
 public class NetworkConversionService {
 
     private String caseServerBaseUri;
@@ -45,58 +46,47 @@ public class NetworkConversionService {
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri) {
-        RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
-        caseServerRest = restTemplateBuilder.build();
+        caseServerRest = new RestTemplateBuilder().build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
         this.caseServerBaseUri = caseServerBaseUri;
 
-        restTemplateBuilder = new RestTemplateBuilder();
-        geoDataServerRest = restTemplateBuilder.build();
+        geoDataServerRest = new RestTemplateBuilder().build();
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
     }
 
-    NetworkIds persistentStore(String caseName) {
+    NetworkInfos storeCase(String caseName) {
         byte[] networkByte = getCaseAsByte(caseName);
         String[] baseName = caseName.split("\\.");
         ReadOnlyMemDataSource readOnlyMemDataSource = new ReadOnlyMemDataSource(baseName[0]);
         readOnlyMemDataSource.putData(caseName, networkByte);
         Network network = networkStoreService.importNetwork(readOnlyMemDataSource);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        return new NetworkIds(networkUuid, network.getId());
+        return new NetworkInfos(networkUuid, network.getId());
     }
 
     byte[] getCaseAsByte(String caseName) {
         HttpHeaders requestHeaders = new HttpHeaders();
-        HttpEntity requestEntity = new HttpEntity(requestHeaders);
-
-        Map<String, Object> urlParams = new HashMap<>();
-        urlParams.put("caseName", caseName);
+        HttpEntity<byte[]> requestEntity = new HttpEntity<>(requestHeaders);
 
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(caseServerBaseUri + "/" + NetworkConversionConstants.CASE_API_VERSION + "/cases/{caseName}")
-                .uriVariables(urlParams);
+                .uriVariables(ImmutableMap.of("caseName", caseName));
 
         try {
             ResponseEntity<byte[]> responseEntity = caseServerRest.exchange(uriBuilder.toUriString(),
-                    HttpMethod.GET,
-                    requestEntity,
-                    byte[].class);
+                                                                            HttpMethod.GET,
+                                                                            requestEntity,
+                                                                            byte[].class);
             return responseEntity.getBody();
         } catch (HttpStatusCodeException e) {
             throw new NetworkConversionException("getCaseAsByte HttpStatusCodeException", e);
         }
     }
 
-    Network getNetwork(UUID networdUuid) {
-        return networkStoreService.getNetwork(networdUuid);
-    }
-
     void setCaseServerRest(RestTemplate caseServerRest) {
-        Validate.notNull(caseServerRest, "caseServerRest can't be null");
-        this.caseServerRest = caseServerRest;
+        this.caseServerRest = Objects.requireNonNull(caseServerRest, "caseServerRest can't be null");
     }
 
     void setGeoDataServerRest(RestTemplate geoDataServerRest) {
-        Validate.notNull(geoDataServerRest, "geoDataServerRest can't be null");
-        this.geoDataServerRest = geoDataServerRest;
+        this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 }

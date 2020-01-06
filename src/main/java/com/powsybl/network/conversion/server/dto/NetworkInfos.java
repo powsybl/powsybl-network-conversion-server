@@ -6,24 +6,19 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
-import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
 
-public class NetworkIds implements Serializable {
+public class NetworkInfos {
 
     private UUID networkUuid;
+
     private String networkId;
 
-    //needed for jackson deserialization
-    public NetworkIds() {
-        super();
-    }
-
-    public NetworkIds(UUID networkUuid, String networkId) {
+    public NetworkInfos(UUID networkUuid, String networkId) {
         this.networkUuid = networkUuid;
         this.networkId = networkId;
     }
@@ -32,15 +27,7 @@ public class NetworkIds implements Serializable {
         return networkUuid;
     }
 
-    public void setNetworkUuid(UUID networkUuid) {
-        this.networkUuid = networkUuid;
-    }
-
     public String getNetworkId() {
         return networkId;
-    }
-
-    public void setNetworkId(String networkId) {
-        this.networkId = networkId;
     }
 }
