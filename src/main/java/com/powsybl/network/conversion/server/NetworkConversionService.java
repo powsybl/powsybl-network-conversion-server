@@ -7,7 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.google.common.collect.ImmutableMap;
-import com.powsybl.commons.datasource.ReadOnlyMemDataSource;
+import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
@@ -55,11 +55,8 @@ public class NetworkConversionService {
     }
 
     NetworkInfos importCase(String caseName) {
-        byte[] networkByte = getCaseAsByte(caseName);
-        String[] baseName = caseName.split("\\.");
-        ReadOnlyMemDataSource readOnlyMemDataSource = new ReadOnlyMemDataSource(baseName[0]);
-        readOnlyMemDataSource.putData(caseName, networkByte);
-        Network network = networkStoreService.importNetwork(readOnlyMemDataSource);
+        CaseDataSourceClient caseDataSourceClient = new CaseDataSourceClient(caseServerBaseUri, caseName);
+        Network network = networkStoreService.importNetwork(caseDataSourceClient);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         return new NetworkInfos(networkUuid, network.getId());
     }
