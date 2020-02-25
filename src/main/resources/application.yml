@@ -20,4 +20,10 @@ backing-services:
     geo-data-server:
       base-uri: http://localhost:8087
 
+management:
+  health:
+    solr:
+      enabled: false
+
+
 
