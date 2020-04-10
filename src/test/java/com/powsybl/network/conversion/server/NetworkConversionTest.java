@@ -86,7 +86,7 @@ public class NetworkConversionTest {
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
-            MvcResult mvcResult = mvc.perform(post("/v1/networks").param("caseName", "testCase.xiidm"))
+            MvcResult mvcResult = mvc.perform(post("/v1/networks").param("caseUuid", UUID.randomUUID().toString()))
                     .andExpect(status().isOk())
                     .andReturn();
 
