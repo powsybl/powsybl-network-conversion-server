@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
@@ -36,9 +38,9 @@ public class NetworkConversionController {
 
     @PostMapping(value = "/networks")
     @ApiOperation(value = "Get a case file from its name and import it into the store")
-    public ResponseEntity<NetworkInfos> importCase(@RequestParam("caseName") String caseName) {
-        LOGGER.debug("Importing case {}...", caseName);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseName);
+    public ResponseEntity<NetworkInfos> importCase(@RequestParam("caseUuid") UUID caseUuid) {
+        LOGGER.debug("Importing case {}...", caseUuid);
+        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid);
         return ResponseEntity.ok().body(networkInfos);
     }
 }

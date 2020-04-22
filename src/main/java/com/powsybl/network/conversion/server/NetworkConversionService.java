@@ -47,8 +47,8 @@ public class NetworkConversionService {
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
     }
 
-    NetworkInfos importCase(String caseName) {
-        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseName);
+    NetworkInfos importCase(UUID caseUuid) {
+        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         Network network = networkStoreService.importNetwork(dataSource);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         return new NetworkInfos(networkUuid, network.getId());
