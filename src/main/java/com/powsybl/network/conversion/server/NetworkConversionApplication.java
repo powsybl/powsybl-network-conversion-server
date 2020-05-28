@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  */
-
+@SuppressWarnings("checkstyle:HideUtilityClassConstructor")
 @SpringBootApplication
 public class NetworkConversionApplication {
 
