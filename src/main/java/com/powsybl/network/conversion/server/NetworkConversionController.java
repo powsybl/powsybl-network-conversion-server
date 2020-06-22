@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -13,12 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Collection;
 import java.util.UUID;
 
 /**
@@ -42,5 +42,22 @@ public class NetworkConversionController {
         LOGGER.debug("Importing case {}...", caseUuid);
         NetworkInfos networkInfos = networkConversionService.importCase(caseUuid);
         return ResponseEntity.ok().body(networkInfos);
+    }
+
+    @GetMapping(value = "/networks/{networkUuid}/{format}")
+    @ApiOperation(value = "Export a network from the network-store")
+    public ResponseEntity<ExportNetworkInfos> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) {
+        LOGGER.debug("Exporting network {}...", networkUuid);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCase(networkUuid, format);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(exportNetworkInfos);
+    }
+
+    @GetMapping(value = "/export/formats")
+    @ApiOperation(value = "Get a list of the available format")
+    public ResponseEntity<Collection<String>> getAvailableFormat() {
+        LOGGER.debug("GetAvailableFormat ...");
+        Collection<String> formats = networkConversionService.getAvailableFormat();
+        return ResponseEntity.ok().body(formats);
+
     }
 }
