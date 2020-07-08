@@ -13,8 +13,6 @@ import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -44,8 +42,6 @@ public class NetworkConversionService {
     @Autowired
     private NetworkStoreService networkStoreService;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
-
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri) {
@@ -64,7 +60,7 @@ public class NetworkConversionService {
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    public ExportNetworkInfos exportCase(UUID networkUuid, String format) throws IOException {
+    ExportNetworkInfos exportCase(UUID networkUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
