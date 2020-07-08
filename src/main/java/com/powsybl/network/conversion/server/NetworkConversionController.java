@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
@@ -18,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -46,10 +48,11 @@ public class NetworkConversionController {
 
     @GetMapping(value = "/networks/{networkUuid}/{format}")
     @ApiOperation(value = "Export a network from the network-store")
-    public ResponseEntity<ExportNetworkInfos> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) {
+    public ResponseEntity<byte[]> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
         ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCase(networkUuid, format);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(exportNetworkInfos);
+        byte[] networkData = new ObjectMapper().writeValueAsBytes(exportNetworkInfos);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(networkData);
     }
 
     @GetMapping(value = "/export/formats")

@@ -23,7 +23,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -60,27 +64,38 @@ public class NetworkConversionService {
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    public ExportNetworkInfos exportCase(UUID networkUuid, String format) {
+    public ExportNetworkInfos exportCase(UUID networkUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
         Network network = networkStoreService.getNetwork(networkUuid);
         Exporters.export(format, network, null, memDataSource);
-        String extension = getFormatExtension(format);
-        byte[] networkData = memDataSource.getData(extension);
-        String networkName = network.getNameOrId() + extension;
+
+        Set<String> listNames = memDataSource.listNames(".*");
+        String networkName;
+        byte[] networkData;
+        if (listNames.size() == 1) {
+            networkName = network.getNameOrId() + listNames.toArray()[0];
+            networkData = memDataSource.getData(listNames.toArray()[0].toString());
+        } else {
+            networkName = network.getNameOrId() + ".zip";
+            networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
+        }
         return new ExportNetworkInfos(networkName, networkData);
     }
 
-    String getFormatExtension(String format) {
-        if (format.equals("XIIDM")) {
-            return ".xiidm";
-        } else if (format.equals("UCTE")) {
-            return ".uct";
-        } else {
-            throw NetworkConversionException.createFormatUnsupported(format);
+    ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            for (String listName : listNames) {
+                ZipEntry entry = new ZipEntry(listName);
+                zos.putNextEntry(entry);
+                zos.write(dataSource.getData(listName));
+                zos.closeEntry();
+            }
         }
+        return baos;
     }
 
     Collection<String> getAvailableFormat() {
