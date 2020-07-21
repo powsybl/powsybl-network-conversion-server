@@ -46,7 +46,7 @@ public class NetworkConversionController {
         return ResponseEntity.ok().body(networkInfos);
     }
 
-    @GetMapping(value = "/networks/{networkUuid}/{format}")
+    @GetMapping(value = "/networks/{networkUuid}/export/{format}")
     @ApiOperation(value = "Export a network from the network-store")
     public ResponseEntity<byte[]> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);

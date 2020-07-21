@@ -100,7 +100,7 @@ public class NetworkConversionTest {
                     .andReturn();
 
             given(networkStoreClient.getNetwork(any(UUID.class))).willReturn(network);
-            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/{format}", UUID.randomUUID().toString(), "XIIDM"))
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
