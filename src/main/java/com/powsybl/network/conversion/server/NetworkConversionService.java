@@ -7,7 +7,10 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.cases.datasource.CaseDataSourceClient;
+import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
-import java.util.Objects;
-import java.util.UUID;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -52,6 +58,44 @@ public class NetworkConversionService {
         Network network = networkStoreService.importNetwork(dataSource);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         return new NetworkInfos(networkUuid, network.getId());
+    }
+
+    ExportNetworkInfos exportCase(UUID networkUuid, String format) throws IOException {
+        if (!Exporters.getFormats().contains(format)) {
+            throw NetworkConversionException.createFormatUnsupported(format);
+        }
+        MemDataSource memDataSource = new MemDataSource();
+        Network network = networkStoreService.getNetwork(networkUuid);
+        Exporters.export(format, network, null, memDataSource);
+
+        Set<String> listNames = memDataSource.listNames(".*");
+        String networkName;
+        byte[] networkData;
+        if (listNames.size() == 1) {
+            networkName = network.getNameOrId() + listNames.toArray()[0];
+            networkData = memDataSource.getData(listNames.toArray()[0].toString());
+        } else {
+            networkName = network.getNameOrId() + ".zip";
+            networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
+        }
+        return new ExportNetworkInfos(networkName, networkData);
+    }
+
+    ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            for (String listName : listNames) {
+                ZipEntry entry = new ZipEntry(listName);
+                zos.putNextEntry(entry);
+                zos.write(dataSource.getData(listName));
+                zos.closeEntry();
+            }
+        }
+        return baos;
+    }
+
+    Collection<String> getAvailableFormat() {
+        return Exporters.getFormats();
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {
