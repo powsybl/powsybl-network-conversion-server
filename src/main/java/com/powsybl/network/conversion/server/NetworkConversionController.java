@@ -6,7 +6,6 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
@@ -50,9 +49,8 @@ public class NetworkConversionController {
     @ApiOperation(value = "Export a network from the network-store")
     public ResponseEntity<byte[]> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCase(networkUuid, format);
-        byte[] networkData = new ObjectMapper().writeValueAsBytes(exportNetworkInfos);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(networkData);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, format);
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=" + exportNetworkInfos.getNetworkName()).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
     }
 
     @GetMapping(value = "/export/formats")
