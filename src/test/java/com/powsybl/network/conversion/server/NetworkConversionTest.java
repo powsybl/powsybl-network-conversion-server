@@ -6,13 +6,11 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.Network;
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Before;
@@ -34,6 +32,7 @@ import java.io.InputStream;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -105,9 +104,8 @@ public class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
 
-            ExportNetworkInfos exportNetworkInfos = new ObjectMapper().readValue(mvcResult.getResponse().getContentAsByteArray(), ExportNetworkInfos.class);
-
-            assertEquals("20140116_0830_2D4_UX1_pst.xiidm", exportNetworkInfos.getNetworkName());
+            assertEquals("attachment; filename=20140116_0830_2D4_UX1_pst.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
         }
     }
 }

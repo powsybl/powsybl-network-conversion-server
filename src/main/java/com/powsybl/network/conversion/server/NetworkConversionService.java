@@ -60,7 +60,7 @@ public class NetworkConversionService {
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    ExportNetworkInfos exportCase(UUID networkUuid, String format) throws IOException {
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
