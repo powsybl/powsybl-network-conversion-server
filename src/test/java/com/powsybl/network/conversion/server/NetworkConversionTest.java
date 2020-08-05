@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -104,6 +105,7 @@ public class NetworkConversionTest {
                     .andReturn();
 
             assertEquals("attachment; filename=20140116_0830_2D4_UX1_pst.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
         }
     }
 }
