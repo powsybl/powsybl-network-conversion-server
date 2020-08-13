@@ -14,11 +14,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -50,7 +53,9 @@ public class NetworkConversionController {
     public ResponseEntity<byte[]> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
         ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, format);
-        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=" + exportNetworkInfos.getNetworkName()).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
+        HttpHeaders header = new HttpHeaders();
+        header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
+        return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
     }
 
     @GetMapping(value = "/export/formats")
