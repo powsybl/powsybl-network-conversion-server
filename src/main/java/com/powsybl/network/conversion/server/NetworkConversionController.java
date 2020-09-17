@@ -10,6 +10,7 @@ import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,10 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -50,9 +54,14 @@ public class NetworkConversionController {
 
     @GetMapping(value = "/networks/{networkUuid}/export/{format}")
     @ApiOperation(value = "Export a network from the network-store")
-    public ResponseEntity<byte[]> exportNetwork(@PathVariable("networkUuid") UUID networkUuid, @PathVariable("format") String format) throws IOException {
+    public ResponseEntity<byte[]> exportNetwork(@ApiParam(value = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
+                                                @ApiParam(value = "Export format")@PathVariable("format") String format,
+                                                @ApiParam(value = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, format);
+
+        List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
+
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, otherNetworksUuid, format);
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());

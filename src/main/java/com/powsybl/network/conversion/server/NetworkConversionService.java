@@ -7,18 +7,23 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.cases.datasource.CaseDataSourceClient;
+import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.iidm.export.Exporters;
+import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
+import com.powsybl.network.store.client.PreloadingStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
 import java.io.ByteArrayOutputStream;
@@ -60,12 +65,35 @@ public class NetworkConversionService {
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String format) throws IOException {
+    private Network getNetwork(UUID networkUuid) {
+        try {
+            return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.COLLECTION);
+        } catch (PowsyblException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Network '" + networkUuid + "' not found");
+        }
+    }
+
+    ExportNetworkInfos exportNetwork(UUID networkUuid, List<UUID> otherNetworksUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
-        Network network = networkStoreService.getNetwork(networkUuid);
+
+        Network network;
+        if (otherNetworksUuid.isEmpty()) {
+            network = getNetwork(networkUuid);
+        } else {
+            // creation of the merging view and merging the networks
+            MergingView merginvView = MergingView.create("merged_network", "iidm");
+
+            List<Network> networks = new ArrayList<>();
+            networks.add(getNetwork(networkUuid));
+            otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
+            merginvView.merge(networks.toArray(new Network[networks.size()]));
+
+            network = merginvView;
+        }
+
         Exporters.export(format, network, null, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
