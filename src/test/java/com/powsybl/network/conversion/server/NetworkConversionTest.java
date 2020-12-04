@@ -6,13 +6,18 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
+import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.*;
+import com.powsybl.iidm.xml.XMLExporter;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
+import com.powsybl.ucte.converter.UcteImporter;
 import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,6 +35,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -112,6 +118,26 @@ public class NetworkConversionTest {
     }
 
     @Test
+    public void testImportUcte() throws Exception {
+        String baseName = "uctNetwork";
+        ReadOnlyDataSource dataSource = new ResourceDataSource(baseName, new ResourceSet("", baseName + ".uct"));
+        Properties properties = new Properties();
+        properties.put(XMLExporter.SORTED, true);
+        properties.put(XMLExporter.WITH_BRANCH_STATE_VARIABLES, true);
+        Network networkCoreImpl = new UcteImporter().importData(dataSource, new com.powsybl.iidm.network.impl.NetworkFactoryImpl(), properties);
+        Network networkStoreImpl = new UcteImporter().importData(dataSource, new NetworkFactoryImpl(), properties);
+
+        MemDataSource memCoreDataSource = new MemDataSource();
+        Exporters.export("XIIDM", networkCoreImpl, properties, memCoreDataSource);
+        String resultCore = new String(memCoreDataSource.getData("", "xiidm"), "UTF-8").replaceAll("caseDate=\".*\"", "");
+        MemDataSource memStoreDataSource = new MemDataSource();
+        Exporters.export("XIIDM", networkStoreImpl, properties, memStoreDataSource);
+        String resultStore = new String(memStoreDataSource.getData("", "xiidm"), "UTF-8").replaceAll("caseDate=\".*\"", "");
+
+        assertEquals(resultCore, resultStore);
+    }
+
+    @Test
     public void testWithMergingView() throws Exception {
         UUID testNetworkId1 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e4");
         UUID testNetworkId2 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e5");
@@ -122,8 +148,8 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetwork(testNetworkId3, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("3_"));
 
         MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", testNetworkId1.toString(), "XIIDM")
-                                          .param("networkUuid", testNetworkId2.toString())
-                                          .param("networkUuid", testNetworkId3.toString()))
+                .param("networkUuid", testNetworkId2.toString())
+                .param("networkUuid", testNetworkId3.toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
@@ -132,7 +158,7 @@ public class NetworkConversionTest {
         assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     }
 
-    public Network createNetwork(String prefix) {
+    private Network createNetwork(String prefix) {
         Network network = NetworkFactory.findDefault().createNetwork(prefix + "network", "test");
         Substation p1 = network.newSubstation()
                 .setId(prefix + "P1")
