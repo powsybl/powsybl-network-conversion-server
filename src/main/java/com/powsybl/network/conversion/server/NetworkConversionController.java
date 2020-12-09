@@ -81,8 +81,7 @@ public class NetworkConversionController {
     @ApiOperation(value = "Export a merged cgmes network from the network-store")
     public ResponseEntity<byte[]> exportCgmesSv(@ApiParam(value = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws IOException, XMLStreamException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSvNetwork(networkUuid);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSv(networkUuid);
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
