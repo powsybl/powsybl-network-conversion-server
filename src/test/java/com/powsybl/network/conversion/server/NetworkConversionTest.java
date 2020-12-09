@@ -146,11 +146,15 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
-        System.out.println("============================");
-        System.out.println(mvcResult.getResponse().getContentAsString());
-        System.out.println("============================");
+
         assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3A96adadbe-902b-4cd6-9fc8-01a56ecbee79", mvcResult.getResponse().getHeader("content-disposition"));
-        assertEquals("15665", mvcResult.getResponse().getHeader("content-length"));
+        assertTrue(mvcResult.getResponse().getContentAsString().contains("        <md:Model.version>7</md:Model.version>\n" +
+                "        <md:Model.DependentOn rdf:resource=\"urn:uuid:2399cbd1-9a39-11e0-aa80-0800200c9a66\"/>\n" +
+                "        <md:Model.DependentOn rdf:resource=\"urn:uuid:75271ec4-af11-4a87-8137-d6d2b43b594d\"/>\n" +
+                "        <md:Model.DependentOn rdf:resource=\"urn:uuid:806f9f1b-ff69-4fb5-80f9-a8f393d31ebb\"/>\n" +
+                "        <md:Model.DependentOn rdf:resource=\"urn:uuid:96adadbe-902b-4cd6-9fc8-01a56ecbee79\"/>\n" +
+                "        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>\n" +
+                "        <md:Model.modelingAuthoritySet>http://elia.be/CAS2.0/MicroGridTestConfiguration</md:Model.modelingAuthoritySet>"));
     }
 
     public Network createNetwork(String prefix) {
