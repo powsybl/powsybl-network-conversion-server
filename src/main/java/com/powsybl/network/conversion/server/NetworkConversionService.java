@@ -7,8 +7,11 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.cases.datasource.CaseDataSourceClient;
+import com.powsybl.cgmes.conversion.update.CgmesExportContext;
+import com.powsybl.cgmes.conversion.update.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Network;
@@ -26,6 +29,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
@@ -132,5 +137,19 @@ public class NetworkConversionService {
 
     void setGeoDataServerRest(RestTemplate geoDataServerRest) {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
+    }
+
+    public ExportNetworkInfos exportCgmesSvNetwork(UUID networkUuid) throws IOException, XMLStreamException {
+        Network network = getNetwork(networkUuid);
+
+        Properties properties = new Properties();
+        properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
+
+        // Export SV
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        XMLStreamWriter writer = XmlUtil.initializeWriter(true, "    ", baos);
+        StateVariablesExport.write(network, writer, new CgmesExportContext(network));
+
+        return new ExportNetworkInfos(network.getNameOrId(), baos.toByteArray());
     }
 }

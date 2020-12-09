@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -75,4 +76,16 @@ public class NetworkConversionController {
         return ResponseEntity.ok().body(formats);
 
     }
+
+    @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
+    @ApiOperation(value = "Export a merged cgmes network from the network-store")
+    public ResponseEntity<byte[]> exportCgmesSv(@ApiParam(value = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws IOException, XMLStreamException {
+        LOGGER.debug("Exporting network {}...", networkUuid);
+
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSvNetwork(networkUuid);
+        HttpHeaders header = new HttpHeaders();
+        header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
+        return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
+    }
+
 }

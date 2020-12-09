@@ -30,6 +30,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -50,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(NetworkConversionController.class)
 @ContextConfiguration(classes = {NetworkConversionApplication.class, NetworkConversionService.class})
 public class NetworkConversionTest {
+    private static final String MICRO_GRID_BE_ZIP = "MicroGridBE.zip";
 
     @Autowired
     private MockMvc mvc;
@@ -130,6 +133,22 @@ public class NetworkConversionTest {
 
         assertEquals("attachment; filename*=UTF-8''merged_network.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
         assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+    }
+
+    @Test
+    public void testExportSv() throws Exception {
+        Path path = Paths.get(getClass().getClassLoader().getResource(MICRO_GRID_BE_ZIP).toURI());
+        Network network = Importers.loadNetwork(path);
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.COLLECTION)).willReturn(network);
+
+        MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export-sv-cgmes", networkUuid))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
+                .andReturn();
+
+        assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3A96adadbe-902b-4cd6-9fc8-01a56ecbee79", mvcResult.getResponse().getHeader("content-disposition"));
+        assertEquals("15665", mvcResult.getResponse().getHeader("content-length"));
     }
 
     public Network createNetwork(String prefix) {
