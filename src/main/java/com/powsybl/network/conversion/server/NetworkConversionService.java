@@ -139,7 +139,7 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws IOException, XMLStreamException {
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
         Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
