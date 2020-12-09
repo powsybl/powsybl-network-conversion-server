@@ -146,7 +146,7 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
-
+        System.out.println(mvcResult.getResponse().getContentAsString());
         assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3A96adadbe-902b-4cd6-9fc8-01a56ecbee79", mvcResult.getResponse().getHeader("content-disposition"));
         assertEquals("15665", mvcResult.getResponse().getHeader("content-length"));
     }
