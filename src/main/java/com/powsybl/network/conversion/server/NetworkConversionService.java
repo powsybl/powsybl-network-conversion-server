@@ -145,11 +145,16 @@ public class NetworkConversionService {
         Properties properties = new Properties();
         properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
 
-        // Export SV
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        XMLStreamWriter writer = XmlUtil.initializeWriter(true, "    ", baos);
-        StateVariablesExport.write(network, writer, new CgmesExportContext(network));
-
-        return new ExportNetworkInfos(network.getNameOrId(), baos.toByteArray());
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLStreamWriter writer = null;
+        try {
+            writer = XmlUtil.initializeWriter(true, "    ", outputStream);
+            StateVariablesExport.write(network, writer, new CgmesExportContext(network));
+        } finally {
+            if (writer != null) {
+                writer.close();
+            }
+        }
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
     }
 }
