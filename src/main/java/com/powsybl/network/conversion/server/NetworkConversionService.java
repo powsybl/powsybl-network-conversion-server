@@ -7,8 +7,11 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.cases.datasource.CaseDataSourceClient;
+import com.powsybl.cgmes.conversion.update.CgmesExportContext;
+import com.powsybl.cgmes.conversion.update.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Network;
@@ -16,6 +19,8 @@ import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -26,6 +31,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
@@ -39,6 +46,8 @@ import java.util.zip.ZipOutputStream;
 @Service
 @ComponentScan(basePackageClasses = {NetworkStoreService.class})
 public class NetworkConversionService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
     private RestTemplate caseServerRest;
 
@@ -73,15 +82,9 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, List<UUID> otherNetworksUuid, String format) throws IOException {
-        if (!Exporters.getFormats().contains(format)) {
-            throw NetworkConversionException.createFormatUnsupported(format);
-        }
-        MemDataSource memDataSource = new MemDataSource();
-
-        Network network;
+    private Network networksListToMergedNetwork(UUID networkUuid, List<UUID> otherNetworksUuid) {
         if (otherNetworksUuid.isEmpty()) {
-            network = getNetwork(networkUuid);
+            return getNetwork(networkUuid);
         } else {
             // creation of the merging view and merging the networks
             MergingView merginvView = MergingView.create("merged_network", "iidm");
@@ -91,8 +94,17 @@ public class NetworkConversionService {
             otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
             merginvView.merge(networks.toArray(new Network[networks.size()]));
 
-            network = merginvView;
+            return merginvView;
         }
+    }
+
+    ExportNetworkInfos exportNetwork(UUID networkUuid, List<UUID> otherNetworksUuid, String format) throws IOException {
+        if (!Exporters.getFormats().contains(format)) {
+            throw NetworkConversionException.createFormatUnsupported(format);
+        }
+        MemDataSource memDataSource = new MemDataSource();
+
+        Network network = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
 
         Exporters.export(format, network, null, memDataSource);
 
@@ -132,5 +144,26 @@ public class NetworkConversionService {
 
     void setGeoDataServerRest(RestTemplate geoDataServerRest) {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
+    }
+
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid, List<UUID> otherNetworksUuid) throws XMLStreamException {
+        Network network = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
+
+        Properties properties = new Properties();
+        properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLStreamWriter writer = null;
+        try {
+            writer = XmlUtil.initializeWriter(true, "    ", outputStream);
+            StateVariablesExport.write(network, writer, new CgmesExportContext(network));
+        } catch (Exception e) {
+            LOGGER.error("Error : {}", e.getMessage());
+        } finally {
+            if (writer != null) {
+                writer.close();
+            }
+        }
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
     }
 }
