@@ -70,7 +70,7 @@ public class NetworkConversionTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
@@ -137,7 +137,7 @@ public class NetworkConversionTest {
     @Test
     public void testExportSv() throws Exception {
         Network network = new CgmesImport()
-                .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), null);
+                .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.COLLECTION)).willReturn(network);
 
