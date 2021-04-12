@@ -7,8 +7,8 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.cases.datasource.CaseDataSourceClient;
-import com.powsybl.cgmes.conversion.update.CgmesExportContext;
-import com.powsybl.cgmes.conversion.update.StateVariablesExport;
+import com.powsybl.cgmes.conversion.export.CgmesExportContext;
+import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.xml.XmlUtil;
