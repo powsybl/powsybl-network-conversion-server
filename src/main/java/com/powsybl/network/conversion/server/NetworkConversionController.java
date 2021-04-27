@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.annotations.Api;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
+ * @author Franck Lecuyer <franck.lecuyer at rte-france.com>
  */
 
 @RestController
@@ -89,4 +91,12 @@ public class NetworkConversionController {
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
     }
 
+    @PostMapping(value = "/networks/cgmes")
+    @ApiOperation(value = "Import a cgmes case into the store, using provided boundaries")
+    public ResponseEntity<NetworkInfos> importCgmesCase(@RequestParam("caseUuid") UUID caseUuid,
+                                                        @RequestBody(required = false) List<BoundaryInfos> boundaries) {
+        LOGGER.debug("Importing cgmes case {}...", caseUuid);
+        NetworkInfos networkInfos = networkConversionService.importCgmesCase(caseUuid, boundaries);
+        return ResponseEntity.ok().body(networkInfos);
+    }
 }

@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.test.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
@@ -13,6 +14,7 @@ import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.*;
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.compress.utils.IOUtils;
@@ -31,9 +33,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +57,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
+ * @author Franck Lecuyer <franck.lecuyer at rte-france.com>
  */
 
 @RunWith(SpringRunner.class)
@@ -94,7 +106,7 @@ public class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            assertEquals("{\"networkUuid\":\"78e13f90-f351-4c2e-a383-2ad08dd5f8fb\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
+            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
                     mvcResult.getResponse().getContentAsString());
 
             mvc.perform(get("/v1/export/formats"))
@@ -137,7 +149,7 @@ public class NetworkConversionTest {
     @Test
     public void testExportSv() throws Exception {
         Network network = new CgmesImport()
-                .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), null);
+                .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.COLLECTION)).willReturn(network);
 
@@ -154,6 +166,72 @@ public class NetworkConversionTest {
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:f2f43818-09c8-4252-9611-7af80c398d20\"/>\n" +
                 "        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>\n" +
                 "        <md:Model.modelingAuthoritySet>http://elia.be/CGMES/2.4.15</md:Model.modelingAuthoritySet>"));
+    }
+
+    @Test
+    public void testCgmesCaseDataSource() throws IOException, URISyntaxException {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        List<BoundaryInfos> boundaries = new ArrayList<>();
+        String eqbdContent = "fake content of eqbd boundary";
+        String tpbdContent = "fake content of tpbd boundary";
+
+        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
+        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
+
+        byte[] sshContent = Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("20210326T0930Z_1D_BE_SSH_6.xml").toURI()));
+
+        CgmesCaseDataSourceClient client = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
+
+        given(caseServerRest.exchange(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(byte[].class)))
+            .willReturn(ResponseEntity.ok(sshContent));
+
+        InputStream input = client.newInputStream("20210326T0930Z_1D_BE_SSH_6.xml");
+        assertArrayEquals(sshContent, org.apache.commons.io.IOUtils.toByteArray(input));
+
+        input = client.newInputStream("20210326T0000Z__ENTSOE_EQBD_101.xml");
+        assertArrayEquals(eqbdContent.getBytes(StandardCharsets.UTF_8), org.apache.commons.io.IOUtils.toByteArray(input));
+
+        input = client.newInputStream("20210326T0000Z__ENTSOE_TPBD_6.xml");
+        assertArrayEquals(tpbdContent.getBytes(StandardCharsets.UTF_8), org.apache.commons.io.IOUtils.toByteArray(input));
+    }
+
+    @Test
+    public void testImportCgmesCase() throws Exception {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+
+        List<BoundaryInfos> boundaries = new ArrayList<>();
+        String eqbdContent = "fake content of eqbd boundary";
+        String tpbdContent = "fake content of tpbd boundary";
+        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
+        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
+
+        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+
+        MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
+            .param("caseUuid", caseUuid.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(new ObjectMapper().writeValueAsString(boundaries)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
+            mvcResult.getResponse().getContentAsString());
+
+        mvcResult = mvc.perform(post("/v1/networks/cgmes")
+            .param("caseUuid", caseUuid.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(new ObjectMapper().writeValueAsString(Collections.emptyList())))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
+            mvcResult.getResponse().getContentAsString());
     }
 
     public Network createNetwork(String prefix) {
