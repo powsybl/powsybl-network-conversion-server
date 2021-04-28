@@ -156,14 +156,21 @@ public class NetworkConversionService {
         XMLStreamWriter writer = null;
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
-            StateVariablesExport.write(network, writer, new CgmesExportContext(network));
+            StateVariablesExport.write(network, writer, createContext(network));
         } catch (Exception e) {
-            LOGGER.error("Error : {}", e.getMessage());
+            LOGGER.error("Error : {}", e);
+            throw new PowsyblException(e);
         } finally {
             if (writer != null) {
                 writer.close();
             }
         }
         return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
+    }
+
+    private static CgmesExportContext createContext(Network network) {
+        CgmesExportContext context = new CgmesExportContext();
+        context.addTopologicalNodeMappings(network);
+        return context;
     }
 }
