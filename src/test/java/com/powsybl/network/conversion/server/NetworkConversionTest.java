@@ -9,6 +9,7 @@ package com.powsybl.network.conversion.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.test.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
+import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -46,6 +47,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -196,6 +198,9 @@ public class NetworkConversionTest {
 
         input = client.newInputStream("20210326T0000Z__ENTSOE_TPBD_6.xml");
         assertArrayEquals(tpbdContent.getBytes(StandardCharsets.UTF_8), org.apache.commons.io.IOUtils.toByteArray(input));
+
+        final CgmesCaseDataSourceClient client2 = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, Collections.emptyList());
+        assertThrows(PowsyblException.class, () -> client2.newInputStream("20210326T0000Z__ENTSOE_EQBD_101.xml"));
     }
 
     @Test
