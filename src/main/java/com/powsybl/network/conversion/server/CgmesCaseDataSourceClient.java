@@ -26,8 +26,8 @@ import java.util.UUID;
 public class CgmesCaseDataSourceClient extends CaseDataSourceClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(CgmesCaseDataSourceClient.class);
 
-    public static final String TPBD_FILE_REGEX = "^([^(__)]*?(__ENTSOE_TPBD_).*(\\.xml))$";
-    public static final String EQBD_FILE_REGEX = "^([^(__)]*?(__ENTSOE_EQBD_).*(\\.xml))$";
+    public static final String TPBD_FILE_REGEX = "^(([^_][^_])*?(__ENTSOE_TPBD_).*(\\.xml))$";
+    public static final String EQBD_FILE_REGEX = "^(([^_][^_])*?(__ENTSOE_EQBD_).*(\\.xml))$";
 
     private List<BoundaryInfos> boundaries;
 
