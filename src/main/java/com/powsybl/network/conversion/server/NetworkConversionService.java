@@ -175,8 +175,8 @@ public class NetworkConversionService {
             return importCase(caseUuid);
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            Network network = networkStoreService.importNetwork(dataSource);
-            UUID networkUuid = networkStoreService.getNetworkUuid(network);
+            var network = networkStoreService.importNetwork(dataSource);
+            var networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }
     }

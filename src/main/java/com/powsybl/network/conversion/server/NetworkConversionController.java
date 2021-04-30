@@ -96,7 +96,7 @@ public class NetworkConversionController {
     public ResponseEntity<NetworkInfos> importCgmesCase(@RequestParam("caseUuid") UUID caseUuid,
                                                         @RequestBody(required = false) List<BoundaryInfos> boundaries) {
         LOGGER.debug("Importing cgmes case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCgmesCase(caseUuid, boundaries);
+        var networkInfos = networkConversionService.importCgmesCase(caseUuid, boundaries);
         return ResponseEntity.ok().body(networkInfos);
     }
 }
