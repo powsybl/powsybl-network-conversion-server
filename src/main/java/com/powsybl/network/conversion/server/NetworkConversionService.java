@@ -15,10 +15,12 @@ import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,7 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
+ * @author Franck Lecuyer <franck.lecuyer at rte-france.com>
  */
 
 @Service
@@ -165,5 +168,16 @@ public class NetworkConversionService {
             }
         }
         return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
+    }
+
+    NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
+        if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
+            return importCase(caseUuid);
+        } else {  // import using the given boundaries
+            CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
+            var network = networkStoreService.importNetwork(dataSource);
+            var networkUuid = networkStoreService.getNetworkUuid(network);
+            return new NetworkInfos(networkUuid, network.getId());
+        }
     }
 }
