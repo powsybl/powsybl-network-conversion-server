@@ -48,8 +48,6 @@ import java.util.zip.ZipOutputStream;
 @ComponentScan(basePackageClasses = {NetworkStoreService.class})
 public class NetworkConversionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
-
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
