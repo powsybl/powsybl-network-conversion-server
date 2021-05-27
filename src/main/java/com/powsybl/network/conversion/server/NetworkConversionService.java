@@ -164,7 +164,6 @@ public class NetworkConversionService {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
             StateVariablesExport.write(mergedNetwork, writer, createContext(mergedNetwork, networks));
         } catch (Exception e) {
-            LOGGER.error("Error : {}", e);
             throw new PowsyblException(e);
         } finally {
             if (writer != null) {
