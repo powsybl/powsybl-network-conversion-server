@@ -9,6 +9,7 @@ package com.powsybl.network.conversion.server;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
+import com.powsybl.cgmes.extensions.CgmesSvMetadata;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.xml.XmlUtil;
@@ -147,16 +148,21 @@ public class NetworkConversionService {
     }
 
     public ExportNetworkInfos exportCgmesSv(UUID networkUuid, List<UUID> otherNetworksUuid) throws XMLStreamException {
-        Network network = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
+        Network mergedNetwork = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
 
         Properties properties = new Properties();
         properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         XMLStreamWriter writer = null;
+
+        List<Network> networks = new ArrayList<>();
+        networks.add(getNetwork(networkUuid));
+        otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
+
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
-            StateVariablesExport.write(network, writer, createContext(network));
+            StateVariablesExport.write(mergedNetwork, writer, createContext(mergedNetwork, networks));
         } catch (Exception e) {
             LOGGER.error("Error : {}", e);
             throw new PowsyblException(e);
@@ -165,12 +171,17 @@ public class NetworkConversionService {
                 writer.close();
             }
         }
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
+        return new ExportNetworkInfos(mergedNetwork.getNameOrId(), outputStream.toByteArray());
     }
 
-    private static CgmesExportContext createContext(Network network) {
+    private static CgmesExportContext createContext(Network mergedNetwork, List<Network> networks) {
         CgmesExportContext context = new CgmesExportContext();
-        context.addTopologicalNodeMappings(network);
+        context.setScenarioTime(mergedNetwork.getCaseDate());
+        networks.forEach(network -> {
+            context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
+            context.addTopologicalNodeMappings(network);
+        });
         return context;
     }
+
 }
