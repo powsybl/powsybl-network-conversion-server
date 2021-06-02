@@ -82,16 +82,13 @@ public class NetworkConversionService {
         }
     }
 
-    private Network networksListToMergedNetwork(UUID networkUuid, List<UUID> otherNetworksUuid) {
-        if (otherNetworksUuid.isEmpty()) {
-            return getNetwork(networkUuid);
+    private Network networksListToMergedNetwork(List<Network> networks) {
+        if (networks.size() == 1) {
+            return networks.get(0);
         } else {
             // creation of the merging view and merging the networks
             MergingView merginvView = MergingView.create("merged_network", "iidm");
 
-            List<Network> networks = new ArrayList<>();
-            networks.add(getNetwork(networkUuid));
-            otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
             merginvView.merge(networks.toArray(new Network[networks.size()]));
 
             return merginvView;
@@ -104,7 +101,7 @@ public class NetworkConversionService {
         }
         MemDataSource memDataSource = new MemDataSource();
 
-        Network network = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
+        Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
 
         Exporters.export(format, network, null, memDataSource);
 
@@ -146,18 +143,22 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
+    public List<Network> getNetworkAsList(UUID networkUuid, List<UUID> otherNetworksUuid) {
+        List<Network> networks = new ArrayList<>();
+        networks.add(getNetwork(networkUuid));
+        otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
+        return networks;
+    }
+
     public ExportNetworkInfos exportCgmesSv(UUID networkUuid, List<UUID> otherNetworksUuid) throws XMLStreamException {
-        Network mergedNetwork = networksListToMergedNetwork(networkUuid, otherNetworksUuid);
+        List<Network> networks = getNetworkAsList(networkUuid, otherNetworksUuid);
+        Network mergedNetwork = networksListToMergedNetwork(networks);
 
         Properties properties = new Properties();
         properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         XMLStreamWriter writer = null;
-
-        List<Network> networks = new ArrayList<>();
-        networks.add(getNetwork(networkUuid));
-        otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
 
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
