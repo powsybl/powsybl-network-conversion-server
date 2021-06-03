@@ -100,6 +100,8 @@ public class NetworkConversionTest {
                     new ResourceSet("", "testCase.xiidm"));
             Network network = Importers.importData("XIIDM", dataSource, null);
 
+            given(networkStoreClient.getFormat(any(ReadOnlyDataSource.class))).willReturn("");
+
             given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
@@ -217,6 +219,7 @@ public class NetworkConversionTest {
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(networkStoreClient.getFormat(any(ReadOnlyDataSource.class))).willReturn("");
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
             .param("caseUuid", caseUuid.toString())

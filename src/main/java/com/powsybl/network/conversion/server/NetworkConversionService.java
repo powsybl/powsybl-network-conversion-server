@@ -4,13 +4,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+
 package com.powsybl.network.conversion.server;
 
+import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.reporter.ReporterModel;
+import com.powsybl.commons.reporter.ReporterModelDeserializer;
+import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
@@ -27,11 +33,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -40,6 +52,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
+import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -56,24 +71,43 @@ public class NetworkConversionService {
 
     private RestTemplate geoDataServerRest;
 
+    String reportServerURI;
+
     @Autowired
     private NetworkStoreService networkStoreService;
 
+    private ObjectMapper objectMapper;
+
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
-                                    @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri) {
+                                    @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
+                                    @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI) {
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
 
         geoDataServerRest = restTemplateBuilder.build();
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
+
+        this.reportServerURI = reportServerURI;
+        objectMapper = Jackson2ObjectMapperBuilder.json().build();
+        objectMapper.registerModule(new ReporterModelJsonModule());
+        objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
     NetworkInfos importCase(UUID caseUuid) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        Network network = networkStoreService.importNetwork(dataSource);
-        UUID networkUuid = networkStoreService.getNetworkUuid(network);
+        UUID networkUuid;
+        Network network;
+        if (networkStoreService.getFormat(dataSource).equals("UCTE")) {
+            ReporterModel reporter = new ReporterModel("importNetwork", "import network");
+            network = networkStoreService.importNetwork(dataSource, reporter);
+            networkUuid = networkStoreService.getNetworkUuid(network);
+            sendReport(networkUuid, reporter);
+        } else {
+            network = networkStoreService.importNetwork(dataSource);
+            networkUuid = networkStoreService.getNetworkUuid(network);
+        }
         return new NetworkInfos(networkUuid, network.getId());
     }
 
@@ -178,6 +212,19 @@ public class NetworkConversionService {
             var network = networkStoreService.importNetwork(dataSource);
             var networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
+        }
+    }
+
+    private void sendReport(UUID networkUuid, ReporterModel reporter) {
+        var restTemplate = new RestTemplate();
+        var headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        var resourceUrl = reportServerURI + DELIMITER + REPORT_API_VERSION + DELIMITER + "report" + DELIMITER + networkUuid.toString();
+        var uriBuilder = UriComponentsBuilder.fromHttpUrl(resourceUrl);
+        try {
+            restTemplate.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
+        } catch (Exception error) {
+            LOGGER.error(error.getMessage());
         }
     }
 }
