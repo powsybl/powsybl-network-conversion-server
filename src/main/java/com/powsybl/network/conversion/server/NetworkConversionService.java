@@ -33,11 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -47,6 +43,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
@@ -97,16 +94,11 @@ public class NetworkConversionService {
 
     NetworkInfos importCase(UUID caseUuid) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        UUID networkUuid;
-        Network network;
-        if (networkStoreService.getFormat(dataSource).equals("UCTE")) {
-            ReporterModel reporter = new ReporterModel("importNetwork", "import network");
-            network = networkStoreService.importNetwork(dataSource, reporter);
-            networkUuid = networkStoreService.getNetworkUuid(network);
+        ReporterModel reporter = new ReporterModel("importNetwork", "import network");
+        Network network = networkStoreService.importNetwork(dataSource, reporter);
+        UUID networkUuid = networkStoreService.getNetworkUuid(network);
+        if (!reporter.getReports().isEmpty() || !reporter.getSubReporters().isEmpty()) {
             sendReport(networkUuid, reporter);
-        } else {
-            network = networkStoreService.importNetwork(dataSource);
-            networkUuid = networkStoreService.getNetworkUuid(network);
         }
         return new NetworkInfos(networkUuid, network.getId());
     }
