@@ -13,6 +13,7 @@ import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
+import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
@@ -45,10 +46,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -100,9 +98,7 @@ public class NetworkConversionTest {
                     new ResourceSet("", "testCase.xiidm"));
             Network network = Importers.importData("XIIDM", dataSource, null);
 
-            given(networkStoreClient.getFormat(any(ReadOnlyDataSource.class))).willReturn("");
-
-            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
+            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class))).willReturn(network);
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
@@ -140,8 +136,8 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetwork(testNetworkId3, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("3_"));
 
         MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", testNetworkId1.toString(), "XIIDM")
-                                          .param("networkUuid", testNetworkId2.toString())
-                                          .param("networkUuid", testNetworkId3.toString()))
+                .param("networkUuid", testNetworkId2.toString())
+                .param("networkUuid", testNetworkId3.toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
@@ -187,10 +183,10 @@ public class NetworkConversionTest {
         CgmesCaseDataSourceClient client = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
 
         given(caseServerRest.exchange(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(byte[].class)))
-            .willReturn(ResponseEntity.ok(sshContent));
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(byte[].class)))
+                .willReturn(ResponseEntity.ok(sshContent));
 
         InputStream input = client.newInputStream("20210326T0930Z_1D_BE_SSH_6.xml");
         assertArrayEquals(sshContent, org.apache.commons.io.IOUtils.toByteArray(input));
@@ -218,28 +214,28 @@ public class NetworkConversionTest {
 
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(networkStoreClient.getFormat(any(ReadOnlyDataSource.class))).willReturn("");
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
-            .param("caseUuid", caseUuid.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(new ObjectMapper().writeValueAsString(boundaries)))
-            .andExpect(status().isOk())
-            .andReturn();
+                .param("caseUuid", caseUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(boundaries)))
+                .andExpect(status().isOk())
+                .andReturn();
 
         assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
-            mvcResult.getResponse().getContentAsString());
+                mvcResult.getResponse().getContentAsString());
 
         mvcResult = mvc.perform(post("/v1/networks/cgmes")
-            .param("caseUuid", caseUuid.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(new ObjectMapper().writeValueAsString(Collections.emptyList())))
-            .andExpect(status().isOk())
-            .andReturn();
+                .param("caseUuid", caseUuid.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(Collections.emptyList())))
+                .andExpect(status().isOk())
+                .andReturn();
 
         assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
-            mvcResult.getResponse().getContentAsString());
+                mvcResult.getResponse().getContentAsString());
     }
 
     public Network createNetwork(String prefix) {
