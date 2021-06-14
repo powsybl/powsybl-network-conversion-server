@@ -186,8 +186,6 @@ public class NetworkConversionService {
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
             StateVariablesExport.write(network, writer, new CgmesExportContext(network));
-        } catch (Exception e) {
-            LOGGER.error("Error : {}", e.getMessage());
         } finally {
             if (writer != null) {
                 writer.close();
