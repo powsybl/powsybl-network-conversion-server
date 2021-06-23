@@ -19,12 +19,10 @@ import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.compress.utils.IOUtils;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.*;
@@ -70,10 +68,12 @@ public class NetworkConversionTest {
     @Autowired
     private MockMvc mvc;
 
-    @Mock
+    @MockBean
+    @Qualifier("caseServerRest")
     private RestTemplate caseServerRest;
 
-    @Mock
+    @MockBean
+    @Qualifier("geoDataRest")
     private RestTemplate geoDataRest;
 
     @Autowired
@@ -81,11 +81,6 @@ public class NetworkConversionTest {
 
     @MockBean
     private NetworkStoreService networkStoreClient;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
 
     @Test
     public void test() throws Exception {
