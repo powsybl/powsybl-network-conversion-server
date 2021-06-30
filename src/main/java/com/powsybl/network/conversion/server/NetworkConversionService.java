@@ -7,6 +7,7 @@
 
 package com.powsybl.network.conversion.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
@@ -213,8 +214,8 @@ public class NetworkConversionService {
         var uriBuilder = UriComponentsBuilder.fromHttpUrl(resourceUrl);
         try {
             restTemplate.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
-        } catch (Exception error) {
-            LOGGER.error(error.getMessage());
+        } catch (JsonProcessingException error) {
+            throw new PowsyblException("error creating report", error);
         }
     }
 }
