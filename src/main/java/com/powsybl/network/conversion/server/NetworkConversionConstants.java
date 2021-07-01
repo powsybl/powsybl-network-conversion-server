@@ -17,4 +17,6 @@ final class NetworkConversionConstants {
 
     static final String API_VERSION = "v1";
     static final String CASE_API_VERSION = "v1";
+    static final String REPORT_API_VERSION = "v1";
+    static final String DELIMITER = "/";
 }
