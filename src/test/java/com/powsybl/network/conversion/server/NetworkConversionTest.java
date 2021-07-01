@@ -246,12 +246,6 @@ public class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
-        List<BoundaryInfos> boundaries = new ArrayList<>();
-        String eqbdContent = "fake content of eqbd boundary";
-        String tpbdContent = "fake content of tpbd boundary";
-        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
-        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
-
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class))).willAnswer((Answer<Network>) invocationOnMock -> {
             var reporter = invocationOnMock.getArgument(1, ReporterModel.class);
@@ -263,12 +257,12 @@ public class NetworkConversionTest {
             .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/")
-            .param("caseUuid", caseUuid.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(new ObjectMapper().writeValueAsString(boundaries)))
+            .param("caseUuid", caseUuid.toString()))
             .andExpect(status().isOk())
             .andReturn();
 
+        assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
+                mvcResult.getResponse().getContentAsString());
     }
 
     public Network createNetwork(String prefix) {
