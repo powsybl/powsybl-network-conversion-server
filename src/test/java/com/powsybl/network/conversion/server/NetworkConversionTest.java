@@ -88,7 +88,6 @@ public class NetworkConversionTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        networkConversionService.setReportServerRest(reportServerRest);
     }
 
     @Test
@@ -248,6 +247,7 @@ public class NetworkConversionTest {
     public void testSendReport() throws Exception {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        networkConversionService.setReportServerRest(reportServerRest);
 
         List<BoundaryInfos> boundaries = new ArrayList<>();
         String eqbdContent = "fake content of eqbd boundary";
