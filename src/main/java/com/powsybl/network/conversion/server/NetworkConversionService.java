@@ -28,8 +28,6 @@ import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -63,13 +61,11 @@ import static com.powsybl.network.conversion.server.NetworkConversionConstants.R
 @ComponentScan(basePackageClasses = {NetworkStoreService.class})
 public class NetworkConversionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
-
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
 
-    String reportServerURI;
+    private RestTemplate reportServerRest;
 
     @Autowired
     private NetworkStoreService networkStoreService;
@@ -87,7 +83,9 @@ public class NetworkConversionService {
         geoDataServerRest = restTemplateBuilder.build();
         geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
 
-        this.reportServerURI = reportServerURI;
+        reportServerRest = restTemplateBuilder.build();
+        reportServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(reportServerURI));
+
         objectMapper = Jackson2ObjectMapperBuilder.json().build();
         objectMapper.registerModule(new ReporterModelJsonModule());
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
@@ -207,15 +205,18 @@ public class NetworkConversionService {
     }
 
     private void sendReport(UUID networkUuid, ReporterModel reporter) {
-        var restTemplate = new RestTemplate();
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        var resourceUrl = reportServerURI + DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
-        var uriBuilder = UriComponentsBuilder.fromHttpUrl(resourceUrl);
+        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
+        var uriBuilder = UriComponentsBuilder.fromPath(resourceUrl);
         try {
-            restTemplate.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
+            reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
         }
+    }
+
+    public void setReportServerRest(RestTemplate reportServerRest) {
+        this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
     }
 }

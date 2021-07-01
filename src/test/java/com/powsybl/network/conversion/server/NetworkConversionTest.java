@@ -14,6 +14,7 @@ import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.commons.reporter.Reporter;
+import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
@@ -25,6 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -74,6 +76,9 @@ public class NetworkConversionTest {
     @Mock
     private RestTemplate geoDataRest;
 
+    @Mock
+    private RestTemplate reportServerRest;
+
     @Autowired
     private NetworkConversionService networkConversionService;
 
@@ -83,6 +88,7 @@ public class NetworkConversionTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        networkConversionService.setReportServerRest(reportServerRest);
     }
 
     @Test
@@ -236,6 +242,36 @@ public class NetworkConversionTest {
 
         assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
                 mvcResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    public void testSendReport() throws Exception {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+
+        List<BoundaryInfos> boundaries = new ArrayList<>();
+        String eqbdContent = "fake content of eqbd boundary";
+        String tpbdContent = "fake content of tpbd boundary";
+        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
+        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
+
+        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class))).willAnswer((Answer<Network>) invocationOnMock -> {
+            var reporter = invocationOnMock.getArgument(1, ReporterModel.class);
+            reporter.addSubReporter(new ReporterModel("test", "test"));
+            return network;
+        });
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+            .willReturn(new ResponseEntity<>(HttpStatus.OK));
+
+        MvcResult mvcResult = mvc.perform(post("/v1/networks/")
+            .param("caseUuid", caseUuid.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(new ObjectMapper().writeValueAsString(boundaries)))
+            .andExpect(status().isOk())
+            .andReturn();
+
     }
 
     public Network createNetwork(String prefix) {
