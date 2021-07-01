@@ -20,12 +20,10 @@ import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.compress.utils.IOUtils;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.*;
@@ -68,10 +66,12 @@ public class NetworkConversionTest {
     @Autowired
     private MockMvc mvc;
 
-    @Mock
+    @MockBean
+    @Qualifier("caseServerRest")
     private RestTemplate caseServerRest;
 
-    @Mock
+    @MockBean
+    @Qualifier("geoDataRest")
     private RestTemplate geoDataRest;
 
     @Autowired
@@ -79,11 +79,6 @@ public class NetworkConversionTest {
 
     @MockBean
     private NetworkStoreService networkStoreClient;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
 
     @Test
     public void test() throws Exception {
@@ -159,13 +154,14 @@ public class NetworkConversionTest {
                 .andReturn();
 
         assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73", mvcResult.getResponse().getHeader("content-disposition"));
-        assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>CGMES Conformity Assessment: 'MicroGridTestConfiguration....BC (MAS BE) Test Configuration. The model is owned by ENTSO-E and is provided by ENTSO-E â\u0080\u009Cas it isâ\u0080\u009D. To the fullest extent permitted by law, ENTSO-E shall not be liable for any damages of any kind arising out of the use of the model (including any of its subsequent modifications). ENTSO-E neither warrants, nor represents that the use of the model will not infringe the rights of third parties. Any use of the model shall  include a reference to ENTSO-E. ENTSO-E web site is the only official source of information related to the model.</md:Model.description>\n" +
-                "        <md:Model.version>3</md:Model.version>\n" +
+        assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>SV Model</md:Model.description>\n" +
+                "        <md:Model.version>1</md:Model.version>\n" +
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:2399cbd1-9a39-11e0-aa80-0800200c9a66\"/>\n" +
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"/>\n" +
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:f2f43818-09c8-4252-9611-7af80c398d20\"/>\n" +
                 "        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>\n" +
-                "        <md:Model.modelingAuthoritySet>http://elia.be/CGMES/2.4.15</md:Model.modelingAuthoritySet>"));
+                "        <md:Model.modelingAuthoritySet>powsybl.org</md:Model.modelingAuthoritySet>\n" +
+                "    </md:FullModel>"));
     }
 
     @Test
