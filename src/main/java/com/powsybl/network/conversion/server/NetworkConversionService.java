@@ -97,9 +97,7 @@ public class NetworkConversionService {
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
         Network network = networkStoreService.importNetwork(dataSource, reporter);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        if (!reporter.getReports().isEmpty() || !reporter.getSubReporters().isEmpty()) {
-            sendReport(networkUuid, reporter);
-        }
+        sendReport(networkUuid, reporter);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
