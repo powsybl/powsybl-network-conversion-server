@@ -10,10 +10,6 @@ spring:
       max-file-size: 100MB
       max-request-size: 103MB
 
-springdoc:
-  swagger-ui:
-    path: swagger-ui.html
-
 network-store-server:
   preloading-strategy: COLLECTION
   base-uri: http://localhost:8080/
