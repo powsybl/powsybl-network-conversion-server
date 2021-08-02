@@ -6,7 +6,7 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
-import io.swagger.annotations.ApiModel;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -18,7 +18,7 @@ import java.util.UUID;
  */
 @AllArgsConstructor
 @Getter
-@ApiModel("Network attributes")
+@Schema(description = "Network attributes")
 public class NetworkInfos {
     private UUID networkUuid;
 

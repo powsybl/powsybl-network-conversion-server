@@ -1,5 +1,6 @@
 server:
   port: 5003
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -8,6 +9,10 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 103MB
+
+springdoc:
+  swagger-ui:
+    path: swagger-ui.html
 
 network-store-server:
   preloading-strategy: COLLECTION
