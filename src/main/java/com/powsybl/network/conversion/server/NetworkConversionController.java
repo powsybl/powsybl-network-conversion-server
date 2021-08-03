@@ -9,9 +9,9 @@ package com.powsybl.network.conversion.server;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(value = "/" + NetworkConversionConstants.API_VERSION + "/")
-@Api(tags = "network-converter-server")
+@Tag(name = "network-converter-server")
 @ComponentScan(basePackageClasses = NetworkConversionService.class)
 public class NetworkConversionController {
 
@@ -48,7 +48,7 @@ public class NetworkConversionController {
     private NetworkConversionService networkConversionService;
 
     @PostMapping(value = "/networks")
-    @ApiOperation(value = "Get a case file from its name and import it into the store")
+    @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@RequestParam("caseUuid") UUID caseUuid) {
         LOGGER.debug("Importing case {}...", caseUuid);
         NetworkInfos networkInfos = networkConversionService.importCase(caseUuid);
@@ -56,10 +56,10 @@ public class NetworkConversionController {
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export/{format}")
-    @ApiOperation(value = "Export a network from the network-store")
-    public ResponseEntity<byte[]> exportNetwork(@ApiParam(value = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
-                                                @ApiParam(value = "Export format")@PathVariable("format") String format,
-                                                @ApiParam(value = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws IOException {
+    @Operation(summary = "Export a network from the network-store")
+    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
+                                                @Parameter(description = "Export format")@PathVariable("format") String format,
+                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
         List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
@@ -71,7 +71,7 @@ public class NetworkConversionController {
     }
 
     @GetMapping(value = "/export/formats")
-    @ApiOperation(value = "Get a list of the available format")
+    @Operation(summary = "Get a list of the available format")
     public ResponseEntity<Collection<String>> getAvailableFormat() {
         LOGGER.debug("GetAvailableFormat ...");
         Collection<String> formats = networkConversionService.getAvailableFormat();
@@ -80,9 +80,9 @@ public class NetworkConversionController {
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
-    @ApiOperation(value = "Export a merged cgmes network from the network-store")
-    public ResponseEntity<byte[]> exportCgmesSv(@ApiParam(value = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
-                                                @ApiParam(value = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws XMLStreamException {
+    @Operation(summary = "Export a merged cgmes network from the network-store")
+    public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
+                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws XMLStreamException {
         LOGGER.debug("Exporting network {}...", networkUuid);
         List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
         ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSv(networkUuid, otherNetworksUuid);
@@ -92,7 +92,7 @@ public class NetworkConversionController {
     }
 
     @PostMapping(value = "/networks/cgmes")
-    @ApiOperation(value = "Import a cgmes case into the store, using provided boundaries")
+    @Operation(summary = "Import a cgmes case into the store, using provided boundaries")
     public ResponseEntity<NetworkInfos> importCgmesCase(@RequestParam("caseUuid") UUID caseUuid,
                                                         @RequestBody(required = false) List<BoundaryInfos> boundaries) {
         LOGGER.debug("Importing cgmes case {}...", caseUuid);
