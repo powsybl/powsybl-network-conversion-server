@@ -140,9 +140,10 @@ public class NetworkConversionService {
                 } catch (Exception e) {
                     hasFailed.set(true);
                     error.set(e);
+                    Thread.currentThread().interrupt();
                 }
             });
-        if (hasFailed.get()) {
+        if (hasFailed.get().booleanValue()) {
             undoSaveNetwork(networkUuid);
             throw NetworkConversionException.createFailedNetworkSaving(networkUuid, error.get());
         }
@@ -161,6 +162,7 @@ public class NetworkConversionService {
                     f.get();
                 } catch (Exception e) {
                     LOGGER.error(e.getMessage(), e);
+                    Thread.currentThread().interrupt();
                 }
             });
     }

@@ -7,7 +7,6 @@
 package com.powsybl.network.conversion.server.elasticsearch;
 
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.lang.NonNull;
 
 import java.util.UUID;
@@ -21,16 +20,18 @@ public class EquipmentInfosServiceImpl implements EquipmentInfosService {
 
     private final EquipmentInfosRepository equipmentInfosRepository;
 
-    private final ElasticsearchOperations elasticsearchOperations;
-
-    public EquipmentInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository, ElasticsearchOperations elasticsearchOperations) {
+    public EquipmentInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository) {
         this.equipmentInfosRepository = equipmentInfosRepository;
-        this.elasticsearchOperations = elasticsearchOperations;
     }
 
     @Override
     public Iterable<EquipmentInfos> addAll(@NonNull final Iterable<EquipmentInfos> equipmentInfos) {
         return equipmentInfosRepository.saveAll(equipmentInfos);
+    }
+
+    @Override
+    public Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
+        return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
     @Override

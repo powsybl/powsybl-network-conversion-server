@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.elasticsearch.client.ClientConfiguration;
 import org.springframework.data.elasticsearch.client.RestClients;
 import org.springframework.data.elasticsearch.config.AbstractElasticsearchConfiguration;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
 import java.net.InetSocketAddress;
@@ -39,8 +38,8 @@ public class ESConfig extends AbstractElasticsearchConfiguration {
 
     @Bean
     @ConditionalOnExpression("'${spring.data.elasticsearch.enabled:false}' == 'true'")
-    public EquipmentInfosService studyInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository, ElasticsearchOperations elasticsearchOperations) {
-        return new EquipmentInfosServiceImpl(equipmentInfosRepository, elasticsearchOperations);
+    public EquipmentInfosService studyInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository) {
+        return new EquipmentInfosServiceImpl(equipmentInfosRepository);
     }
 
     @Bean

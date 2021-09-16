@@ -1,8 +1,8 @@
-/**
- * Copyright (c) 2020, RTE (http://www.rte-france.com)
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+/*
+  Copyright (c) 2020, RTE (http://www.rte-france.com)
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 package com.powsybl.network.conversion.server.elasticsearch;
 
@@ -21,6 +21,11 @@ public class EquipmentInfosServiceMock implements EquipmentInfosService {
 
     @Override
     public Iterable<EquipmentInfos> addAll(@NonNull final Iterable<EquipmentInfos> equipmentInfos) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
         return Collections.emptyList();
     }
 
