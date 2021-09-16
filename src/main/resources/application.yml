@@ -9,6 +9,13 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 103MB
+  data:
+    elasticsearch:
+      enabled: true
+      host: localhost
+      port: 9200
+      index: network-modification-server
+      type: metadatas
 
 network-store-server:
   preloading-strategy: COLLECTION
