@@ -10,6 +10,7 @@ package com.powsybl.network.conversion.server;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
@@ -48,7 +49,8 @@ import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -75,19 +77,22 @@ public class NetworkConversionService {
 
     private RestTemplate reportServerRest;
 
-    private NetworkStoreService networkStoreService;
+    private final NetworkStoreService networkStoreService;
 
-    private EquipmentInfosService equipmentInfosService;
+    private final EquipmentInfosService equipmentInfosService;
 
-    private ObjectMapper objectMapper;
+    private final NetworkConversionExecutionService networkConversionExecutionService;
+
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
-                                    NetworkStoreService networkStoreService, EquipmentInfosService equipmentInfosService) {
+                                    NetworkStoreService networkStoreService, EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
+        this.networkConversionExecutionService = networkConversionExecutionService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -119,52 +124,42 @@ public class NetworkConversionService {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        LOGGER.info("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, reporter);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
     private void saveNetwork(Network network, UUID networkUuid, ReporterModel reporter) {
-        AtomicReference<Boolean> hasFailed = new AtomicReference<>(false);
-        AtomicReference<Exception> error = new AtomicReference<>();
-        Arrays.<Runnable>asList(
-            () -> flushNetwork(network, networkUuid),
-            () -> sendReport(networkUuid, reporter),
-            () -> insertEquipmentIndexes(network, networkUuid)
-            )
-            .parallelStream()
-            .map(r -> Executors.newCachedThreadPool().submit(r))
-            .forEach(f -> {
-                try {
-                    f.get(); // wait the end of each DB insert
-                } catch (Exception e) {
-                    hasFailed.set(true);
-                    error.set(e);
-                    Thread.currentThread().interrupt();
-                }
-            });
-        if (hasFailed.get().booleanValue()) {
+        CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
+                networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
+                networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid))
+        );
+        try {
+            saveInParallel.get();
+        } catch (InterruptedException | ExecutionException e) {
             undoSaveNetwork(networkUuid);
-            throw NetworkConversionException.createFailedNetworkSaving(networkUuid, error.get());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw NetworkConversionException.createFailedNetworkSaving(networkUuid, e);
         }
     }
 
     private void undoSaveNetwork(UUID networkUuid) {
-        Arrays.<Runnable>asList(
-            () -> networkStoreService.deleteNetwork(networkUuid),
-            () -> deleteReport(networkUuid),
-            () -> equipmentInfosService.deleteAll(networkUuid)
-            )
-            .parallelStream()
-            .map(r -> Executors.newCachedThreadPool().submit(r))
-            .forEach(f -> {
-                try {
-                    f.get();
-                } catch (Exception e) {
-                    LOGGER.error(e.getMessage(), e);
-                    Thread.currentThread().interrupt();
-                }
-            });
+        CompletableFuture<Void> deleteInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> deleteReport(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+        );
+        try {
+            deleteInParallel.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error(e.getMessage(), e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private Network getNetwork(UUID networkUuid) {
@@ -290,22 +285,22 @@ public class NetworkConversionService {
         try {
             networkStoreService.flush(network);
         } finally {
-            LOGGER.info("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+            LOGGER.trace("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
     }
 
     private void insertEquipmentIndexes(Network network, UUID networkUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
-            network.getIdentifiables()
+            List<EquipmentInfos> equipmentsInfos = network.getIdentifiables()
                     .stream()
-                    //.filter(Predicate.not(i -> i instanceof Switch))
                     .map(c -> toEquipmentInfos(c, networkUuid))
-                    .collect(Collectors.groupingBy(EquipmentInfos::getEquipmentType)).values()
+                    .collect(Collectors.toList());
+            Lists.partition(equipmentsInfos, equipmentsInfos.size() / Runtime.getRuntime().availableProcessors())
                     .parallelStream()
                     .forEach(equipmentInfosService::addAll);
         } finally {
-            LOGGER.info("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+            LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
     }
 
@@ -320,7 +315,7 @@ public class NetworkConversionService {
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
         } finally {
-            LOGGER.info("Save reports for network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+            LOGGER.trace("Save reports for network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
     }
 

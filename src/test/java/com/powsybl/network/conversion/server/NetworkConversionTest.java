@@ -274,7 +274,7 @@ public class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
-        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
+        Network network = createNetwork("test");
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class)))
                 .willThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())));
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
@@ -282,7 +282,7 @@ public class NetworkConversionTest {
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
-        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid.toString())));
+        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
     @Test
@@ -291,7 +291,7 @@ public class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
-        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
+        Network network = createNetwork("test");
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
         doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())))
                 .when(networkStoreClient).flush(network);
@@ -302,7 +302,7 @@ public class NetworkConversionTest {
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
-        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid.toString())));
+        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
     public Network createNetwork(String prefix) {

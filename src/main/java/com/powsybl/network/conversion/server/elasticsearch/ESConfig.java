@@ -50,6 +50,7 @@ public class ESConfig extends AbstractElasticsearchConfiguration {
 
     @Bean
     @Override
+    @SuppressWarnings("squid:S2095")
     public RestHighLevelClient elasticsearchClient() {
         ClientConfiguration clientConfiguration = ClientConfiguration.builder()
                 .connectedTo(InetSocketAddress.createUnresolved(esHost, esPort))
