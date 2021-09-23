@@ -6,9 +6,12 @@
  */
 package com.powsybl.network.conversion.server.elasticsearch;
 
+import com.google.common.collect.Lists;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,6 +21,9 @@ import java.util.UUID;
  */
 public class EquipmentInfosServiceImpl implements EquipmentInfosService {
 
+    @Value("${spring.data.elasticsearch.partition-size:10000}")
+    private int partitionSize;
+
     private final EquipmentInfosRepository equipmentInfosRepository;
 
     public EquipmentInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository) {
@@ -25,8 +31,10 @@ public class EquipmentInfosServiceImpl implements EquipmentInfosService {
     }
 
     @Override
-    public Iterable<EquipmentInfos> addAll(@NonNull final Iterable<EquipmentInfos> equipmentInfos) {
-        return equipmentInfosRepository.saveAll(equipmentInfos);
+    public void addAll(@NonNull final List<EquipmentInfos> equipmentsInfos) {
+        Lists.partition(equipmentsInfos, partitionSize)
+                .parallelStream()
+                .forEach(equipmentInfosRepository::saveAll);
     }
 
     @Override

@@ -10,7 +10,6 @@ package com.powsybl.network.conversion.server;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
@@ -292,13 +291,11 @@ public class NetworkConversionService {
     private void insertEquipmentIndexes(Network network, UUID networkUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
-            List<EquipmentInfos> equipmentsInfos = network.getIdentifiables()
-                    .stream()
-                    .map(c -> toEquipmentInfos(c, networkUuid))
-                    .collect(Collectors.toList());
-            Lists.partition(equipmentsInfos, equipmentsInfos.size() / Runtime.getRuntime().availableProcessors())
-                    .parallelStream()
-                    .forEach(equipmentInfosService::addAll);
+            equipmentInfosService.addAll(
+                    network.getIdentifiables()
+                            .stream()
+                            .map(c -> toEquipmentInfos(c, networkUuid))
+                            .collect(Collectors.toList()));
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }

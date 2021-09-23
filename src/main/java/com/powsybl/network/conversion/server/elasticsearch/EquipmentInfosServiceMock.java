@@ -10,18 +10,19 @@ import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import org.springframework.lang.NonNull;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * A class to mock metadatas transfer in the DB elasticsearch
+ *  A class to implement elasticsearch indexing
  *
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
 public class EquipmentInfosServiceMock implements EquipmentInfosService {
 
     @Override
-    public Iterable<EquipmentInfos> addAll(@NonNull final Iterable<EquipmentInfos> equipmentInfos) {
-        return Collections.emptyList();
+    public void addAll(@NonNull final List<EquipmentInfos> equipmentInfos) {
+        // Nothing to insert
     }
 
     @Override

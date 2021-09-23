@@ -10,16 +10,17 @@ import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
- * An interface to define an api for metadatas transfer in the DB elasticsearch
+ * An interface to define an api for elasticsearch indexing
  *
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
 @Service
 public interface EquipmentInfosService {
-    Iterable<EquipmentInfos> addAll(@NonNull final Iterable<EquipmentInfos> equipmentInfos);
+    void addAll(@NonNull final List<EquipmentInfos> equipmentsInfos);
 
     Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid);
 
