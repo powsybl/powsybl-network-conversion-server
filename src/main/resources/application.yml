@@ -9,6 +9,12 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 103MB
+  data:
+    elasticsearch:
+      enabled: false
+      host: localhost
+      port: 9200
+      partition-size : 10000
 
 network-store-server:
   preloading-strategy: COLLECTION

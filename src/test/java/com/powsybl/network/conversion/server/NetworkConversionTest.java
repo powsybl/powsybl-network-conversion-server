@@ -15,11 +15,13 @@ import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
-import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.network.*;
+import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
+import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,6 +52,7 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -61,8 +64,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(NetworkConversionController.class)
-@ContextConfiguration(classes = {NetworkConversionApplication.class, NetworkConversionService.class})
+@WebMvcTest(value = NetworkConversionController.class, properties = {"spring.data.elasticsearch.enabled=true"})
+@ContextConfiguration(classes = {NetworkConversionApplication.class, NetworkConversionService.class, EmbeddedElasticsearch.class})
 public class NetworkConversionTest {
 
     @Autowired
@@ -97,9 +100,9 @@ public class NetworkConversionTest {
 
             ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
                     new ResourceSet("", "testCase.xiidm"));
-            Network network = Importers.importData("XIIDM", dataSource, null);
+            Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
-            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class))).willReturn(network);
+            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
@@ -214,9 +217,9 @@ public class NetworkConversionTest {
         boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
         boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
 
-        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
+        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
@@ -246,8 +249,8 @@ public class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
-        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class))).willAnswer((Answer<Network>) invocationOnMock -> {
+        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class))).willAnswer((Answer<Network>) invocationOnMock -> {
             var reporter = invocationOnMock.getArgument(1, ReporterModel.class);
             reporter.addSubReporter(new ReporterModel("test", "test"));
             return network;
@@ -263,6 +266,43 @@ public class NetworkConversionTest {
 
         assertEquals("{\"networkUuid\":\"" + networkUuid + "\",\"networkId\":\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"}",
                 mvcResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    public void testImportWithError() {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        networkConversionService.setReportServerRest(reportServerRest);
+
+        Network network = createNetwork("test");
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class)))
+                .willThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())));
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
+
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
+        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
+    }
+
+    @Test
+    public void testFlushNetworkWithError() {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        networkConversionService.setReportServerRest(reportServerRest);
+
+        Network network = createNetwork("test");
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
+        doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())))
+                .when(networkStoreClient).flush(network);
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
+        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
+
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
+        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
     public Network createNetwork(String prefix) {

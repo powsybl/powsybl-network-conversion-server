@@ -22,13 +22,15 @@ import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
+import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
-import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
-import com.powsybl.network.conversion.server.dto.NetworkInfos;
+import com.powsybl.network.conversion.server.dto.*;
+import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -43,10 +45,14 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -62,21 +68,31 @@ import static com.powsybl.network.conversion.server.NetworkConversionConstants.R
 @ComponentScan(basePackageClasses = {NetworkStoreService.class})
 public class NetworkConversionService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
+
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
 
     private RestTemplate reportServerRest;
 
-    @Autowired
-    private NetworkStoreService networkStoreService;
+    private final NetworkStoreService networkStoreService;
 
-    private ObjectMapper objectMapper;
+    private final EquipmentInfosService equipmentInfosService;
+
+    private final NetworkConversionExecutionService networkConversionExecutionService;
+
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
-                                    @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI) {
+                                    @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
+                                    NetworkStoreService networkStoreService, EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
+        this.networkStoreService = networkStoreService;
+        this.equipmentInfosService = equipmentInfosService;
+        this.networkConversionExecutionService = networkConversionExecutionService;
+
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
@@ -92,13 +108,57 @@ public class NetworkConversionService {
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
+    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid) {
+        return EquipmentInfos.builder()
+                .networkUuid(networkUuid)
+                .equipmentId(i.getId())
+                .equipmentName(i.getNameOrId())
+                .equipmentType(EquipmentType.getType(i).name())
+                .build();
+    }
+
     NetworkInfos importCase(UUID caseUuid) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
-        Network network = networkStoreService.importNetwork(dataSource, reporter);
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        sendReport(networkUuid, reporter);
+        LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        saveNetwork(network, networkUuid, reporter);
         return new NetworkInfos(networkUuid, network.getId());
+    }
+
+    private void saveNetwork(Network network, UUID networkUuid, ReporterModel reporter) {
+        CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
+                networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
+                networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid))
+        );
+        try {
+            saveInParallel.get();
+        } catch (InterruptedException | ExecutionException e) {
+            undoSaveNetwork(networkUuid);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw NetworkConversionException.createFailedNetworkSaving(networkUuid, e);
+        }
+    }
+
+    private void undoSaveNetwork(UUID networkUuid) {
+        CompletableFuture<Void> deleteInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> deleteReport(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+        );
+        try {
+            deleteInParallel.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error(e.getMessage(), e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private Network getNetwork(UUID networkUuid) {
@@ -219,7 +279,30 @@ public class NetworkConversionService {
         }
     }
 
+    private void flushNetwork(Network network, UUID networkUuid) {
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        try {
+            networkStoreService.flush(network);
+        } finally {
+            LOGGER.trace("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        }
+    }
+
+    private void insertEquipmentIndexes(Network network, UUID networkUuid) {
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        try {
+            equipmentInfosService.addAll(
+                    network.getIdentifiables()
+                            .stream()
+                            .map(c -> toEquipmentInfos(c, networkUuid))
+                            .collect(Collectors.toList()));
+        } finally {
+            LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        }
+    }
+
     private void sendReport(UUID networkUuid, ReporterModel reporter) {
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
@@ -228,7 +311,14 @@ public class NetworkConversionService {
             reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
+        } finally {
+            LOGGER.trace("Save reports for network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
+    }
+
+    private void deleteReport(UUID networkUuid) {
+        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
+        reportServerRest.delete(resourceUrl);
     }
 
     public void setReportServerRest(RestTemplate reportServerRest) {
