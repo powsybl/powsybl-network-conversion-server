@@ -15,6 +15,8 @@ spring:
       host: localhost
       port: 9200
       partition-size : 10000
+      client:
+        timeout : 60  # Seconds
 
 network-store-server:
   preloading-strategy: COLLECTION
