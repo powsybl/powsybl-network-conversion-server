@@ -1,0 +1,19 @@
+server:
+  port: 5003
+
+spring:
+  data:
+    elasticsearch:
+      host: localhost
+
+network-store-server:
+  base-uri: http://localhost:8080/
+
+backing-services:
+  case-server:
+    base-uri: http://localhost:5000
+  geo-data-server:
+    base-uri: http://localhost:8087
+  report-server:
+    base-uri: http://localhost:5028
+
