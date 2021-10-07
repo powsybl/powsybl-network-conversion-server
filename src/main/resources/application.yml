@@ -1,8 +1,9 @@
 server:
-  port: 5003
   forward-headers-strategy: framework
 
 spring:
+  profiles:
+    active: default,local
   application:
     name: network-network-conversion-server
   servlet:
@@ -12,7 +13,7 @@ spring:
   data:
     elasticsearch:
       enabled: false
-      host: localhost
+      host: elasticsearch
       port: 9200
       partition-size : 10000
       client:
@@ -20,15 +21,6 @@ spring:
 
 network-store-server:
   preloading-strategy: COLLECTION
-  base-uri: http://localhost:8080/
-
-backing-services:
-  case-server:
-    base-uri: http://localhost:5000
-  geo-data-server:
-    base-uri: http://localhost:8087
-  report-server:
-    base-uri: http://localhost:5028
 
 management:
   health:
