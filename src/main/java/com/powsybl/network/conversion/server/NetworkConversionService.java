@@ -22,8 +22,7 @@ import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
-import com.powsybl.iidm.network.Identifiable;
-import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
@@ -110,11 +109,12 @@ public class NetworkConversionService {
 
     private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid) {
         return EquipmentInfos.builder()
-                .networkUuid(networkUuid)
-                .equipmentId(i.getId())
-                .equipmentName(i.getNameOrId())
-                .equipmentType(EquipmentType.getType(i).name())
-                .build();
+            .networkUuid(networkUuid)
+            .id(i.getId())
+            .name(i.getNameOrId())
+            .type(EquipmentType.getType(i).name())
+            .voltageLevelsIds(EquipmentInfos.getVoltageLevelsIds(i))
+            .build();
     }
 
     NetworkInfos importCase(UUID caseUuid) {
@@ -130,9 +130,9 @@ public class NetworkConversionService {
 
     private void saveNetwork(Network network, UUID networkUuid, ReporterModel reporter) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
-                networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
-                networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
-                networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid))
+            networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
+            networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
+            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid))
         );
         try {
             saveInParallel.get();
@@ -147,9 +147,9 @@ public class NetworkConversionService {
 
     private void undoSaveNetwork(UUID networkUuid) {
         CompletableFuture<Void> deleteInParallel = CompletableFuture.allOf(
-                networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-                networkConversionExecutionService.runAsync(() -> deleteReport(networkUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+            networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
+            networkConversionExecutionService.runAsync(() -> deleteReport(networkUuid)),
+            networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
         );
         try {
             deleteInParallel.get();
@@ -292,10 +292,10 @@ public class NetworkConversionService {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
             equipmentInfosService.addAll(
-                    network.getIdentifiables()
-                            .stream()
-                            .map(c -> toEquipmentInfos(c, networkUuid))
-                            .collect(Collectors.toList()));
+                network.getIdentifiables()
+                    .stream()
+                    .map(c -> toEquipmentInfos(c, networkUuid))
+                    .collect(Collectors.toList()));
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
