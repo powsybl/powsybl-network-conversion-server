@@ -7,8 +7,12 @@
 package com.powsybl.network.conversion.server;
 
 import com.google.common.collect.Iterables;
+import com.powsybl.commons.datasource.ReadOnlyDataSource;
+import com.powsybl.commons.datasource.ResourceDataSource;
+import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentType;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
@@ -34,6 +38,8 @@ import static org.junit.Assert.*;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {"spring.data.elasticsearch.enabled=true"})
 public class EquipmentInfosServiceTests {
 
+    private static final String TEST_FILE = "testCase.xiidm";
+
     private static final UUID NETWORK_UUID = UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4ef00d");
 
     @Autowired
@@ -45,7 +51,7 @@ public class EquipmentInfosServiceTests {
 
         List<EquipmentInfos> infos = List.of(
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevelsIds(Set.of("vl1")).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevelsIds(Set.of("vl2")).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id2").name("name2").type(EquipmentType.LOAD.name()).voltageLevelsIds(Set.of("vl2")).build()
         );
 
         equipmentInfosService.addAll(infos);
@@ -53,6 +59,34 @@ public class EquipmentInfosServiceTests {
 
         equipmentInfosService.deleteAll(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
+    }
+
+    @Test
+    public void testEquipmentType() {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+
+        assertEquals(EquipmentType.SUBSTATION, EquipmentType.getType(network.getSubstation("BBE1AA")));
+        assertEquals(EquipmentType.VOLTAGE_LEVEL, EquipmentType.getType(network.getVoltageLevel("BBE1AA1")));
+        assertEquals(EquipmentType.GENERATOR, EquipmentType.getType(network.getGenerator("BBE1AA1 _generator")));
+        assertEquals(EquipmentType.LOAD, EquipmentType.getType(network.getLoad("BBE1AA1 _load")));
+        assertEquals(EquipmentType.LINE, EquipmentType.getType(network.getLine("BBE1AA1  BBE2AA1  1")));
+        assertEquals(EquipmentType.TWO_WINDINGS_TRANSFORMER, EquipmentType.getType(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
+        assertEquals(EquipmentType.CONFIGURED_BUS, EquipmentType.getType(network.getBusBreakerView().getBus("BBE1AA1 ")));
+    }
+
+    @Test
+    public void testVoltageLevelsIds() {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+
+        assertEquals(Set.of("BBE1AA1", "BBE1AA2"), EquipmentInfos.getVoltageLevelsIds(network.getSubstation("BBE1AA")));
+        assertEquals(Set.of("BBE1AA1"), EquipmentInfos.getVoltageLevelsIds(network.getVoltageLevel("BBE1AA1")));
+        assertEquals(Set.of("BBE1AA1"), EquipmentInfos.getVoltageLevelsIds(network.getGenerator("BBE1AA1 _generator")));
+        assertEquals(Set.of("BBE1AA1"), EquipmentInfos.getVoltageLevelsIds(network.getLoad("BBE1AA1 _load")));
+        assertEquals(Set.of("BBE1AA1", "BBE2AA1"), EquipmentInfos.getVoltageLevelsIds(network.getLine("BBE1AA1  BBE2AA1  1")));
+        assertEquals(Set.of("BBE1AA1", "BBE1AA2"), EquipmentInfos.getVoltageLevelsIds(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
+        assertEquals(Set.of("BBE1AA1"), EquipmentInfos.getVoltageLevelsIds(network.getBusBreakerView().getBus("BBE1AA1 ")));
     }
 
     @Test
