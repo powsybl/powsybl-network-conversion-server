@@ -11,6 +11,7 @@ import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentType;
+import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
@@ -44,8 +45,8 @@ public class EquipmentInfosServiceTests {
         EqualsVerifier.simple().forClass(EquipmentInfos.class).verify();
 
         List<EquipmentInfos> infos = List.of(
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevelsIds(Set.of("vl1")).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevelsIds(Set.of("vl2")).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
         );
 
         equipmentInfosService.addAll(infos);
@@ -61,7 +62,7 @@ public class EquipmentInfosServiceTests {
         String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentType.getType(network)).getMessage();
         assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
 
-        errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevelsIds(network)).getMessage();
+        errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevels(network)).getMessage();
         assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
     }
 }
