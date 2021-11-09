@@ -73,7 +73,7 @@ public class EquipmentInfos {
                     new VoltageLevelInfos(branch.getTerminal1().getVoltageLevel().getId(), branch.getTerminal1().getVoltageLevel().getNameOrId()),
                     new VoltageLevelInfos(branch.getTerminal2().getVoltageLevel().getId(), branch.getTerminal2().getVoltageLevel().getNameOrId())
             )
-            .collect(Collectors.toSet()); // Internal line
+            .collect(Collectors.toSet());
         } else if (identifiable instanceof ThreeWindingsTransformer) {
             ThreeWindingsTransformer w3t = (ThreeWindingsTransformer) identifiable;
             return Stream.of(
