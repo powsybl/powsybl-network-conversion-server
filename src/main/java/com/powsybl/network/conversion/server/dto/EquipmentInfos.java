@@ -8,10 +8,7 @@ package com.powsybl.network.conversion.server.dto;
 
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.NetworkConversionException;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
@@ -50,7 +47,7 @@ public class EquipmentInfos {
 
     UUID networkUuid;
 
-    public static Set<String> getVoltageLevelsIds(Identifiable<?> identifiable) {
+    public static Set<String> getVoltageLevelsIds(@NonNull Identifiable<?> identifiable) {
         if (identifiable instanceof Substation) {
             return ((Substation) identifiable).getVoltageLevelStream().map(VoltageLevel::getId).collect(Collectors.toSet());
         } else if (identifiable instanceof VoltageLevel) {
@@ -59,6 +56,8 @@ public class EquipmentInfos {
             return Set.of(((Switch) identifiable).getVoltageLevel().getId());
         } else if (identifiable instanceof Injection) {
             return Set.of(((Injection<?>) identifiable).getTerminal().getVoltageLevel().getId());
+        } else if (identifiable instanceof Bus) {
+            return Set.of(((Bus) identifiable).getVoltageLevel().getId());
         } else if (identifiable instanceof HvdcLine) {
             HvdcLine hvdcLine = (HvdcLine) identifiable;
             return Set.of(
