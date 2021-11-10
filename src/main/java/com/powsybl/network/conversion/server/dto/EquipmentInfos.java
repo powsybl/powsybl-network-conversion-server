@@ -8,10 +8,7 @@ package com.powsybl.network.conversion.server.dto;
 
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.NetworkConversionException;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
@@ -52,7 +49,7 @@ public class EquipmentInfos {
 
     UUID networkUuid;
 
-    public static Set<VoltageLevelInfos> getVoltageLevels(Identifiable<?> identifiable) {
+    public static Set<VoltageLevelInfos> getVoltageLevels(@NonNull Identifiable<?> identifiable) {
         if (identifiable instanceof Substation) {
             return ((Substation) identifiable).getVoltageLevelStream().map(vl -> new VoltageLevelInfos(vl.getId(), vl.getNameOrId())).collect(Collectors.toSet());
         } else if (identifiable instanceof VoltageLevel) {
@@ -61,6 +58,8 @@ public class EquipmentInfos {
             return Set.of(new VoltageLevelInfos(((Switch) identifiable).getVoltageLevel().getId(), ((Switch) identifiable).getVoltageLevel().getNameOrId()));
         } else if (identifiable instanceof Injection) {
             return Set.of(new VoltageLevelInfos(((Injection<?>) identifiable).getTerminal().getVoltageLevel().getId(), ((Injection<?>) identifiable).getTerminal().getVoltageLevel().getNameOrId()));
+        } else if (identifiable instanceof Bus) {
+            return Set.of(new VoltageLevelInfos(((Bus) identifiable).getVoltageLevel().getId(), ((Bus) identifiable).getVoltageLevel().getNameOrId()));
         } else if (identifiable instanceof HvdcLine) {
             HvdcLine hvdcLine = (HvdcLine) identifiable;
             return Set.of(
@@ -72,16 +71,16 @@ public class EquipmentInfos {
             return Stream.of(
                     new VoltageLevelInfos(branch.getTerminal1().getVoltageLevel().getId(), branch.getTerminal1().getVoltageLevel().getNameOrId()),
                     new VoltageLevelInfos(branch.getTerminal2().getVoltageLevel().getId(), branch.getTerminal2().getVoltageLevel().getNameOrId())
-            )
-            .collect(Collectors.toSet());
+                )
+                .collect(Collectors.toSet());
         } else if (identifiable instanceof ThreeWindingsTransformer) {
             ThreeWindingsTransformer w3t = (ThreeWindingsTransformer) identifiable;
             return Stream.of(
-                new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.ONE).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.ONE).getVoltageLevel().getNameOrId()),
-                new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.TWO).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.TWO).getVoltageLevel().getNameOrId()),
-                new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.THREE).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.THREE).getVoltageLevel().getNameOrId())
-            )
-            .collect(Collectors.toSet());
+                    new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.ONE).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.ONE).getVoltageLevel().getNameOrId()),
+                    new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.TWO).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.TWO).getVoltageLevel().getNameOrId()),
+                    new VoltageLevelInfos(w3t.getTerminal(ThreeWindingsTransformer.Side.THREE).getVoltageLevel().getId(), w3t.getTerminal(ThreeWindingsTransformer.Side.THREE).getVoltageLevel().getNameOrId())
+                )
+                .collect(Collectors.toSet());
         }
 
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
