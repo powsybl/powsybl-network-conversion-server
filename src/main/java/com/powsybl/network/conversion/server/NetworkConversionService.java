@@ -113,7 +113,7 @@ public class NetworkConversionService {
             .id(i.getId())
             .name(i.getNameOrId())
             .type(EquipmentType.getType(i).name())
-            .voltageLevelsIds(EquipmentInfos.getVoltageLevelsIds(i))
+            .voltageLevels(EquipmentInfos.getVoltageLevels(i))
             .build();
     }
 
