@@ -6,6 +6,8 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
+import org.springframework.data.annotation.Id;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode
 public class VoltageLevelInfos {
 
+    @Id
     String id;
 
     String name;
