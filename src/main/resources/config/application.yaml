@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: network-conversion-server
+
+network-store-server:
+  preloading-strategy: COLLECTION
+
+management:
+  health:
+    solr:
+      enabled: false
