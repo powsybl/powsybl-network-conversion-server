@@ -20,6 +20,7 @@ import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import nl.jqno.equalsverifier.EqualsVerifier;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,11 @@ public class EquipmentInfosServiceTests {
 
     @Autowired
     private EquipmentInfosService equipmentInfosService;
+
+    @Before
+    public void setup() {
+        equipmentInfosService.deleteAll(NETWORK_UUID);
+    }
 
     @Test
     public void testAddDeleteEquipmentInfos() {
