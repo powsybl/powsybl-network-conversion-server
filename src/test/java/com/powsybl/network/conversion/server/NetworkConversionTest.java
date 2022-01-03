@@ -31,7 +31,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.*;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -64,8 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(value = NetworkConversionController.class, properties = {"spring.data.elasticsearch.enabled=true"})
-@ContextConfiguration(classes = {NetworkConversionApplication.class, NetworkConversionService.class, EmbeddedElasticsearch.class})
+@WebMvcTest(value = NetworkConversionController.class)
 public class NetworkConversionTest {
 
     @Autowired
