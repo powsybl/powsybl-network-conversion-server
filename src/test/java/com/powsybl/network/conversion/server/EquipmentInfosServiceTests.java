@@ -11,10 +11,10 @@ import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.network.Identifiable;
+import com.powsybl.iidm.network.IdentifiableType;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import com.powsybl.network.conversion.server.dto.EquipmentType;
 import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
@@ -58,8 +58,8 @@ public class EquipmentInfosServiceTests {
         EqualsVerifier.simple().forClass(VoltageLevelInfos.class).verify();
 
         List<EquipmentInfos> infos = List.of(
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id2").name("name2").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
         );
 
         equipmentInfosService.addAll(infos);
@@ -67,20 +67,6 @@ public class EquipmentInfosServiceTests {
 
         equipmentInfosService.deleteAll(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
-    }
-
-    @Test
-    public void testEquipmentType() {
-        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
-        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
-
-        assertEquals(EquipmentType.SUBSTATION, EquipmentType.getType(network.getSubstation("BBE1AA")));
-        assertEquals(EquipmentType.VOLTAGE_LEVEL, EquipmentType.getType(network.getVoltageLevel("BBE1AA1")));
-        assertEquals(EquipmentType.GENERATOR, EquipmentType.getType(network.getGenerator("BBE1AA1 _generator")));
-        assertEquals(EquipmentType.LOAD, EquipmentType.getType(network.getLoad("BBE1AA1 _load")));
-        assertEquals(EquipmentType.LINE, EquipmentType.getType(network.getLine("BBE1AA1  BBE2AA1  1")));
-        assertEquals(EquipmentType.TWO_WINDINGS_TRANSFORMER, EquipmentType.getType(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
-        assertEquals(EquipmentType.CONFIGURED_BUS, EquipmentType.getType(network.getBusBreakerView().getBus("BBE1AA1 ")));
     }
 
     @Test
@@ -100,10 +86,8 @@ public class EquipmentInfosServiceTests {
     @Test
     public void testBadEquipmentType() {
         Identifiable<Network> network = new NetworkFactoryImpl().createNetwork("test", "test");
-        String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentType.getType(network)).getMessage();
-        assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
 
-        errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevels(network)).getMessage();
+        String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevels(network)).getMessage();
         assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
     }
 }
