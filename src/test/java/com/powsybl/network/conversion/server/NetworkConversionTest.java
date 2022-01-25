@@ -110,6 +110,11 @@ public class NetworkConversionTest {
 
             assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
                     mvcResult.getResponse().getContentAsString());
+            assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
+
+            mvc.perform(post("/v1/networks").param("caseUuid", UUID.randomUUID().toString()).param("variantId", "first_variant_id"))
+                .andExpect(status().isOk());
+            assertTrue(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
             mvc.perform(get("/v1/export/formats"))
                     .andExpect(status().isOk())
@@ -279,7 +284,7 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
@@ -299,7 +304,7 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
