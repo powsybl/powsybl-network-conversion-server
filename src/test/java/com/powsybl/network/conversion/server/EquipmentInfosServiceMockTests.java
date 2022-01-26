@@ -7,14 +7,10 @@
 package com.powsybl.network.conversion.server;
 
 import com.google.common.collect.Iterables;
-import com.powsybl.iidm.network.Identifiable;
-import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.IdentifiableType;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import com.powsybl.network.conversion.server.dto.EquipmentType;
 import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
-import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
-import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
@@ -42,8 +38,8 @@ public class EquipmentInfosServiceMockTests {
     @Test
     public void testAddDeleteEquipmentInfos() {
         List<EquipmentInfos> infos = List.of(
-                EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
-                EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(EquipmentType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
+                EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
+                EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
         );
 
         equipmentInfosService.addAll(infos);
@@ -51,12 +47,5 @@ public class EquipmentInfosServiceMockTests {
 
         equipmentInfosService.deleteAll(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
-    }
-
-    @Test
-    public void testBadEquipmentType() {
-        Identifiable<Network> network = new NetworkFactoryImpl().createNetwork("test", "test");
-        String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentType.getType(network)).getMessage();
-        assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
     }
 }
