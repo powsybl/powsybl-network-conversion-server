@@ -22,8 +22,12 @@ import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
-import com.powsybl.iidm.network.*;
-import com.powsybl.network.conversion.server.dto.*;
+import com.powsybl.iidm.network.Identifiable;
+import com.powsybl.iidm.network.Network;
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
+import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
@@ -112,7 +116,7 @@ public class NetworkConversionService {
             .networkUuid(networkUuid)
             .id(i.getId())
             .name(i.getNameOrId())
-            .type(EquipmentType.getType(i).name())
+            .type(i.getType().name())
             .voltageLevels(EquipmentInfos.getVoltageLevels(i))
             .build();
     }
