@@ -24,6 +24,7 @@ import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
@@ -121,11 +122,15 @@ public class NetworkConversionService {
             .build();
     }
 
-    NetworkInfos importCase(UUID caseUuid) {
+    NetworkInfos importCase(UUID caseUuid, String variantId) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network = networkStoreService.importNetwork(dataSource, reporter, false);
+        if (variantId != null) {
+            // cloning network initial variant into variantId
+            network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
+        }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, reporter);
@@ -274,7 +279,7 @@ public class NetworkConversionService {
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid);
+            return importCase(caseUuid, null);
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
             var network = networkStoreService.importNetwork(dataSource);
