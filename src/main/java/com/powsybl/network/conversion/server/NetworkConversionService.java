@@ -112,9 +112,10 @@ public class NetworkConversionService {
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
-    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid) {
+    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
         return EquipmentInfos.builder()
             .networkUuid(networkUuid)
+            .variantId(variantId)
             .id(i.getId())
             .name(i.getNameOrId())
             .type(i.getType().name())
@@ -133,15 +134,15 @@ public class NetworkConversionService {
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, reporter);
+        saveNetwork(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID, reporter);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    private void saveNetwork(Network network, UUID networkUuid, ReporterModel reporter) {
+    private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
             networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
             networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
-            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid))
+            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, variantId))
         );
         try {
             saveInParallel.get();
@@ -297,13 +298,13 @@ public class NetworkConversionService {
         }
     }
 
-    private void insertEquipmentIndexes(Network network, UUID networkUuid) {
+    private void insertEquipmentIndexes(Network network, UUID networkUuid, String variantId) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
             equipmentInfosService.addAll(
                 network.getIdentifiables()
                     .stream()
-                    .map(c -> toEquipmentInfos(c, networkUuid))
+                    .map(c -> toEquipmentInfos(c, networkUuid, variantId))
                     .collect(Collectors.toList()));
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
