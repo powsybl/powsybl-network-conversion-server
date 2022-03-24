@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
+import com.powsybl.cgmes.extensions.CgmesSshMetadata;
 import com.powsybl.cgmes.extensions.CgmesSvMetadata;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
@@ -273,7 +274,8 @@ public class NetworkConversionService {
         context.setScenarioTime(mergedNetwork.getCaseDate());
         networks.forEach(network -> {
             context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
-            context.addTopologicalNodeMappings(network);
+            context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
+            context.addIidmMappings(network);
         });
         return context;
     }
