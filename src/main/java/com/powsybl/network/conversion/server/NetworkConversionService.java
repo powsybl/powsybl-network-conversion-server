@@ -25,6 +25,7 @@ import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.VariantManager;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
@@ -335,5 +336,33 @@ public class NetworkConversionService {
 
     public void setReportServerRest(RestTemplate reportServerRest) {
         this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
+    }
+
+    public void reindexAllEquipments(UUID networkUuid) {
+        Network network = getNetwork(networkUuid);
+
+        // delete all variants (except initial one)
+        VariantManager variantManager = network.getVariantManager();
+        Collection<String> variantsToRemove = variantManager.getVariantIds().stream()
+            .filter(id -> !id.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
+            .collect(Collectors.toList());
+        variantsToRemove.forEach(v -> variantManager.removeVariant(v));
+        networkStoreService.flush(network);
+
+        // delete all network equipments infos
+        deleteAllEquipmentInfos(networkUuid);
+
+        // recreate all equipments infos
+        insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+    }
+
+    public void deleteAllEquipmentInfos(UUID networkUuid) {
+        equipmentInfosService.deleteAll(networkUuid);
+    }
+
+    public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
+        List<EquipmentInfos> infos = new ArrayList<>();
+        equipmentInfosService.findAll(networkUuid).forEach(infos::add);
+        return infos;
     }
 }
