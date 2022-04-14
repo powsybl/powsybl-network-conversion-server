@@ -346,7 +346,7 @@ public class NetworkConversionService {
         Collection<String> variantsToRemove = variantManager.getVariantIds().stream()
             .filter(id -> !id.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
             .collect(Collectors.toList());
-        variantsToRemove.forEach(v -> variantManager.removeVariant(v));
+        variantsToRemove.forEach(variantManager::removeVariant);
         networkStoreService.flush(network);
 
         // delete all network equipments infos
