@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
@@ -93,7 +94,7 @@ public class NetworkConversionService {
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
-                                    NetworkStoreService networkStoreService, EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
+                                    NetworkStoreService networkStoreService, @Lazy EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
