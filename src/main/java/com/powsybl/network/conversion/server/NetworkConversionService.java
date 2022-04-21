@@ -129,7 +129,7 @@ public class NetworkConversionService {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network = networkStoreService.importNetwork(dataSource, reporter, false);
+        Network network = networkStoreService.importNetwork(dataSource, reporter, true);
         if (variantId != null) {
             // cloning network initial variant into variantId
             network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
