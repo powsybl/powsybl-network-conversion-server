@@ -348,7 +348,6 @@ public class NetworkConversionService {
             .filter(id -> !id.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
             .collect(Collectors.toList());
         variantsToRemove.forEach(variantManager::removeVariant);
-        networkStoreService.flush(network);
 
         // delete all network equipments infos
         deleteAllEquipmentInfos(networkUuid);
