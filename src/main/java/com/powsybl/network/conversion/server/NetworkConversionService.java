@@ -130,22 +130,18 @@ public class NetworkConversionService {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network = networkStoreService.importNetwork(dataSource, reporter, true);
-        if (variantId != null) {
-            // cloning network initial variant into variantId
-            network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
-        }
+        Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID, reporter);
+        saveNetwork(network, networkUuid, variantId, reporter);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
     private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
-            networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
+            networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
             networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
-            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, variantId))
+            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
         );
         try {
             saveInParallel.get();
@@ -293,10 +289,14 @@ public class NetworkConversionService {
         }
     }
 
-    private void flushNetwork(Network network, UUID networkUuid) {
+    private void storeNetworkInitialVariants(Network network, UUID networkUuid, String variantId) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
             networkStoreService.flush(network);
+            if (variantId != null) {
+                // cloning network initial variant into variantId
+                network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
+            }
         } finally {
             LOGGER.trace("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
