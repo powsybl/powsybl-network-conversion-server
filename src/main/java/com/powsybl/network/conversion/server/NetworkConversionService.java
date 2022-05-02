@@ -25,7 +25,6 @@ import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
-import com.powsybl.iidm.network.VariantManager;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
@@ -341,13 +340,6 @@ public class NetworkConversionService {
 
     public void reindexAllEquipments(UUID networkUuid) {
         Network network = getNetwork(networkUuid);
-
-        // delete all variants (except initial one)
-        VariantManager variantManager = network.getVariantManager();
-        Collection<String> variantsToRemove = variantManager.getVariantIds().stream()
-            .filter(id -> !id.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
-            .collect(Collectors.toList());
-        variantsToRemove.forEach(variantManager::removeVariant);
 
         // delete all network equipments infos
         deleteAllEquipmentInfos(networkUuid);
