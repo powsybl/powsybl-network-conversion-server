@@ -337,4 +337,24 @@ public class NetworkConversionService {
     public void setReportServerRest(RestTemplate reportServerRest) {
         this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
     }
+
+    public void reindexAllEquipments(UUID networkUuid) {
+        Network network = getNetwork(networkUuid);
+
+        // delete all network equipments infos
+        deleteAllEquipmentInfos(networkUuid);
+
+        // recreate all equipments infos
+        insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+    }
+
+    public void deleteAllEquipmentInfos(UUID networkUuid) {
+        equipmentInfosService.deleteAll(networkUuid);
+    }
+
+    public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
+        List<EquipmentInfos> infos = new ArrayList<>();
+        equipmentInfosService.findAll(networkUuid).forEach(infos::add);
+        return infos;
+    }
 }

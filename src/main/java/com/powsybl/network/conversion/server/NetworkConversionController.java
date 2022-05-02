@@ -100,4 +100,12 @@ public class NetworkConversionController {
         var networkInfos = networkConversionService.importCgmesCase(caseUuid, boundaries);
         return ResponseEntity.ok().body(networkInfos);
     }
+
+    @PostMapping(value = "/networks/{networkUuid}/reindex-all")
+    @Operation(summary = "reindex all equipments in network")
+    public ResponseEntity<Void> reindexAllEquipments(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
+        LOGGER.debug("reindex all equipments in network");
+        networkConversionService.reindexAllEquipments(networkUuid);
+        return ResponseEntity.ok().build();
+    }
 }
