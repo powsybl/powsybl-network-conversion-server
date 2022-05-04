@@ -50,9 +50,10 @@ public class NetworkConversionController {
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
-                                                   @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId) {
+                                                   @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
+                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid) {
         LOGGER.debug("Importing case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId);
+        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid);
         return ResponseEntity.ok().body(networkInfos);
     }
 

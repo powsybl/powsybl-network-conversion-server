@@ -97,6 +97,7 @@ public class NetworkConversionTest {
             byte[] networkByte = IOUtils.toByteArray(inputStream);
             networkConversionService.setCaseServerRest(caseServerRest);
             networkConversionService.setGeoDataServerRest(geoDataRest);
+            networkConversionService.setReportServerRest(reportServerRest);
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
                     .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
 
@@ -108,15 +109,24 @@ public class NetworkConversionTest {
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
-            MvcResult mvcResult = mvc.perform(post("/v1/networks").param("caseUuid", UUID.randomUUID().toString()))
-                    .andExpect(status().isOk())
-                    .andReturn();
+            UUID reportUuid = UUID.fromString("11111111-f351-4c2e-a383-2ad08dd5f8fb");
+            given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
+
+            MvcResult mvcResult = mvc.perform(post("/v1/networks")
+                .param("caseUuid", UUID.randomUUID().toString())
+                .param("reportUuid", UUID.randomUUID().toString()))
+                .andExpect(status().isOk())
+                .andReturn();
 
             assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
                     mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
-            mvc.perform(post("/v1/networks").param("caseUuid", UUID.randomUUID().toString()).param("variantId", "first_variant_id"))
+            mvc.perform(post("/v1/networks")
+                .param("caseUuid", UUID.randomUUID().toString())
+                .param("variantId", "first_variant_id")
+                .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
             assertTrue(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
@@ -265,6 +275,7 @@ public class NetworkConversionTest {
     public void testSendReport() throws Exception {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
@@ -274,11 +285,12 @@ public class NetworkConversionTest {
             return network;
         });
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
             .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/")
-            .param("caseUuid", caseUuid.toString()))
+            .param("caseUuid", caseUuid.toString())
+            .param("reportUuid", reportUuid.toString()))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -290,16 +302,17 @@ public class NetworkConversionTest {
     public void testImportWithError() {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
         Network network = createNetwork("test");
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class)))
                 .willThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())));
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
@@ -307,6 +320,7 @@ public class NetworkConversionTest {
     public void testFlushNetworkWithError() {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
 
         Network network = createNetwork("test");
@@ -314,12 +328,12 @@ public class NetworkConversionTest {
         doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())))
                 .when(networkStoreClient).flush(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
-        given(reportServerRest.exchange(eq("/v1/reports/" + networkUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
