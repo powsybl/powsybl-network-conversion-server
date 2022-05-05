@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
@@ -93,7 +94,7 @@ public class NetworkConversionService {
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
-                                    NetworkStoreService networkStoreService, EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
+                                    NetworkStoreService networkStoreService, @Lazy EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
@@ -128,22 +129,18 @@ public class NetworkConversionService {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("importNetwork", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network = networkStoreService.importNetwork(dataSource, reporter, true);
-        if (variantId != null) {
-            // cloning network initial variant into variantId
-            network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
-        }
+        Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID, reporter);
+        saveNetwork(network, networkUuid, variantId, reporter);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
     private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
-            networkConversionExecutionService.runAsync(() -> flushNetwork(network, networkUuid)),
+            networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
             networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
-            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, variantId))
+            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
         );
         try {
             saveInParallel.get();
@@ -291,10 +288,14 @@ public class NetworkConversionService {
         }
     }
 
-    private void flushNetwork(Network network, UUID networkUuid) {
+    private void storeNetworkInitialVariants(Network network, UUID networkUuid, String variantId) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
             networkStoreService.flush(network);
+            if (variantId != null) {
+                // cloning network initial variant into variantId
+                network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
+            }
         } finally {
             LOGGER.trace("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
@@ -335,5 +336,25 @@ public class NetworkConversionService {
 
     public void setReportServerRest(RestTemplate reportServerRest) {
         this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
+    }
+
+    public void reindexAllEquipments(UUID networkUuid) {
+        Network network = getNetwork(networkUuid);
+
+        // delete all network equipments infos
+        deleteAllEquipmentInfos(networkUuid);
+
+        // recreate all equipments infos
+        insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+    }
+
+    public void deleteAllEquipmentInfos(UUID networkUuid) {
+        equipmentInfosService.deleteAll(networkUuid);
+    }
+
+    public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
+        List<EquipmentInfos> infos = new ArrayList<>();
+        equipmentInfosService.findAll(networkUuid).forEach(infos::add);
+        return infos;
     }
 }

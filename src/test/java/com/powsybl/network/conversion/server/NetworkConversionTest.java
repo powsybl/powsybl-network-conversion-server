@@ -18,6 +18,7 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
@@ -28,7 +29,8 @@ import org.junit.runner.RunWith;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.*;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -63,7 +65,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(value = NetworkConversionController.class)
+@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {"spring.data.elasticsearch.enabled=true"},
+    classes = { EmbeddedElasticsearch.class, NetworkConversionController.class})
 public class NetworkConversionTest {
 
     @Autowired
@@ -129,6 +133,17 @@ public class NetworkConversionTest {
 
             assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
+            UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
+            networkConversionService.deleteAllEquipmentInfos(networkUuid);
+            List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
+            assertTrue(infos.isEmpty());
+
+            mvc.perform(post("/v1/networks/{networkUuid}/reindex-all", networkUuid.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+            infos = networkConversionService.getAllEquipmentInfos(networkUuid);
+            assertEquals(77, infos.size());
         }
     }
 
