@@ -190,13 +190,20 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, List<UUID> otherNetworksUuid, String format) throws IOException {
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
 
         Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
+        if (variantId != null) {
+            if (network.getVariantManager().getVariantIds().contains(variantId)) {
+                network.getVariantManager().setWorkingVariant(variantId);
+            } else {
+                throw NetworkConversionException.createVariantIdUnknown(variantId);
+            }
+        }
 
         Exporters.export(format, network, null, memDataSource);
 
