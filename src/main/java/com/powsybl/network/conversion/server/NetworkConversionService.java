@@ -211,7 +211,11 @@ public class NetworkConversionService {
         String networkName;
         byte[] networkData;
         if (listNames.size() == 1) {
-            networkName = network.getNameOrId() + listNames.toArray()[0];
+            networkName = network.getNameOrId();
+            if (variantId != null) {
+                networkName += "_" + variantId;
+            }
+            networkName += listNames.toArray()[0];
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
         } else {
             networkName = network.getNameOrId() + ".zip";
