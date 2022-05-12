@@ -7,6 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +26,9 @@ import org.springframework.web.bind.annotation.*;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -76,9 +77,9 @@ public class NetworkConversionController {
 
     @GetMapping(value = "/export/formats")
     @Operation(summary = "Get a list of the available format")
-    public ResponseEntity<Collection<String>> getAvailableFormat() {
+    public ResponseEntity<Map<String, ExportFormatMeta>> getAvailableFormat() {
         LOGGER.debug("GetAvailableFormat ...");
-        Collection<String> formats = networkConversionService.getAvailableFormat();
+        Map<String, ExportFormatMeta> formats = networkConversionService.getAvailableFormat();
         return ResponseEntity.ok().body(formats);
 
     }

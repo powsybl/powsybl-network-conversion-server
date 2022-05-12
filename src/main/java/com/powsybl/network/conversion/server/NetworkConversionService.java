@@ -21,6 +21,7 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
+import com.powsybl.iidm.export.Exporter;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
@@ -28,12 +29,15 @@ import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
+import com.powsybl.network.conversion.server.dto.ParamMeta;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -235,8 +239,17 @@ public class NetworkConversionService {
         return baos;
     }
 
-    Collection<String> getAvailableFormat() {
-        return Exporters.getFormats();
+    Map<String, ExportFormatMeta> getAvailableFormat() {
+        Collection<String> formatsIds = Exporters.getFormats();
+        Map<String, ExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
+            Exporter exporter = Exporters.getExporter(formatId);
+            List<ParamMeta> paramsMeta = exporter.getParameters()
+                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
+                .collect(Collectors.toList());
+            return Pair.of(formatId, new ExportFormatMeta(formatId, paramsMeta));
+
+        }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+        return ret;
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {
