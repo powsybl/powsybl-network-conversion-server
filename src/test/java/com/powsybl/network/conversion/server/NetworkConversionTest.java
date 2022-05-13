@@ -148,7 +148,7 @@ public class NetworkConversionTest {
 
             // non existing variantId
             mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
-                        .andExpect(status().isInternalServerError())
+                        .andExpect(status().isNotFound())
                         .andReturn();
 
             // non existing format
