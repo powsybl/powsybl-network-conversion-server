@@ -151,6 +151,11 @@ public class NetworkConversionTest {
                         .andExpect(status().isInternalServerError())
                         .andReturn();
 
+            // non existing format
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
+                        .andExpect(status().isInternalServerError())
+                        .andReturn();
+
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfos(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
