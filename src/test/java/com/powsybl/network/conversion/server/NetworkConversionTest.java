@@ -146,6 +146,11 @@ public class NetworkConversionTest {
             assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
+            // non existing variantId
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
+                        .andExpect(status().isInternalServerError())
+                        .andReturn();
+
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfos(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);

@@ -61,6 +61,7 @@ public final class NetworkConversionException extends RuntimeException {
     }
 
     public static NetworkConversionException createVariantIdUnknown(String variantId) {
+        Objects.requireNonNull(variantId);
         return new NetworkConversionException(Type.UNKNOWN_VARIANT_ID, "The variant Id : " + variantId + " is unknown");
     }
 
