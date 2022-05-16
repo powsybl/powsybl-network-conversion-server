@@ -190,24 +190,33 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, List<UUID> otherNetworksUuid, String format) throws IOException {
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid, String format) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
 
         Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
+        if (variantId != null) {
+            if (network.getVariantManager().getVariantIds().contains(variantId)) {
+                network.getVariantManager().setWorkingVariant(variantId);
+            } else {
+                throw NetworkConversionException.createVariantIdUnknown(variantId);
+            }
+        }
 
         Exporters.export(format, network, null, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
         byte[] networkData;
+        networkName = network.getNameOrId();
+        networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
         if (listNames.size() == 1) {
-            networkName = network.getNameOrId() + listNames.toArray()[0];
+            networkName += listNames.toArray()[0];
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
         } else {
-            networkName = network.getNameOrId() + ".zip";
+            networkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
         return new ExportNetworkInfos(networkName, networkData);

@@ -20,6 +20,7 @@ public final class NetworkConversionException extends RuntimeException {
     public enum Type {
         UNSUPPORTED_FORMAT(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_EQUIPMENT_TYPE(HttpStatus.INTERNAL_SERVER_ERROR),
+        UNKNOWN_VARIANT_ID(HttpStatus.NOT_FOUND),
         FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
@@ -57,6 +58,11 @@ public final class NetworkConversionException extends RuntimeException {
     public static NetworkConversionException createEquipmentTypeUnknown(String type) {
         Objects.requireNonNull(type);
         return new NetworkConversionException(Type.UNKNOWN_EQUIPMENT_TYPE, "The equipment type : " + type + " is unknown");
+    }
+
+    public static NetworkConversionException createVariantIdUnknown(String variantId) {
+        Objects.requireNonNull(variantId);
+        return new NetworkConversionException(Type.UNKNOWN_VARIANT_ID, "The variant Id : " + variantId + " is unknown");
     }
 
     public static NetworkConversionException createFailedNetworkSaving(UUID networkUuid, Exception cause) {

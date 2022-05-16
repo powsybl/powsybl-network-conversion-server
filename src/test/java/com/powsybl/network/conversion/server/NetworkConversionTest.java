@@ -123,12 +123,19 @@ public class NetworkConversionTest {
                     mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
+            String caseUuid = UUID.randomUUID().toString();
             mvc.perform(post("/v1/networks")
-                .param("caseUuid", UUID.randomUUID().toString())
+                .param("caseUuid", caseUuid)
                 .param("variantId", "first_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
+            mvc.perform(post("/v1/networks")
+                .param("caseUuid", caseUuid)
+                .param("variantId", "second_variant_id")
+                .param("reportUuid", UUID.randomUUID().toString()))
+                .andExpect(status().isOk());
             assertTrue(network.getVariantManager().getVariantIds().contains("first_variant_id"));
+            assertTrue(network.getVariantManager().getVariantIds().contains("second_variant_id"));
 
             mvc.perform(get("/v1/export/formats"))
                     .andExpect(status().isOk())
@@ -141,8 +148,26 @@ public class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
 
-            assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertEquals(String.format("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
+                    .andReturn();
+
+            assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
+            // non existing variantId
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
+                        .andExpect(status().isNotFound())
+                        .andReturn();
+
+            // non existing format
+            mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
+                        .andExpect(status().isInternalServerError())
+                        .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfos(networkUuid);
@@ -174,7 +199,7 @@ public class NetworkConversionTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
 
-        assertEquals("attachment; filename*=UTF-8''merged_network.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+        assertEquals(String.format("attachment; filename*=UTF-8''merged_network_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
         assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     }
 
