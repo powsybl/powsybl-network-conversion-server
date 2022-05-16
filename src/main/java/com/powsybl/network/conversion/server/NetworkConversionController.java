@@ -60,12 +60,14 @@ public class NetworkConversionController {
     @Operation(summary = "Export a network from the network-store")
     public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
-                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws IOException {
+                                                @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks
+                                                ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
         List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
 
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, otherNetworksUuid, format);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, variantId, otherNetworksUuid, format);
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
