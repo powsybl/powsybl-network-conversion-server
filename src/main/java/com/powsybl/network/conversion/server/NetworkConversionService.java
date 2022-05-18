@@ -194,7 +194,8 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid, String format) throws IOException {
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
+        String format, Properties formatParameters) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
@@ -209,7 +210,7 @@ public class NetworkConversionService {
             }
         }
 
-        Exporters.export(format, network, null, memDataSource);
+        Exporters.export(format, network, formatParameters, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
