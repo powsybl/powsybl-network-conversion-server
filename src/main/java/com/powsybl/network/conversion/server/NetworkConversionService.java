@@ -127,7 +127,7 @@ public class NetworkConversionService {
 
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        ReporterModel reporter = new ReporterModel(UUID.randomUUID().toString(), "import network");
+        ReporterModel reporter = new ReporterModel("Root", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
