@@ -316,7 +316,7 @@ public class NetworkConversionService {
             networkStoreService.flush(network);
             if (variantId != null) {
                 // cloning network initial variant into variantId
-                network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
+                networkStoreService.cloneVariant(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID, variantId);
             }
         } finally {
             LOGGER.trace("Flush network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));

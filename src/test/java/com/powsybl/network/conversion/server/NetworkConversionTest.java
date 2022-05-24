@@ -54,6 +54,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -134,8 +135,11 @@ public class NetworkConversionTest {
                 .param("variantId", "second_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
-            assertTrue(network.getVariantManager().getVariantIds().contains("first_variant_id"));
-            assertTrue(network.getVariantManager().getVariantIds().contains("second_variant_id"));
+            verify(networkStoreClient).cloneVariant(randomUuid, VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
+            verify(networkStoreClient).cloneVariant(randomUuid, VariantManagerConstants.INITIAL_VARIANT_ID, "second_variant_id");
+            //Since the test reuses the same network object, we manually clone the variants so that the rest of the test works
+            network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
+            network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, "second_variant_id");
 
             mvc.perform(get("/v1/export/formats"))
                     .andExpect(status().isOk())
