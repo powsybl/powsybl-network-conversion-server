@@ -17,8 +17,12 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class ParamMeta {
-    private final String        name;
+
+    private final String name;
+
     private final ParameterType type;
+
     private final String description;
+
     private final Object defaultValue;
 }

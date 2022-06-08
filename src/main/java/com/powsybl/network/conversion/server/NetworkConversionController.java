@@ -74,8 +74,7 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                 @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks,
-                                                @org.springframework.web.bind.annotation.RequestBody(required = false)
-                                                Properties formatParameters
+                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Properties formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
@@ -93,7 +92,6 @@ public class NetworkConversionController {
         LOGGER.debug("GetAvailableFormat ...");
         Map<String, ExportFormatMeta> formats = networkConversionService.getAvailableFormat();
         return ResponseEntity.ok().body(formats);
-
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")

@@ -19,7 +19,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class ExportFormatMeta {
 
-    private final String          formatName;
+    private final String formatName;
 
     private final List<ParamMeta> parameters;
 }

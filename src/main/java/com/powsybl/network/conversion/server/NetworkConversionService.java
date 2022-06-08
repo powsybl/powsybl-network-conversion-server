@@ -248,7 +248,6 @@ public class NetworkConversionService {
                 .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
                 .collect(Collectors.toList());
             return Pair.of(formatId, new ExportFormatMeta(formatId, paramsMeta));
-
         }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
         return ret;
     }
