@@ -21,6 +21,7 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
+import com.powsybl.iidm.export.Exporter;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
@@ -28,12 +29,15 @@ import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
+import com.powsybl.network.conversion.server.dto.ParamMeta;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,27 +129,27 @@ public class NetworkConversionService {
             .build();
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        ReporterModel reporter = new ReporterModel("importNetwork", "import network");
+        ReporterModel reporter = new ReporterModel("Root", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network = networkStoreService.importNetwork(dataSource, reporter, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, variantId, reporter);
+        saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter) {
+    private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter, UUID reportUuid) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
             networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
-            networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter)),
+            networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter, reportUuid)),
             networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
         );
         try {
             saveInParallel.get();
         } catch (InterruptedException | ExecutionException e) {
-            undoSaveNetwork(networkUuid);
+            undoSaveNetwork(networkUuid, reportUuid);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -153,10 +157,10 @@ public class NetworkConversionService {
         }
     }
 
-    private void undoSaveNetwork(UUID networkUuid) {
+    private void undoSaveNetwork(UUID networkUuid, UUID reportUuid) {
         CompletableFuture<Void> deleteInParallel = CompletableFuture.allOf(
             networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-            networkConversionExecutionService.runAsync(() -> deleteReport(networkUuid)),
+            networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
             networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
         );
         try {
@@ -190,7 +194,8 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid, String format) throws IOException {
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
+        String format, Properties formatParameters) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
@@ -205,7 +210,7 @@ public class NetworkConversionService {
             }
         }
 
-        Exporters.export(format, network, null, memDataSource);
+        Exporters.export(format, network, formatParameters, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
@@ -235,8 +240,16 @@ public class NetworkConversionService {
         return baos;
     }
 
-    Collection<String> getAvailableFormat() {
-        return Exporters.getFormats();
+    Map<String, ExportFormatMeta> getAvailableFormat() {
+        Collection<String> formatsIds = Exporters.getFormats();
+        Map<String, ExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
+            Exporter exporter = Exporters.getExporter(formatId);
+            List<ParamMeta> paramsMeta = exporter.getParameters()
+                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
+                .collect(Collectors.toList());
+            return Pair.of(formatId, new ExportFormatMeta(formatId, paramsMeta));
+        }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+        return ret;
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {
@@ -288,7 +301,7 @@ public class NetworkConversionService {
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid, null);
+            return importCase(caseUuid, null, UUID.randomUUID());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
             var network = networkStoreService.importNetwork(dataSource);
@@ -323,11 +336,11 @@ public class NetworkConversionService {
         }
     }
 
-    private void sendReport(UUID networkUuid, ReporterModel reporter) {
+    private void sendReport(UUID networkUuid, ReporterModel reporter, UUID reportUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
+        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
         var uriBuilder = UriComponentsBuilder.fromPath(resourceUrl);
         try {
             reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
@@ -338,8 +351,8 @@ public class NetworkConversionService {
         }
     }
 
-    private void deleteReport(UUID networkUuid) {
-        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + networkUuid.toString();
+    private void deleteReport(UUID reportUuid) {
+        var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
         reportServerRest.delete(resourceUrl);
     }
 

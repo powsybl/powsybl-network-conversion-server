@@ -7,10 +7,13 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +28,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,24 +54,33 @@ public class NetworkConversionController {
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
-                                                   @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId) {
+                                                   @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
+                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid) {
         LOGGER.debug("Importing case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId);
+        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid);
         return ResponseEntity.ok().body(networkInfos);
     }
 
-    @GetMapping(value = "/networks/{networkUuid}/export/{format}")
-    @Operation(summary = "Export a network from the network-store")
-    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
+    // Swagger RequestBody interferes badly with Spring RequestBody where required is false.
+    // Had to put Swagger RequestBody in @Operation part,
+    // it let swagger offer input for body, even though schema part is ignored
+    @PostMapping(value = "/networks/{mainNetworkUuid}/export/{format}")
+    @Operation(summary = "Export a network from the network-store",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Parameters for chosen format",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
+        )
+    )
+    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks
+                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks,
+                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Properties formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
         List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
 
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, variantId, otherNetworksUuid, format);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, variantId, otherNetworksUuid, format, formatParameters);
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
@@ -75,11 +88,10 @@ public class NetworkConversionController {
 
     @GetMapping(value = "/export/formats")
     @Operation(summary = "Get a list of the available format")
-    public ResponseEntity<Collection<String>> getAvailableFormat() {
+    public ResponseEntity<Map<String, ExportFormatMeta>> getAvailableFormat() {
         LOGGER.debug("GetAvailableFormat ...");
-        Collection<String> formats = networkConversionService.getAvailableFormat();
+        Map<String, ExportFormatMeta> formats = networkConversionService.getAvailableFormat();
         return ResponseEntity.ok().body(formats);
-
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
