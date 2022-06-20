@@ -7,7 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.powsybl.cgmes.conformity.test.CgmesConformity1Catalog;
+import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
