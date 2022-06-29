@@ -63,8 +63,7 @@ public class GeneratorActivePowerControlXmlSerializer<T extends Injection<T>> im
 
     @Override
     public void write(ActivePowerControl activePowerControl, XmlWriterContext context) throws XMLStreamException {
-        context.getWriter().writeAttribute("participate", Boolean.toString(activePowerControl.isParticipate()));
-        XmlUtil.writeFloat("droop", activePowerControl.getDroop(), context.getWriter());
+        throw new IllegalStateException("Should never be called");
     }
 
     @Override
