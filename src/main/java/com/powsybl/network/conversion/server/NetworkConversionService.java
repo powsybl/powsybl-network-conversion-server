@@ -131,11 +131,13 @@ public class NetworkConversionService {
             .build();
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Properties importParameters) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, HashMap<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("Root", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network = networkStoreService.importNetwork(dataSource, reporter, importParameters, false);
+        Properties importProperties = new Properties();
+        importProperties.putAll(importParameters);
+        Network network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
@@ -197,11 +199,13 @@ public class NetworkConversionService {
     }
 
     ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
-        String format, Properties formatParameters) throws IOException {
+        String format, HashMap<String, Object> formatParameters) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
+        Properties exportProperties = new Properties();
+        exportProperties.putAll(formatParameters);
 
         Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
         if (variantId != null) {
@@ -212,7 +216,7 @@ public class NetworkConversionService {
             }
         }
 
-        Exporters.export(format, network, formatParameters, memDataSource);
+        Exporters.export(format, network, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
@@ -247,7 +251,7 @@ public class NetworkConversionService {
         Map<String, ImportExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
             Exporter exporter = Exporters.getExporter(formatId);
             List<ParamMeta> paramsMeta = exporter.getParameters()
-                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
+                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
             return Pair.of(formatId, new ImportExportFormatMeta(formatId, paramsMeta));
         }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
@@ -257,7 +261,7 @@ public class NetworkConversionService {
     ImportExportFormatMeta getImportParametersOfFormat(String format) {
         Importer importer = Importers.getImporter(format);
         List<ParamMeta> paramsMeta = importer.getParameters()
-            .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
+            .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
             .collect(Collectors.toList());
         return new ImportExportFormatMeta(format, paramsMeta);
     }

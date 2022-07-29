@@ -56,7 +56,7 @@ public class NetworkConversionController {
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid,
-                                                   @Parameter(description = "Import parameters") @RequestBody(required = false) Properties importParameters) {
+                                                   @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters) {
         LOGGER.debug("Importing case {}...", caseUuid);
         NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, importParameters);
         return ResponseEntity.ok().body(networkInfos);
@@ -75,7 +75,7 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                 @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks,
-                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Properties formatParameters
+                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
