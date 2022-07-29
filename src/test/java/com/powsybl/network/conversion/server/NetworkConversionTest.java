@@ -353,7 +353,7 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
@@ -374,7 +374,7 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
