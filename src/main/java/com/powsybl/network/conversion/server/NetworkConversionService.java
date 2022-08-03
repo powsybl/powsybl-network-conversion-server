@@ -131,13 +131,18 @@ public class NetworkConversionService {
             .build();
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, HashMap<String, Object> importParameters) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("Root", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Properties importProperties = new Properties();
-        importProperties.putAll(importParameters);
-        Network network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+        Network network;
+        if (importParameters != null) {
+            Properties importProperties = new Properties();
+            importProperties.putAll(importParameters);
+            network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+        } else {
+            network = networkStoreService.importNetwork(dataSource, reporter, false);
+        }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
@@ -199,13 +204,16 @@ public class NetworkConversionService {
     }
 
     ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
-        String format, HashMap<String, Object> formatParameters) throws IOException {
+        String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
-        Properties exportProperties = new Properties();
-        exportProperties.putAll(formatParameters);
+        Properties exportProperties = null;
+        if (formatParameters != null) {
+            exportProperties = new Properties();
+            exportProperties.putAll(formatParameters);
+        }
 
         Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
         if (variantId != null) {
