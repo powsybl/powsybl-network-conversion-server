@@ -266,12 +266,17 @@ public class NetworkConversionService {
         return ret;
     }
 
-    ImportExportFormatMeta getImportParametersOfFormat(String format) {
-        Importer importer = Importers.getImporter(format);
+    ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
+        String caseFormat = getCaseFormat(caseUuid);
+        Importer importer = Importers.getImporter(caseFormat);
         List<ParamMeta> paramsMeta = importer.getParameters()
             .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
             .collect(Collectors.toList());
-        return new ImportExportFormatMeta(format, paramsMeta);
+        return new ImportExportFormatMeta(caseFormat, paramsMeta);
+    }
+
+    String getCaseFormat(UUID caseUuid) {
+        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class).getBody();
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {

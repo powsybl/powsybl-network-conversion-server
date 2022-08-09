@@ -95,11 +95,11 @@ public class NetworkConversionController {
         return ResponseEntity.ok().body(formats);
     }
 
-    @GetMapping(value = "/import/formats/{format}/parameters")
-    @Operation(summary = "Get import parameters for specific format")
-    public ResponseEntity<ImportExportFormatMeta> getImportParametersOfFormat(@Parameter(description = "Format name") @PathVariable(name = "format") String format) {
+    @GetMapping(value = "/cases/{caseUuid}/import-parameters")
+    @Operation(summary = "Get import parameters for a case")
+    public ResponseEntity<ImportExportFormatMeta> getCaseImportParameters(@Parameter(description = "Case UUID") @PathVariable(name = "caseUuid") UUID caseUuid) {
         LOGGER.debug("getImportParametersOfFormat ...");
-        ImportExportFormatMeta parameters = networkConversionService.getImportParametersOfFormat(format);
+        ImportExportFormatMeta parameters = networkConversionService.getCaseImportParameters(caseUuid);
         return ResponseEntity.ok().body(parameters);
     }
 
