@@ -195,6 +195,17 @@ public class NetworkConversionTest {
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertEquals(77, infos.size());
+
+            UUID caseUuidFormat = UUID.fromString(caseUuid);
+
+            given(caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class)).willReturn(ResponseEntity.ok("XIIDM"));
+            //given(networkConversionService.getCaseFormat(caseUuidFormat)).willReturn("XIIDM");
+            // test get case import parameters
+            mvc.perform(get("/v1/cases/{caseUuid}/import-parameters", caseUuid))
+                .andExpectAll(
+                    status().isOk(),
+                    content().string("{\"formatName\":\"XIIDM\",\"parameters\":[{\"name\":\"iidm.import.xml.throw-exception-if-extension-not-found\",\"type\":\"BOOLEAN\",\"description\":\"Throw exception if extension not found\",\"defaultValue\":false,\"possibleValues\":null},{\"name\":\"iidm.import.xml.extensions\",\"type\":\"STRING_LIST\",\"description\":\"The list of extension files \",\"defaultValue\":null,\"possibleValues\":[\"generatorShortCircuit\",\"identifiableShortCircuit\",\"slackTerminal\",\"entsoeArea\",\"coordinatedReactiveControl\",\"linePosition\",\"baseVoltageMapping\",\"voltagePerReactivePowerControl\",\"substationPosition\",\"cgmesControlAreas\",\"cgmesTapChangers\",\"branchObservability\",\"startup\",\"branchStatus\",\"cgmesDanglingLineBoundaryNode\",\"cgmesLineBoundaryNode\",\"busbarSectionPosition\",\"cgmesIidmMapping\",\"threeWindingsTransformerToBeEstimated\",\"injectionObservability\",\"cgmesSvMetadata\",\"mergedXnode\",\"measurements\",\"twoWindingsTransformerPhaseAngleClock\",\"entsoeCategory\",\"hvdcOperatorActivePowerRange\",\"hvdcAngleDroopActivePowerControl\",\"twoWindingsTransformerToBeEstimated\",\"discreteMeasurements\",\"cimCharacteristics\",\"xnode\",\"cgmesSshMetadata\",\"position\",\"detail\",\"threeWindingsTransformerPhaseAngleClock\",\"activePowerControl\"]}]}")
+                );
         }
     }
 
