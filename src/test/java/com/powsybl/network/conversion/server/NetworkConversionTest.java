@@ -46,7 +46,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -135,6 +138,7 @@ public class NetworkConversionTest {
                 .param("variantId", "second_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
+
             verify(networkStoreClient).cloneVariant(randomUuid, VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
             verify(networkStoreClient).cloneVariant(randomUuid, VariantManagerConstants.INITIAL_VARIANT_ID, "second_variant_id");
             //Since the test reuses the same network object, we manually clone the variants so that the rest of the test works
@@ -204,6 +208,19 @@ public class NetworkConversionTest {
                 .andReturn();
 
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("{\"formatName\":\"XIIDM\",\"parameters\":"));
+
+            Map<String, Object> importParameters = new HashMap<>();
+            importParameters.put("randomImportParameters", "randomImportValue");
+
+            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
+
+            mvc.perform(post("/v1/networks")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(new ObjectMapper().writeValueAsString(importParameters))
+                    .param("caseUuid", caseUuid)
+                    .param("variantId", "import_params_variant_id")
+                    .param("reportUuid", UUID.randomUUID().toString()))
+                    .andExpect(status().isOk());
         }
     }
 
