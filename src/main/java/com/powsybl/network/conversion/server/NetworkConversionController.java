@@ -55,10 +55,17 @@ public class NetworkConversionController {
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
-                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid) {
-        LOGGER.debug("Importing case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid);
-        return ResponseEntity.ok().body(networkInfos);
+                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid,
+                                                   @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
+                                                   @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
+        LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
+        if (!isAsyncRun) {
+            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid);
+            return ResponseEntity.ok().body(networkInfos);
+        }
+
+        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, receiver);
+        return ResponseEntity.ok().build();
     }
 
     // Swagger RequestBody interferes badly with Spring RequestBody where required is false.

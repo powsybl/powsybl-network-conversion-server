@@ -43,10 +43,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -62,6 +64,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -92,16 +95,20 @@ public class NetworkConversionService {
 
     private final NetworkConversionExecutionService networkConversionExecutionService;
 
+    private final NotificationService notificationService;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
-                                    NetworkStoreService networkStoreService, @Lazy EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
+                                    NetworkStoreService networkStoreService, @Lazy EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService,
+                                    NotificationService notificationService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
+        this.notificationService = notificationService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -127,6 +134,28 @@ public class NetworkConversionService {
             .type(i.getType().name())
             .voltageLevels(EquipmentInfos.getVoltageLevels(i))
             .build();
+    }
+
+    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, String receiver) {
+        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, receiver);
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseImportStart() {
+        return message -> {
+            UUID caseUuid = message.getPayload();
+            String variantId = message.getHeaders().get("variantId", String.class);
+            UUID reportUuid = UUID.fromString(message.getHeaders().get("reportUuid", String.class));
+            String receiver = message.getHeaders().get("receiver", String.class);
+            NetworkInfos networkInfos;
+            try {
+                networkInfos = importCase(caseUuid, variantId, reportUuid);
+            } catch (Exception e) {
+                notificationService.emitCaseImportFailed(receiver, e.getMessage());
+                throw e;
+            }
+            notificationService.emitCaseImportSucceeded(networkInfos, receiver);
+        };
     }
 
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid) {
