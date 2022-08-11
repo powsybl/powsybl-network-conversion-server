@@ -23,13 +23,15 @@ import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporter;
 import com.powsybl.iidm.export.Exporters;
+import com.powsybl.iidm.import_.Importer;
+import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
+import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import com.powsybl.network.conversion.server.dto.ParamMeta;
@@ -129,11 +131,18 @@ public class NetworkConversionService {
             .build();
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReporterModel reporter = new ReporterModel("Root", "import network");
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network = networkStoreService.importNetwork(dataSource, reporter, false);
+        Network network;
+        if (importParameters != null) {
+            Properties importProperties = new Properties();
+            importProperties.putAll(importParameters);
+            network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+        } else {
+            network = networkStoreService.importNetwork(dataSource, reporter, false);
+        }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
@@ -195,11 +204,16 @@ public class NetworkConversionService {
     }
 
     ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
-        String format, Properties formatParameters) throws IOException {
+        String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporters.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
+        Properties exportProperties = null;
+        if (formatParameters != null) {
+            exportProperties = new Properties();
+            exportProperties.putAll(formatParameters);
+        }
 
         Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
         if (variantId != null) {
@@ -210,7 +224,7 @@ public class NetworkConversionService {
             }
         }
 
-        Exporters.export(format, network, formatParameters, memDataSource);
+        Exporters.export(format, network, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
@@ -240,16 +254,29 @@ public class NetworkConversionService {
         return baos;
     }
 
-    Map<String, ExportFormatMeta> getAvailableFormat() {
+    Map<String, ImportExportFormatMeta> getAvailableFormat() {
         Collection<String> formatsIds = Exporters.getFormats();
-        Map<String, ExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
+        Map<String, ImportExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
             Exporter exporter = Exporters.getExporter(formatId);
             List<ParamMeta> paramsMeta = exporter.getParameters()
-                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue()))
+                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
-            return Pair.of(formatId, new ExportFormatMeta(formatId, paramsMeta));
+            return Pair.of(formatId, new ImportExportFormatMeta(formatId, paramsMeta));
         }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
         return ret;
+    }
+
+    ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
+        String caseFormat = getCaseFormat(caseUuid);
+        Importer importer = Importers.getImporter(caseFormat);
+        List<ParamMeta> paramsMeta = importer.getParameters()
+            .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
+            .collect(Collectors.toList());
+        return new ImportExportFormatMeta(caseFormat, paramsMeta);
+    }
+
+    String getCaseFormat(UUID caseUuid) {
+        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class).getBody();
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {
@@ -301,7 +328,7 @@ public class NetworkConversionService {
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid, null, UUID.randomUUID());
+            return importCase(caseUuid, null, UUID.randomUUID(), null);
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
             var network = networkStoreService.importNetwork(dataSource);

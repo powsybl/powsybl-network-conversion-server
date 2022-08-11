@@ -7,7 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.ExportFormatMeta;
+import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,9 +55,10 @@ public class NetworkConversionController {
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
-                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid) {
+                                                   @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid,
+                                                   @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters) {
         LOGGER.debug("Importing case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid);
+        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, importParameters);
         return ResponseEntity.ok().body(networkInfos);
     }
 
@@ -74,7 +75,7 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                 @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks,
-                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Properties formatParameters
+                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
 
@@ -88,10 +89,18 @@ public class NetworkConversionController {
 
     @GetMapping(value = "/export/formats")
     @Operation(summary = "Get a list of the available format")
-    public ResponseEntity<Map<String, ExportFormatMeta>> getAvailableFormat() {
-        LOGGER.debug("GetAvailableFormat ...");
-        Map<String, ExportFormatMeta> formats = networkConversionService.getAvailableFormat();
+    public ResponseEntity<Map<String, ImportExportFormatMeta>> getAvailableFormat() {
+        LOGGER.debug("getAvailableExportFormat ...");
+        Map<String, ImportExportFormatMeta> formats = networkConversionService.getAvailableFormat();
         return ResponseEntity.ok().body(formats);
+    }
+
+    @GetMapping(value = "/cases/{caseUuid}/import-parameters")
+    @Operation(summary = "Get import parameters for a case")
+    public ResponseEntity<ImportExportFormatMeta> getCaseImportParameters(@Parameter(description = "Case UUID") @PathVariable(name = "caseUuid") UUID caseUuid) {
+        LOGGER.debug("getImportParametersOfFormat ...");
+        ImportExportFormatMeta parameters = networkConversionService.getCaseImportParameters(caseUuid);
+        return ResponseEntity.ok().body(parameters);
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
