@@ -17,7 +17,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public class ExportFormatMeta {
+public class ImportExportFormatMeta {
 
     private final String formatName;
 

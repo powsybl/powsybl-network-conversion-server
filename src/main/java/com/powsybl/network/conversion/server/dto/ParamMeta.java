@@ -6,6 +6,8 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
+import java.util.List;
+
 import com.powsybl.iidm.parameters.ParameterType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,4 +27,6 @@ public class ParamMeta {
     private final String description;
 
     private final Object defaultValue;
+
+    private final List<Object> possibleValues;
 }
