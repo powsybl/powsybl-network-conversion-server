@@ -117,25 +117,25 @@ public class NetworkConversionTest {
             given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-            MvcResult mvcResult = mvc.perform(post("/v1/networks")
+            mvc.perform(post("/v1/networks")
                 .param("caseUuid", UUID.randomUUID().toString())
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
-                    mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
             String caseUuid = UUID.randomUUID().toString();
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "first_variant_id")
+                .param("isAsyncRun", "false")
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "second_variant_id")
+                .param("isAsyncRun", "false")
                 .param("reportUuid", UUID.randomUUID().toString()))
                 .andExpect(status().isOk());
 
@@ -151,7 +151,7 @@ public class NetworkConversionTest {
                     .andReturn();
 
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
+            MvcResult mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
@@ -357,7 +357,8 @@ public class NetworkConversionTest {
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/")
             .param("caseUuid", caseUuid.toString())
-            .param("reportUuid", reportUuid.toString()))
+            .param("reportUuid", reportUuid.toString())
+            .param("isAsyncRun", "false"))
             .andExpect(status().isOk())
             .andReturn();
 
