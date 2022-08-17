@@ -1,5 +1,6 @@
 package com.powsybl.network.conversion.server;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -17,12 +18,13 @@ public class NotificationService {
 
     private static final Logger MESSAGE_OUTPUT_LOGGER = LoggerFactory.getLogger(NotificationService.class);
 
-    private static final String HEADER_VARIANT_ID = "variantId";
-    private static final String HEADER_REPORT_UUID = "reportUuid";
-    private static final String HEADER_NETWORK_ID = "networkId";
-    private static final String HEADER_NETWORK_UUID = "networkUuid";
-    private static final String HEADER_RECEIVER = "receiver";
-    private static final String HEADER_ERROR_MESSAGE = "errorMessage";
+    public static final String HEADER_VARIANT_ID = "variantId";
+    public static final String HEADER_REPORT_UUID = "reportUuid";
+    public static final String HEADER_NETWORK_ID = "networkId";
+    public static final String HEADER_NETWORK_UUID = "networkUuid";
+    public static final String HEADER_RECEIVER = "receiver";
+    public static final String HEADER_ERROR_MESSAGE = "errorMessage";
+    public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -42,10 +44,11 @@ public class NotificationService {
         networkConversionPublisher.send("publishCaseImportFailed-out-0", message);
     }
 
-    public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, String receiver) {
+    public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
         sendCaseImportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
                 .setHeader(HEADER_REPORT_UUID, reportUuid)
+                .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .build());
     }

@@ -138,23 +138,26 @@ public class NetworkConversionService {
             .build();
     }
 
-    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, String receiver) {
-        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, receiver);
+    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
+        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, importParameters, receiver);
     }
 
     @Bean
     Consumer<Message<UUID>> consumeCaseImportStart() {
         return message -> {
             UUID caseUuid = message.getPayload();
-            String variantId = message.getHeaders().get("variantId", String.class);
-            UUID reportUuid = UUID.fromString(message.getHeaders().get("reportUuid", String.class));
-            String receiver = message.getHeaders().get("receiver", String.class);
+            String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
+            UUID reportUuid = UUID.fromString(message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class));
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+            Map<String, Object>  importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+
             NetworkInfos networkInfos;
             try {
-                networkInfos = importCase(caseUuid, variantId, reportUuid);
+                networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
             } catch (Exception e) {
+                LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
-                throw e;
+                return;
             }
             notificationService.emitCaseImportSucceeded(networkInfos, receiver);
         };
