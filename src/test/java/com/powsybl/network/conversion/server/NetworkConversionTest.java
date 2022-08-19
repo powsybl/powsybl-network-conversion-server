@@ -119,7 +119,8 @@ public class NetworkConversionTest {
 
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", UUID.randomUUID().toString())
-                .param("reportUuid", UUID.randomUUID().toString()))
+                .param("reportUuid", UUID.randomUUID().toString())
+                .param("isAsyncRun", "false"))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -219,7 +220,8 @@ public class NetworkConversionTest {
                     .content(new ObjectMapper().writeValueAsString(importParameters))
                     .param("caseUuid", caseUuid)
                     .param("variantId", "import_params_variant_id")
-                    .param("reportUuid", UUID.randomUUID().toString()))
+                    .param("reportUuid", UUID.randomUUID().toString())
+                    .param("isRunAsync", "false"))
                     .andExpect(status().isOk());
         }
     }
