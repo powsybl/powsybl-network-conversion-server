@@ -152,6 +152,8 @@ public class NetworkConversionService {
             Map<String, Object>  importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
 
             NetworkInfos networkInfos;
+
+            String caseFormat = getCaseFormat(caseUuid);
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
             } catch (Exception e) {
@@ -159,7 +161,7 @@ public class NetworkConversionService {
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
                 return;
             }
-            notificationService.emitCaseImportSucceeded(networkInfos, receiver);
+            notificationService.emitCaseImportSucceeded(networkInfos, caseFormat, receiver);
         };
     }
 

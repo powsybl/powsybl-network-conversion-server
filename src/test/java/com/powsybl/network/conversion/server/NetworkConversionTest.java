@@ -24,6 +24,7 @@ import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.apache.commons.compress.utils.IOUtils;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.stubbing.Answer;
@@ -32,7 +33,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.stream.binder.test.OutputDestination;
+import org.springframework.cloud.stream.binder.test.TestChannelBinderConfiguration;
 import org.springframework.http.*;
+import org.springframework.messaging.Message;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -71,8 +75,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringRunner.class)
 @AutoConfigureMockMvc
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {"spring.data.elasticsearch.enabled=true"},
-    classes = { EmbeddedElasticsearch.class, NetworkConversionController.class})
+    classes = { EmbeddedElasticsearch.class, NetworkConversionController.class, TestChannelBinderConfiguration.class})
 public class NetworkConversionTest {
+
+    private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
 
     @Autowired
     private MockMvc mvc;
@@ -95,13 +101,21 @@ public class NetworkConversionTest {
     @MockBean
     private NetworkStoreService networkStoreClient;
 
+    @Autowired
+    private OutputDestination output;
+
+    @Before
+    public void setup() {
+        networkConversionService.setCaseServerRest(caseServerRest);
+        networkConversionService.setGeoDataServerRest(geoDataRest);
+        networkConversionService.setReportServerRest(reportServerRest);
+    }
+
     @Test
     public void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
             byte[] networkByte = IOUtils.toByteArray(inputStream);
-            networkConversionService.setCaseServerRest(caseServerRest);
-            networkConversionService.setGeoDataServerRest(geoDataRest);
-            networkConversionService.setReportServerRest(reportServerRest);
+
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
                     .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
 
@@ -201,8 +215,8 @@ public class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertEquals(77, infos.size());
 
-            given(caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class)).willReturn(ResponseEntity.ok("XIIDM"));
-            //given(networkConversionService.getCaseFormat(caseUuidFormat)).willReturn("XIIDM");
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+
             // test get case import parameters
             mvcResult = mvc.perform(get("/v1/cases/{caseUuid}/import-parameters", caseUuid))
                 .andExpect(status().isOk())
@@ -210,6 +224,7 @@ public class NetworkConversionTest {
 
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("{\"formatName\":\"XIIDM\",\"parameters\":"));
 
+            // sync import with import parameters
             Map<String, Object> importParameters = new HashMap<>();
             importParameters.put("randomImportParameters", "randomImportValue");
 
@@ -221,9 +236,68 @@ public class NetworkConversionTest {
                     .param("caseUuid", caseUuid)
                     .param("variantId", "import_params_variant_id")
                     .param("reportUuid", UUID.randomUUID().toString())
-                    .param("isRunAsync", "false"))
+                    .param("isAsyncRun", "false"))
                     .andExpect(status().isOk());
         }
+    }
+
+    @Test
+    public void testAsyncImport() throws Exception {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
+                new ResourceSet("", "testCase.xiidm"));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+        UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        String caseUuid = UUID.randomUUID().toString();
+        String receiver = "test receiver";
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+
+        Map<String, Object> importParameters = new HashMap<>();
+        importParameters.put("randomImportParameters", "randomImportValue");
+
+        mvc.perform(post("/v1/networks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(importParameters))
+                .param("caseUuid", caseUuid)
+                .param("variantId", "async_variant_id")
+                .param("reportUuid", UUID.randomUUID().toString())
+                .param("receiver", receiver))
+                .andExpect(status().isOk());
+
+        Message<byte[]> message = output.receive(1000, "case.import.succeeded");
+        assertEquals(randomUuid.toString(), message.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
+        assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
+        assertEquals("20140116_0830_2D4_UX1_pst", message.getHeaders().get(NotificationService.HEADER_NETWORK_ID));
+    }
+
+    @Test
+    public void testFailedAsyncImport() throws Exception {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
+                new ResourceSet("", "testCase.xiidm"));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+        UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        String caseUuid = UUID.randomUUID().toString();
+        String receiver = "test receiver";
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+
+        Map<String, Object> importParameters = new HashMap<>();
+        importParameters.put("randomImportParameters", "randomImportValue");
+
+        mvc.perform(post("/v1/networks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(importParameters))
+                .param("caseUuid", caseUuid)
+                .param("variantId", "async_failure_variant_id")
+                .param("reportUuid", UUID.randomUUID().toString())
+                .param("receiver", receiver))
+                .andExpect(status().isOk());
+
+        Message<byte[]> message = output.receive(1000, "case.import.failed");
+        assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
+        assertEquals(IMPORT_CASE_ERROR_MESSAGE, message.getHeaders().get(NotificationService.HEADER_ERROR_MESSAGE));
     }
 
     @Test
