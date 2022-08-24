@@ -131,13 +131,15 @@ public class NetworkConversionTest {
             given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-            mvc.perform(post("/v1/networks")
+            MvcResult mvcResult = mvc.perform(post("/v1/networks")
                 .param("caseUuid", UUID.randomUUID().toString())
                 .param("reportUuid", UUID.randomUUID().toString())
                 .param("isAsyncRun", "false"))
                 .andExpect(status().isOk())
                 .andReturn();
 
+            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
+                    mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
             String caseUuid = UUID.randomUUID().toString();
@@ -166,7 +168,7 @@ public class NetworkConversionTest {
                     .andReturn();
 
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
-            MvcResult mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();

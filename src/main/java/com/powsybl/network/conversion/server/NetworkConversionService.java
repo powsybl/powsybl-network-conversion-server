@@ -156,12 +156,12 @@ public class NetworkConversionService {
             String caseFormat = getCaseFormat(caseUuid);
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseFormat, receiver);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
                 return;
             }
-            notificationService.emitCaseImportSucceeded(networkInfos, caseFormat, receiver);
         };
     }
 
