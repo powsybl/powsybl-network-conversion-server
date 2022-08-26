@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>7</version>
+        <version>8</version>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -26,18 +26,17 @@
 
         <java.version>11</java.version>
 
-        <!-- 4.13.1 is incompatible with spring-boot-starter-test -->
-        <junit.version>4.13</junit.version>
-        <springboot.version>2.4.7</springboot.version>
-        <springdoc-openapi.version>1.4.8</springdoc-openapi.version>
+        <springboot.version>2.6.6</springboot.version>
+        <springdoc-openapi.version>1.5.13</springdoc-openapi.version>
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <commons-lang3.version>3.9</commons-lang3.version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
-        <powsybl-core.version>4.7.0</powsybl-core.version>
+        <powsybl-dependencies.version>1.2.0</powsybl-dependencies.version>
         <powsybl-network-store-client.version>1.0.0-SNAPSHOT</powsybl-network-store-client.version>
         <powsybl-case-datasource-client.version>1.0.0-SNAPSHOT</powsybl-case-datasource-client.version>
-        <powsybl-ws-commons.version>1.1.0</powsybl-ws-commons.version>
+        <powsybl-ws-commons.version>1.2.0</powsybl-ws-commons.version>
         <testcontainers.version>1.16.2</testcontainers.version>
+        <jackson.version>2.13.2.20220328</jackson.version>
     </properties>
 
     <build>
@@ -73,17 +72,23 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
+
+            <!-- The version 2.10 put by Powsybl cause a problem. spring boot 2.6 needs at least 2.13: https://github.com/FasterXML/jackson-databind/issues/2683 -->
+            <!-- java.lang.NoSuchMethodError: 'boolean com.fasterxml.jackson.databind.SerializationConfig.hasExplicitTimeZone()' -->
+            <!-- Use the version from spring boot 2.6.6 which contains the fix for the  spring 4 shell CVE -->
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-core</artifactId>
-                <version>${powsybl-core.version}</version>
+                <artifactId>powsybl-dependencies</artifactId>
+                <version>${powsybl-dependencies.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -218,7 +223,6 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-triple-store-impl-rdf4j</artifactId>
-            <version>${powsybl-core.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -231,8 +235,6 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-cgmes-conformity</artifactId>
-            <version>${powsybl-core.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -244,7 +246,6 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-config-test</artifactId>
-            <version>${powsybl-core.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
