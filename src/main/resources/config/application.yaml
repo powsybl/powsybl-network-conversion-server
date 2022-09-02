@@ -2,6 +2,21 @@ spring:
   application:
     name: network-conversion-server
 
+  cloud:
+    function:
+      definition: consumeCaseImportStart
+    stream:
+      bindings:
+        publishCaseImportStart-out-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
+        publishCaseImportSucceeded-out-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.succeeded
+        publishCaseImportFailed-out-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.failed
+        consumeCaseImportStart-in-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
+      source: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
+      
 network-store-server:
   preloading-strategy: COLLECTION
 

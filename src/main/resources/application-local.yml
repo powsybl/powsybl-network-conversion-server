@@ -2,6 +2,8 @@ server:
   port: 5003
 
 spring:
+  rabbitmq:
+    addresses: localhost
   data:
     elasticsearch:
       host: localhost

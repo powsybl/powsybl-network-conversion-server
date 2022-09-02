@@ -30,6 +30,7 @@ import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
@@ -45,10 +46,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -64,6 +67,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -94,16 +98,22 @@ public class NetworkConversionService {
 
     private final NetworkConversionExecutionService networkConversionExecutionService;
 
+    private final NotificationService notificationService;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
     public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
-                                    NetworkStoreService networkStoreService, @Lazy EquipmentInfosService equipmentInfosService, NetworkConversionExecutionService networkConversionExecutionService) {
+                                    NetworkStoreService networkStoreService,
+                                    @Lazy EquipmentInfosService equipmentInfosService,
+                                    NetworkConversionExecutionService networkConversionExecutionService,
+                                    NotificationService notificationService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
+        this.notificationService = notificationService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -129,6 +139,34 @@ public class NetworkConversionService {
             .type(i.getType().name())
             .voltageLevels(EquipmentInfos.getVoltageLevels(i))
             .build();
+    }
+
+    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
+        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, importParameters, receiver);
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseImportStart() {
+        return message -> {
+            UUID caseUuid = message.getPayload();
+            String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
+            UUID reportUuid = UUID.fromString(message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class));
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+            Map<String, Object>  importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+
+            NetworkInfos networkInfos;
+
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+
+            try {
+                networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver);
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage(), e);
+                notificationService.emitCaseImportFailed(receiver, e.getMessage());
+                return;
+            }
+        };
     }
 
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
@@ -267,16 +305,16 @@ public class NetworkConversionService {
     }
 
     ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
-        String caseFormat = getCaseFormat(caseUuid);
-        Importer importer = Importers.getImporter(caseFormat);
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        Importer importer = Importers.getImporter(caseInfos.getFormat());
         List<ParamMeta> paramsMeta = importer.getParameters()
             .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
             .collect(Collectors.toList());
-        return new ImportExportFormatMeta(caseFormat, paramsMeta);
+        return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
-    String getCaseFormat(UUID caseUuid) {
-        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class).getBody();
+    CaseInfos getCaseInfos(UUID caseUuid) {
+        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/infos", CaseInfos.class).getBody();
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {

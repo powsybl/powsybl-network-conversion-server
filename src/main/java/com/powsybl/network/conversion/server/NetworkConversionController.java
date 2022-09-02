@@ -56,10 +56,17 @@ public class NetworkConversionController {
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid") UUID reportUuid,
-                                                   @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters) {
-        LOGGER.debug("Importing case {}...", caseUuid);
-        NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, importParameters);
-        return ResponseEntity.ok().body(networkInfos);
+                                                   @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters,
+                                                   @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
+                                                   @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
+        LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
+        if (!isAsyncRun) {
+            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, importParameters);
+            return ResponseEntity.ok().body(networkInfos);
+        }
+
+        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, importParameters, receiver);
+        return ResponseEntity.ok().build();
     }
 
     // Swagger RequestBody interferes badly with Spring RequestBody where required is false.
