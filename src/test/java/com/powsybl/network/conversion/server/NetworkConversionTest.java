@@ -18,6 +18,7 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
@@ -217,7 +218,7 @@ public class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertEquals(77, infos.size());
 
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
             // test get case import parameters
             mvcResult = mvc.perform(get("/v1/cases/{caseUuid}/import-parameters", caseUuid))
@@ -253,7 +254,7 @@ public class NetworkConversionTest {
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("randomImportParameters", "randomImportValue");
@@ -283,7 +284,7 @@ public class NetworkConversionTest {
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/format"), any())).willReturn(ResponseEntity.ok("XIIDM"));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("randomImportParameters", "randomImportValue");

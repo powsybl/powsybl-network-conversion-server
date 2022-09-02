@@ -30,6 +30,7 @@ import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
@@ -155,10 +156,11 @@ public class NetworkConversionService {
 
             NetworkInfos networkInfos;
 
-            String caseFormat = getCaseFormat(caseUuid);
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseFormat, receiver);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
@@ -303,16 +305,16 @@ public class NetworkConversionService {
     }
 
     ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
-        String caseFormat = getCaseFormat(caseUuid);
-        Importer importer = Importers.getImporter(caseFormat);
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        Importer importer = Importers.getImporter(caseInfos.getFormat());
         List<ParamMeta> paramsMeta = importer.getParameters()
             .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
             .collect(Collectors.toList());
-        return new ImportExportFormatMeta(caseFormat, paramsMeta);
+        return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
-    String getCaseFormat(UUID caseUuid) {
-        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/format", String.class).getBody();
+    CaseInfos getCaseInfos(UUID caseUuid) {
+        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/infos", CaseInfos.class).getBody();
     }
 
     void setCaseServerRest(RestTemplate caseServerRest) {

@@ -21,6 +21,7 @@ import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 
+import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 
 @Service
@@ -36,6 +37,7 @@ public class NotificationService {
     public static final String HEADER_ERROR_MESSAGE = "errorMessage";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
+    public static final String HEADER_CASE_NAME = "caseName";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -64,11 +66,12 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseImportSucceeded(NetworkInfos networkInfos, String caseFormat, String receiver) {
+    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver) {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
-                .setHeader(HEADER_CASE_FORMAT, caseFormat)
+                .setHeader(HEADER_CASE_FORMAT, caseInfos.getFormat())
+                .setHeader(HEADER_CASE_NAME, caseInfos.getName())
                 .setHeader(HEADER_RECEIVER, receiver)
                 .build());
     }
