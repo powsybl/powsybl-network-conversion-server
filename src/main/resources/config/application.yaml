@@ -15,6 +15,9 @@ spring:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.failed
         consumeCaseImportStart-in-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
+          group: importGroup
+          consumer:
+            concurrency: 1
       source: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
       
 network-store-server:
