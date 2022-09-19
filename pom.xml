@@ -26,7 +26,7 @@
 
         <java.version>11</java.version>
 
-        <springboot.version>2.6.6</springboot.version>
+        <springboot.version>2.7.3</springboot.version>
         <springdoc-openapi.version>1.5.13</springdoc-openapi.version>
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <commons-lang3.version>3.9</commons-lang3.version>
@@ -35,7 +35,7 @@
         <powsybl-network-store-client.version>1.0.0-SNAPSHOT</powsybl-network-store-client.version>
         <powsybl-case-datasource-client.version>1.0.0-SNAPSHOT</powsybl-case-datasource-client.version>
         <powsybl-ws-commons.version>1.2.0</powsybl-ws-commons.version>
-        <testcontainers.version>1.16.2</testcontainers.version>
+        <testcontainers.version>1.17.3</testcontainers.version>
         <jackson.version>2.13.2.20220328</jackson.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
         <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>

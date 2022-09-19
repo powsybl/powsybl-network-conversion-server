@@ -18,8 +18,7 @@ spring:
           group: importGroup
           consumer:
             concurrency: 2
-      source: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
-      
+      output-bindings: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
 network-store-server:
   preloading-strategy: COLLECTION
 
