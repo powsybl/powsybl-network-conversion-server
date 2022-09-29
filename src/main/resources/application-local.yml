@@ -7,6 +7,9 @@ spring:
   data:
     elasticsearch:
       host: localhost
+      ## to fill if authentication is needed
+      # user:
+      # password:      
 
 network-store-server:
   base-uri: http://localhost:8080/
