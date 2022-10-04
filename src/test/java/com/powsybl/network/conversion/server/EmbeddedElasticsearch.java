@@ -22,7 +22,7 @@ import javax.annotation.PreDestroy;
 public class EmbeddedElasticsearch {
 
     private static final String ES_DOCKER_IMAGE_NAME = "docker.elastic.co/elasticsearch/elasticsearch";
-    private static final String ES_DOCKER_IMAGE_VERSION = "7.9.3";
+    private static final String ES_DOCKER_IMAGE_VERSION = "7.17.4";
 
     private static ElasticsearchContainer elasticsearchContainer;
 
