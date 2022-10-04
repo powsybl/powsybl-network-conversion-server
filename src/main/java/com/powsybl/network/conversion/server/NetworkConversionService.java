@@ -24,7 +24,6 @@ import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.export.Exporter;
 import com.powsybl.iidm.export.Exporters;
 import com.powsybl.iidm.import_.Importer;
-import com.powsybl.iidm.import_.Importers;
 import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.Network;
@@ -243,7 +242,7 @@ public class NetworkConversionService {
 
     ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
         String format, Map<String, Object> formatParameters) throws IOException {
-        if (!Exporters.getFormats().contains(format)) {
+        if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
         MemDataSource memDataSource = new MemDataSource();
@@ -293,9 +292,9 @@ public class NetworkConversionService {
     }
 
     Map<String, ImportExportFormatMeta> getAvailableFormat() {
-        Collection<String> formatsIds = Exporters.getFormats();
+        Collection<String> formatsIds = Exporter.getFormats();
         Map<String, ImportExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
-            Exporter exporter = Exporters.getExporter(formatId);
+            Exporter exporter = Exporter.find(formatId);
             List<ParamMeta> paramsMeta = exporter.getParameters()
                 .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
@@ -306,7 +305,7 @@ public class NetworkConversionService {
 
     ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
         CaseInfos caseInfos = getCaseInfos(caseUuid);
-        Importer importer = Importers.getImporter(caseInfos.getFormat());
+        Importer importer = Importer.find(caseInfos.getFormat());
         List<ParamMeta> paramsMeta = importer.getParameters()
             .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
             .collect(Collectors.toList());

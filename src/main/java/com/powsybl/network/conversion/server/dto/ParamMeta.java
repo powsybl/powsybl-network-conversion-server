@@ -8,7 +8,7 @@ package com.powsybl.network.conversion.server.dto;
 
 import java.util.List;
 
-import com.powsybl.iidm.parameters.ParameterType;
+import com.powsybl.commons.parameters.ParameterType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
