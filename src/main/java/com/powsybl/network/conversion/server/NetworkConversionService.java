@@ -17,6 +17,7 @@ import com.powsybl.cgmes.extensions.CgmesSshMetadata;
 import com.powsybl.cgmes.extensions.CgmesSvMetadata;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
@@ -84,6 +85,8 @@ import static com.powsybl.network.conversion.server.NetworkConversionConstants.R
 public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
+
+    private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
 
     private RestTemplate caseServerRest;
 
@@ -170,7 +173,16 @@ public class NetworkConversionService {
 
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        ReporterModel reporter = new ReporterModel("Root", "import network");
+
+        Reporter rootReporter = Reporter.NO_OP;
+        Reporter reporter = Reporter.NO_OP;
+        if (reportUuid != null) {
+            String reporterId = "Root@" + IMPORT_TYPE_REPORT;
+            rootReporter = new ReporterModel(reporterId, reporterId);
+            String subReporterId = "Import Case : " + dataSource.getBaseName();
+            reporter = rootReporter.createSubReporter(subReporterId, subReporterId);
+        }
+
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
         if (importParameters != null) {
@@ -182,11 +194,11 @@ public class NetworkConversionService {
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
+        saveNetwork(network, networkUuid, variantId, rootReporter, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    private void saveNetwork(Network network, UUID networkUuid, String variantId, ReporterModel reporter, UUID reportUuid) {
+    private void saveNetwork(Network network, UUID networkUuid, String variantId, Reporter reporter, UUID reportUuid) {
         CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
             networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
             networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter, reportUuid)),
@@ -400,7 +412,7 @@ public class NetworkConversionService {
         }
     }
 
-    private void sendReport(UUID networkUuid, ReporterModel reporter, UUID reportUuid) {
+    private void sendReport(UUID networkUuid, Reporter reporter, UUID reportUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
