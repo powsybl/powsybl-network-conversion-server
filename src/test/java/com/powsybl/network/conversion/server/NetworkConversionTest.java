@@ -247,6 +247,14 @@ public class NetworkConversionTest {
                             .param("caseUuid", caseUuid)
                             .param("isAsyncRun", "false"))
                     .andExpect(status().isOk());
+
+            // test without report and with an error at flush
+            doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown("?")))
+                    .when(networkStoreClient).flush(network);
+            mvc.perform(post("/v1/networks")
+                            .param("caseUuid", caseUuid)
+                            .param("isAsyncRun", "false"))
+                    .andExpect(status().isInternalServerError());
         }
     }
 
