@@ -10,9 +10,8 @@ package com.powsybl.network.conversion.server;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
-import java.util.Map;
-import java.util.UUID;
-
+import com.powsybl.network.conversion.server.dto.CaseInfos;
+import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +20,8 @@ import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 
-import com.powsybl.network.conversion.server.dto.CaseInfos;
-import com.powsybl.network.conversion.server.dto.NetworkInfos;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class NotificationService {
@@ -60,7 +59,7 @@ public class NotificationService {
     public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
         sendCaseImportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
-                .setHeader(HEADER_REPORT_UUID, reportUuid.toString())
+                .setHeader(HEADER_REPORT_UUID, reportUuid != null ? reportUuid.toString() : null)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .build());
