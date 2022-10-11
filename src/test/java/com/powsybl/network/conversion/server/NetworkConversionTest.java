@@ -241,6 +241,12 @@ public class NetworkConversionTest {
                     .param("reportUuid", UUID.randomUUID().toString())
                     .param("isAsyncRun", "false"))
                     .andExpect(status().isOk());
+
+            // test without report
+            mvc.perform(post("/v1/networks")
+                            .param("caseUuid", caseUuid)
+                            .param("isAsyncRun", "false"))
+                    .andExpect(status().isOk());
         }
     }
 
