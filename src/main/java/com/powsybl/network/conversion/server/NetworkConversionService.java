@@ -314,9 +314,10 @@ public class NetworkConversionService {
         Map<String, ImportExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
             Exporter exporter = Exporter.find(formatId);
             List<ParamMeta> paramsMeta = exporter.getParameters()
-                .stream().filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                    .stream()
+                    .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
                     .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
-                .collect(Collectors.toList());
+                    .collect(Collectors.toList());
             return Pair.of(formatId, new ImportExportFormatMeta(formatId, paramsMeta));
         }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
         return ret;
@@ -326,9 +327,10 @@ public class NetworkConversionService {
         CaseInfos caseInfos = getCaseInfos(caseUuid);
         Importer importer = Importer.find(caseInfos.getFormat());
         List<ParamMeta> paramsMeta = importer.getParameters()
-            .stream().filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                .stream()
+                .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
                 .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
-            .collect(Collectors.toList());
+                .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
