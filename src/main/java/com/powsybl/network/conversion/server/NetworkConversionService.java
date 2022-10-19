@@ -17,6 +17,7 @@ import com.powsybl.cgmes.extensions.CgmesSshMetadata;
 import com.powsybl.cgmes.extensions.CgmesSvMetadata;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
@@ -152,7 +153,8 @@ public class NetworkConversionService {
         return message -> {
             UUID caseUuid = message.getPayload();
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
-            UUID reportUuid = UUID.fromString(message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class));
+            String reportUuidStr = message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class);
+            UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object>  importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
 
@@ -166,7 +168,6 @@ public class NetworkConversionService {
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
-                return;
             }
         };
     }
@@ -199,11 +200,19 @@ public class NetworkConversionService {
     }
 
     private void saveNetwork(Network network, UUID networkUuid, String variantId, Reporter reporter, UUID reportUuid) {
-        CompletableFuture<Void> saveInParallel = CompletableFuture.allOf(
-            networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
-            networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter, reportUuid)),
-            networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
-        );
+        CompletableFuture<Void> saveInParallel;
+        if (reportUuid == null) {
+            saveInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
+                networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
+            );
+        } else {
+            saveInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> storeNetworkInitialVariants(network, networkUuid, variantId)),
+                networkConversionExecutionService.runAsync(() -> sendReport(networkUuid, reporter, reportUuid)),
+                networkConversionExecutionService.runAsync(() -> insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID))
+            );
+        }
         try {
             saveInParallel.get();
         } catch (InterruptedException | ExecutionException e) {
@@ -216,11 +225,19 @@ public class NetworkConversionService {
     }
 
     private void undoSaveNetwork(UUID networkUuid, UUID reportUuid) {
-        CompletableFuture<Void> deleteInParallel = CompletableFuture.allOf(
-            networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-            networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
-            networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
-        );
+        CompletableFuture<Void> deleteInParallel;
+        if (reportUuid == null) {
+            deleteInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+            );
+        } else {
+            deleteInParallel = CompletableFuture.allOf(
+                networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
+                networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+            );
+        }
         try {
             deleteInParallel.get();
         } catch (InterruptedException | ExecutionException e) {
@@ -308,8 +325,10 @@ public class NetworkConversionService {
         Map<String, ImportExportFormatMeta> ret = formatsIds.stream().map(formatId -> {
             Exporter exporter = Exporter.find(formatId);
             List<ParamMeta> paramsMeta = exporter.getParameters()
-                .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                    .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
+                    .collect(Collectors.toList());
             return Pair.of(formatId, new ImportExportFormatMeta(formatId, paramsMeta));
         }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
         return ret;
@@ -319,8 +338,10 @@ public class NetworkConversionService {
         CaseInfos caseInfos = getCaseInfos(caseUuid);
         Importer importer = Importer.find(caseInfos.getFormat());
         List<ParamMeta> paramsMeta = importer.getParameters()
-            .stream().map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
-            .collect(Collectors.toList());
+                .stream()
+                .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
+                .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
