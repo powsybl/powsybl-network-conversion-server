@@ -475,9 +475,7 @@ public class NetworkConversionService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         try {
-            if (multipartFile != null) {
-                caseUuid = getCaseUuid(multipartFile, multipartBodyBuilder, headers);
-            }
+            caseUuid = getCaseUuid(multipartFile, multipartBodyBuilder, headers);
         } catch (IOException e) {
             throw NetworkConversionException.createFailedFileSaving();
         }
@@ -485,16 +483,18 @@ public class NetworkConversionService {
     }
 
     private UUID getCaseUuid(MultipartFile multipartFile, MultipartBodyBuilder multipartBodyBuilder, HttpHeaders headers) throws IOException {
-        UUID caseUuid;
-        multipartBodyBuilder
-                .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
-        HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
-                multipartBodyBuilder.build(), headers);
-        try {
-            caseUuid = caseServerRest.postForObject(CASE_API_VERSION + "/cases/private",
-                    request, UUID.class);
-        } catch (HttpStatusCodeException e) {
-            throw NetworkConversionException.createFailedFileSaving();
+        UUID caseUuid = UUID.randomUUID();
+        if (multipartFile != null) {
+            multipartBodyBuilder
+                    .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
+            HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
+                    multipartBodyBuilder.build(), headers);
+            try {
+                caseUuid = caseServerRest.postForObject(CASE_API_VERSION + "/cases/private",
+                        request, UUID.class);
+            } catch (HttpStatusCodeException e) {
+                throw NetworkConversionException.createFailedFileSaving();
+            }
         }
         return caseUuid;
     }
