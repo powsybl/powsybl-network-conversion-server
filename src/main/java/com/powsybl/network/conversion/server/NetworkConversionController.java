@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
@@ -137,5 +138,13 @@ public class NetworkConversionController {
         LOGGER.debug("reindex all equipments in network");
         networkConversionService.reindexAllEquipments(networkUuid);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping (value = "/cases/get-uuid", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Get import parameters for a case")
+    public ResponseEntity<UUID> getCaseUuidForFile(@RequestParam("caseFile") MultipartFile caseFile) {
+        LOGGER.debug("get case uuid when upload case ...");
+        UUID caseUuid = networkConversionService.importCase(caseFile);
+        return ResponseEntity.ok().body(caseUuid);
     }
 }

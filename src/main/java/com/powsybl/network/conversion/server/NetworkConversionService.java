@@ -51,10 +51,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -73,8 +77,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
-import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.NetworkConversionConstants.*;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -464,5 +467,27 @@ public class NetworkConversionService {
         List<EquipmentInfos> infos = new ArrayList<>();
         equipmentInfosService.findAll(networkUuid).forEach(infos::add);
         return infos;
+    }
+
+    UUID importCase(MultipartFile multipartFile) {
+        MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
+        UUID caseUuid;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        try {
+            multipartBodyBuilder
+                    .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
+            HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
+                    multipartBodyBuilder.build(), headers);
+            try {
+                caseUuid = caseServerRest.postForObject(CASE_API_VERSION + "/cases/private",
+                        request, UUID.class);
+            } catch (HttpStatusCodeException e) {
+                throw NetworkConversionException.createFailedFileSaving();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return caseUuid;
     }
 }

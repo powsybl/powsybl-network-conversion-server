@@ -68,4 +68,8 @@ public final class NetworkConversionException extends RuntimeException {
     public static NetworkConversionException createFailedNetworkSaving(UUID networkUuid, Exception cause) {
         return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of network '%s' has failed", networkUuid), cause);
     }
+
+    public static NetworkConversionException createFailedFileSaving() {
+        return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of case file has failed"));
+    }
 }
