@@ -70,6 +70,6 @@ public final class NetworkConversionException extends RuntimeException {
     }
 
     public static NetworkConversionException createFailedFileSaving() {
-        return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of case file has failed"));
+        return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, "The save of case file has failed");
     }
 }

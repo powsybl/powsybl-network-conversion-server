@@ -471,22 +471,30 @@ public class NetworkConversionService {
 
     UUID importCase(MultipartFile multipartFile) {
         MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
-        UUID caseUuid;
+        UUID caseUuid = UUID.randomUUID();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         try {
-            multipartBodyBuilder
-                    .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
-            HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
-                    multipartBodyBuilder.build(), headers);
-            try {
-                caseUuid = caseServerRest.postForObject(CASE_API_VERSION + "/cases/private",
-                        request, UUID.class);
-            } catch (HttpStatusCodeException e) {
-                throw NetworkConversionException.createFailedFileSaving();
+            if (multipartFile != null) {
+                caseUuid = getCaseUuid(multipartFile, multipartBodyBuilder, headers);
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw NetworkConversionException.createFailedFileSaving();
+        }
+        return caseUuid;
+    }
+
+    private UUID getCaseUuid(MultipartFile multipartFile, MultipartBodyBuilder multipartBodyBuilder, HttpHeaders headers) throws IOException {
+        UUID caseUuid;
+        multipartBodyBuilder
+                .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
+        HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
+                multipartBodyBuilder.build(), headers);
+        try {
+            caseUuid = caseServerRest.postForObject(CASE_API_VERSION + "/cases/private",
+                    request, UUID.class);
+        } catch (HttpStatusCodeException e) {
+            throw NetworkConversionException.createFailedFileSaving();
         }
         return caseUuid;
     }
