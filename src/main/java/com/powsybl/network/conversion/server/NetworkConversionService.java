@@ -486,7 +486,7 @@ public class NetworkConversionService {
         UUID caseUuid = UUID.randomUUID();
         if (multipartFile != null) {
             multipartBodyBuilder
-                    .part("file", multipartFile.getBytes()).filename(multipartFile.getOriginalFilename());
+                    .part("file", multipartFile.getBytes()).filename(Objects.requireNonNull(multipartFile.getOriginalFilename()));
             HttpEntity<MultiValueMap<String, HttpEntity<?>>> request = new HttpEntity<>(
                     multipartBodyBuilder.build(), headers);
             try {
