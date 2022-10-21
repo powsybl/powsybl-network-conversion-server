@@ -132,8 +132,15 @@ public class NetworkConversionTest {
             given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
+            String caseUuid = UUID.randomUUID().toString();
+            given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class), eq(UUID.fromString(caseUuid))))
+                .willReturn(ResponseEntity.ok("testCase"));
+
             MvcResult mvcResult = mvc.perform(post("/v1/networks")
-                .param("caseUuid", UUID.randomUUID().toString())
+                .param("caseUuid", caseUuid)
                 .param("reportUuid", UUID.randomUUID().toString())
                 .param("isAsyncRun", "false"))
                 .andExpect(status().isOk())
@@ -143,7 +150,6 @@ public class NetworkConversionTest {
                     mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
-            String caseUuid = UUID.randomUUID().toString();
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "first_variant_id")
@@ -269,6 +275,11 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(UUID.fromString(caseUuid))))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("randomImportParameters", "randomImportValue");
@@ -299,6 +310,11 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(UUID.fromString(caseUuid))))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("randomImportParameters", "randomImportValue");
@@ -409,6 +425,11 @@ public class NetworkConversionTest {
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(caseUuid)))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
                 .param("caseUuid", caseUuid.toString())
@@ -447,6 +468,11 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
             .willReturn(new ResponseEntity<>(HttpStatus.OK));
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(caseUuid)))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/")
             .param("caseUuid", caseUuid.toString())
@@ -465,6 +491,11 @@ public class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(caseUuid)))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         Network network = createNetwork("test");
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class)))
@@ -493,6 +524,11 @@ public class NetworkConversionTest {
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+            eq(HttpMethod.GET),
+            any(HttpEntity.class),
+            eq(String.class), eq(caseUuid)))
+            .willReturn(ResponseEntity.ok("testCase"));
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));

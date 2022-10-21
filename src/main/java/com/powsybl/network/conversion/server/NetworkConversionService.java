@@ -87,6 +87,8 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
+    private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
+
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
@@ -172,7 +174,16 @@ public class NetworkConversionService {
 
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        Reporter reporter = reportUuid == null ? Reporter.NO_OP : new ReporterModel("Root", "import network");
+
+        Reporter rootReporter = Reporter.NO_OP;
+        Reporter reporter = Reporter.NO_OP;
+        if (reportUuid != null) {
+            String reporterId = "Root@" + IMPORT_TYPE_REPORT;
+            rootReporter = new ReporterModel(reporterId, reporterId);
+            String subReporterId = "Import Case : " + dataSource.getBaseName();
+            reporter = rootReporter.createSubReporter(subReporterId, subReporterId);
+        }
+
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
         if (importParameters != null) {
@@ -184,7 +195,7 @@ public class NetworkConversionService {
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, variantId, reporter, reportUuid);
+        saveNetwork(network, networkUuid, variantId, rootReporter, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
