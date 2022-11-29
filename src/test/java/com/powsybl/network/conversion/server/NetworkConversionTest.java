@@ -75,7 +75,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @RunWith(SpringRunner.class)
 @AutoConfigureMockMvc
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {"spring.data.elasticsearch.enabled=true"},
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {"test.elasticsearch.enabled=true"},
     classes = { EmbeddedElasticsearch.class, NetworkConversionController.class, TestChannelBinderConfiguration.class})
 public class NetworkConversionTest {
 
