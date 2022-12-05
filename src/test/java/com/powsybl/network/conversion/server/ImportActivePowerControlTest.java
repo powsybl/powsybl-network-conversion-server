@@ -8,7 +8,7 @@ package com.powsybl.network.conversion.server;
 
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
-import com.powsybl.iidm.import_.Importers;
+import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.extensions.ActivePowerControl;
 import org.junit.Test;
 
@@ -21,7 +21,7 @@ public class ImportActivePowerControlTest {
 
     @Test
     public void test() {
-        var network = Importers.loadNetwork(new ResourceDataSource("testCaseOldActivePowerControl", new ResourceSet("/", "testCaseOldActivePowerControl.xiidm")));
+        var network = Network.read(new ResourceDataSource("testCaseOldActivePowerControl", new ResourceSet("/", "testCaseOldActivePowerControl.xiidm")));
         assertNotNull(network);
         var g1 = network.getGenerator("BBE1AA1 _generator");
         assertNotNull(g1);
