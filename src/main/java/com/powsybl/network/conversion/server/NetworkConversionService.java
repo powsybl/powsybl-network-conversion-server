@@ -23,13 +23,8 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
-import com.powsybl.iidm.export.Exporter;
-import com.powsybl.iidm.export.Exporters;
-import com.powsybl.iidm.import_.Importer;
 import com.powsybl.iidm.mergingview.MergingView;
-import com.powsybl.iidm.network.Identifiable;
-import com.powsybl.iidm.network.Network;
-import com.powsybl.iidm.network.VariantManagerConstants;
+import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
@@ -290,7 +285,7 @@ public class NetworkConversionService {
             }
         }
 
-        Exporters.export(format, network, exportProperties, memDataSource);
+        network.write(format, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
         String networkName;
