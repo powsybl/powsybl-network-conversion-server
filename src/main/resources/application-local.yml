@@ -11,9 +11,6 @@ spring:
       # user:
       # password:      
 
-network-store-server:
-  base-uri: http://localhost:8080/
-
 backing-services:
   case-server:
     base-uri: http://localhost:5000
@@ -21,4 +18,5 @@ backing-services:
     base-uri: http://localhost:8087
   report-server:
     base-uri: http://localhost:5028
-
+  network-store-server:
+    base-uri: http://localhost:8080/
