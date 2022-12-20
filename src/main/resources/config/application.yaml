@@ -19,8 +19,10 @@ spring:
           consumer:
             concurrency: 2
       output-bindings: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
-network-store-server:
-  preloading-strategy: COLLECTION
+
+backing-services:
+  network-store-server:
+    preloading-strategy: COLLECTION
 
 management:
   health:
