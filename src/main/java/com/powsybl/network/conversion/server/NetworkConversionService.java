@@ -101,7 +101,7 @@ public class NetworkConversionService {
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public NetworkConversionService(@Value("${gridsuite.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
+    public NetworkConversionService(@Value("${powsybl.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
                                     NetworkStoreService networkStoreService,
