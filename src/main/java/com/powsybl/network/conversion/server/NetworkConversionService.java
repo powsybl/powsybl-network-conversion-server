@@ -44,7 +44,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
@@ -105,7 +104,7 @@ public class NetworkConversionService {
                                     @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
                                     NetworkStoreService networkStoreService,
-                                    @Lazy EquipmentInfosService equipmentInfosService,
+                                    EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
                                     NotificationService notificationService) {
         this.networkStoreService = networkStoreService;

@@ -6,7 +6,9 @@
  */
 package com.powsybl.network.conversion.server.elasticsearch;
 
+import com.google.common.collect.Lists;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
@@ -14,15 +16,33 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * An interface to define an api for elasticsearch indexing
+ * A class to implement elasticsearch indexing
  *
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
 @Service
-public interface EquipmentInfosService {
-    void addAll(@NonNull final List<EquipmentInfos> equipmentsInfos);
+public class EquipmentInfosService {
 
-    Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid);
+    @Value("${spring.data.elasticsearch.partition-size:10000}")
+    private int partitionSize;
 
-    void deleteAll(@NonNull UUID networkUuid);
+    private final EquipmentInfosRepository equipmentInfosRepository;
+
+    public EquipmentInfosService(EquipmentInfosRepository equipmentInfosRepository) {
+        this.equipmentInfosRepository = equipmentInfosRepository;
+    }
+
+    public void addAll(@NonNull final List<EquipmentInfos> equipmentsInfos) {
+        Lists.partition(equipmentsInfos, partitionSize)
+                .parallelStream()
+                .forEach(equipmentInfosRepository::saveAll);
+    }
+
+    public Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
+        return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
+    }
+
+    public void deleteAll(@NonNull UUID networkUuid) {
+        equipmentInfosRepository.deleteAllByNetworkUuid(networkUuid);
+    }
 }
