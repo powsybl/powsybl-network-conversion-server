@@ -20,9 +20,10 @@ spring:
             concurrency: 2
       output-bindings: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
 
-backing-services:
-  network-store-server:
-    preloading-strategy: COLLECTION
+powsybl:
+  services:
+    network-store-server:
+      preloading-strategy: COLLECTION
 
 management:
   health:

@@ -10,13 +10,17 @@ spring:
       ## to fill if authentication is needed
       # user:
       # password:      
-
-backing-services:
-  case-server:
-    base-uri: http://localhost:5000
-  geo-data-server:
-    base-uri: http://localhost:8087
-  report-server:
-    base-uri: http://localhost:5028
-  network-store-server:
-    base-uri: http://localhost:8080/
+powsybl:
+  services:
+    network-store-server:
+      base-uri: http://localhost:8080/
+      
+gridsuite:
+  services:
+    case-server:
+      base-uri: http://localhost:5000
+    geo-data-server:
+      base-uri: http://localhost:8087
+    report-server:
+      base-uri: http://localhost:5028
+  

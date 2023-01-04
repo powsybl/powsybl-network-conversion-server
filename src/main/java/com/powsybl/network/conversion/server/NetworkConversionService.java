@@ -101,9 +101,9 @@ public class NetworkConversionService {
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public NetworkConversionService(@Value("${backing-services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
-                                    @Value("${backing-services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
-                                    @Value("${backing-services.report-server.base-uri:http://report-server}") String reportServerURI,
+    public NetworkConversionService(@Value("${gridsuite.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
+                                    @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
+                                    @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
                                     NetworkStoreService networkStoreService,
                                     @Lazy EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
