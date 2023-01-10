@@ -9,6 +9,7 @@ package com.powsybl.network.conversion.server.elasticsearch;
 import com.google.common.collect.Lists;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +29,7 @@ public class EquipmentInfosService {
 
     private final EquipmentInfosRepository equipmentInfosRepository;
 
-    public EquipmentInfosService(EquipmentInfosRepository equipmentInfosRepository) {
+    public EquipmentInfosService(@Lazy EquipmentInfosRepository equipmentInfosRepository) {
         this.equipmentInfosRepository = equipmentInfosRepository;
     }
 
