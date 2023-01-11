@@ -8,16 +8,16 @@ package com.powsybl.network.conversion.server.elasticsearch;
 
 import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.elasticsearch.client.ClientConfiguration;
+import org.springframework.data.elasticsearch.client.ClientConfiguration.TerminalClientConfigurationBuilder;
 import org.springframework.data.elasticsearch.client.RestClients;
 import org.springframework.data.elasticsearch.config.AbstractElasticsearchConfiguration;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
 import java.net.InetSocketAddress;
+import java.util.Optional;
 
 /**
  * A class to configure DB elasticsearch client for indexation
@@ -27,7 +27,6 @@ import java.net.InetSocketAddress;
 
 @Configuration
 @EnableElasticsearchRepositories
-@Lazy
 public class ESConfig extends AbstractElasticsearchConfiguration {
 
     @Value("#{'${spring.data.elasticsearch.embedded:false}' ? 'localhost' : '${spring.data.elasticsearch.host}'}")
@@ -39,27 +38,24 @@ public class ESConfig extends AbstractElasticsearchConfiguration {
     @Value("${spring.data.elasticsearch.client.timeout:60}")
     int timeout;
 
-    @Bean
-    @ConditionalOnExpression("'${spring.data.elasticsearch.enabled:false}' == 'true'")
-    public EquipmentInfosService studyInfosServiceImpl(EquipmentInfosRepository equipmentInfosRepository) {
-        return new EquipmentInfosServiceImpl(equipmentInfosRepository);
-    }
+    @Value("${spring.data.elasticsearch.username:#{null}}")
+    private Optional<String> username;
 
-    @Bean
-    @ConditionalOnExpression("'${spring.data.elasticsearch.enabled:false}' == 'false'")
-    public EquipmentInfosService studyInfosServiceMock() {
-        return new EquipmentInfosServiceMock();
-    }
+    @Value("${spring.data.elasticsearch.password:#{null}}")
+    private Optional<String> password;
 
     @Bean
     @Override
     @SuppressWarnings("squid:S2095")
     public RestHighLevelClient elasticsearchClient() {
-        ClientConfiguration clientConfiguration = ClientConfiguration.builder()
+        TerminalClientConfigurationBuilder clientConfiguration = ClientConfiguration.builder()
             .connectedTo(InetSocketAddress.createUnresolved(esHost, esPort))
-            .withConnectTimeout(timeout * 1000L).withSocketTimeout(timeout * 1000L)
-            .build();
+            .withConnectTimeout(timeout * 1000L).withSocketTimeout(timeout * 1000L);
 
-        return RestClients.create(clientConfiguration).rest();
+        if (username.isPresent() && password.isPresent()) {
+            clientConfiguration = clientConfiguration.withBasicAuth(username.get(), password.get());
+        }
+
+        return RestClients.create(clientConfiguration.build()).rest();
     }
 }

@@ -2,18 +2,25 @@ server:
   port: 5003
 
 spring:
+  rabbitmq:
+    addresses: localhost
   data:
     elasticsearch:
       host: localhost
+      ## to fill if authentication is needed
+      # user:
+      # password:      
+powsybl:
+  services:
+    network-store-server:
+      base-uri: http://localhost:8080/
+    case-server:
+      base-uri: http://localhost:5000
 
-network-store-server:
-  base-uri: http://localhost:8080/
-
-backing-services:
-  case-server:
-    base-uri: http://localhost:5000
-  geo-data-server:
-    base-uri: http://localhost:8087
-  report-server:
-    base-uri: http://localhost:5028
-
+gridsuite:
+  services:
+    geo-data-server:
+      base-uri: http://localhost:8087
+    report-server:
+      base-uri: http://localhost:5028
+  
