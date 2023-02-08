@@ -7,7 +7,6 @@
 package com.powsybl.network.conversion.server.elasticsearch;
 
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.lang.NonNull;
 
@@ -16,7 +15,6 @@ import java.util.UUID;
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
-@Lazy
 public interface EquipmentInfosRepository extends ElasticsearchRepository<EquipmentInfos, String> {
     Iterable<EquipmentInfos> findAllByNetworkUuid(@NonNull UUID networkUuid);
 
