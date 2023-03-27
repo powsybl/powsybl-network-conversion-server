@@ -9,7 +9,6 @@ package com.powsybl.network.conversion.server.elasticsearch;
 
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.MockBeans;
-import org.springframework.test.context.TestPropertySource;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,7 +20,6 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@TestPropertySource(properties = {"spring.data.elasticsearch.repositories.enabled=false"})
-@MockBeans({@MockBean(EmbeddedElasticsearch.class), @MockBean(EquipmentInfosService.class)})
+@MockBeans({@MockBean(EmbeddedElasticsearch.class), @MockBean(EquipmentInfosRepository.class)})
 public @interface DisableElasticsearch {
 }
