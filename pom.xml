@@ -28,7 +28,7 @@
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
-        <powsybl-ws-dependencies.version>2.1.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.2.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
         <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>
