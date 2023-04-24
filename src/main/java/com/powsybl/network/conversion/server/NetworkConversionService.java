@@ -150,7 +150,7 @@ public class NetworkConversionService {
             String reportUuidStr = message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class);
             UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            Map<String, Object>  importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+            Map<String, Object> importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
 
             NetworkInfos networkInfos;
 
