@@ -29,7 +29,7 @@
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
         <powsybl-ws-dependencies.version>2.2.1</powsybl-ws-dependencies.version>
-        <!-- FIXME: powsybl-network-store-iidm-impl.version is overloaded in the dependencies section.The overload has to be removed at next powsybl-ws-dependencies.version upgrade -->
+        <!-- FIXME: powsybl-network-store-iidm-impl.version is overloaded in the dependencies section.The overload and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
         <powsybl-network-store.version>1.1.2</powsybl-network-store.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
@@ -113,7 +113,7 @@
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-network-store-client</artifactId>
         </dependency>
-        <!-- FIXME: to be removed at next  -->
+        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-network-store-iidm-impl</artifactId>
