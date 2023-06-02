@@ -158,7 +158,7 @@ public class NetworkConversionService {
 
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, importParameters);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
