@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>10</version>
+        <version>11-SNAPSHOT</version>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -24,13 +24,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <java.version>11</java.version>
+        <java.version>17</java.version>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
-        <powsybl-ws-dependencies.version>2.2.1</powsybl-ws-dependencies.version>
-        <!-- FIXME: powsybl-network-store modules'version is overloaded in the dependencies section.The overloads and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
-        <powsybl-network-store.version>1.1.2</powsybl-network-store.version>
+        <powsybl-ws-dependencies.version>2.3.0-SNAPSHOT</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
         <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>
@@ -56,8 +54,8 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>pl.project13.maven</groupId>
-                <artifactId>git-commit-id-plugin</artifactId>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>com.google.cloud.tools</groupId>
