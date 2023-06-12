@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>10</version>
+        <version>11</version>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -23,8 +23,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <java.version>11</java.version>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
