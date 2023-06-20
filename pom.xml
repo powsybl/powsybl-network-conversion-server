@@ -26,9 +26,7 @@
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <equalsverifier-version>3.7.1</equalsverifier-version>
-        <powsybl-ws-dependencies.version>2.2.1</powsybl-ws-dependencies.version>
-        <!-- FIXME: powsybl-network-store modules'version is overloaded in the dependencies section.The overloads and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
-        <powsybl-network-store.version>1.1.2</powsybl-network-store.version>
+        <powsybl-ws-dependencies.version>2.3.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
         <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>
@@ -110,20 +108,6 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-network-store-client</artifactId>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <version>${powsybl-network-store.version}</version>
-        </dependency>
-        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-        <dependency>
-            <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-network-store-iidm-impl</artifactId>
-            <version>${powsybl-network-store.version}</version>
-        </dependency>
-        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-        <dependency>
-            <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-network-store-model</artifactId>
-            <version>${powsybl-network-store.version}</version>
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
