@@ -339,6 +339,17 @@ public class NetworkConversionService {
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
+    Map<String, String> getImportParametersDefaultValues(UUID caseUuid) {
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        Importer importer = Importer.find(caseInfos.getFormat());
+        Map<String, String> defaultValues = new HashMap<>();
+        importer.getParameters()
+                .stream()
+                .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+        return defaultValues;
+    }
+
     CaseInfos getCaseInfos(UUID caseUuid) {
         return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/infos", CaseInfos.class).getBody();
     }
