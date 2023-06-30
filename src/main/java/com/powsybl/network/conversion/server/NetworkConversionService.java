@@ -339,7 +339,7 @@ public class NetworkConversionService {
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
 
-    Map<String, String> getImportParametersDefaultValues(UUID caseUuid) {
+    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
         CaseInfos caseInfos = getCaseInfos(caseUuid);
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();

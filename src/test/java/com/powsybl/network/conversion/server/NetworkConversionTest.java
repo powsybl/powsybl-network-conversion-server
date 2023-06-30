@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
@@ -24,6 +25,7 @@ import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
+import lombok.SneakyThrows;
 import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -499,6 +501,46 @@ public class NetworkConversionTest {
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
+    }
+
+    @SneakyThrows
+    @Test
+    public void testGetDefaultImportParameters() {
+        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
+        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
+        UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
+        List<BoundaryInfos> boundaries = new ArrayList<>();
+        String eqbdContent = "fake content of eqbd boundary";
+        String tpbdContent = "fake content of tpbd boundary";
+        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
+        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
+        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
+        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class), eq(caseUuid)))
+                .willReturn(ResponseEntity.ok("testCase"));
+        networkConversionService.setReportServerRest(reportServerRest);
+         mvc.perform(post("/v1/networks/cgmes")
+                        .param("caseUuid", caseUuid.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new ObjectMapper().writeValueAsString(boundaries)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult mvcResult = mvc.perform(get("/v1/cases/{caseUuid}/default-import-parameters", caseUuid)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String res = mvcResult.getResponse().getContentAsString();
+        assertEquals("test", res);
+
+//        Map<String, String> defaultImportParams = mvcResult.getResponse().getContentAsString();
+
     }
 
     @Test
