@@ -6,7 +6,6 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
@@ -518,16 +517,17 @@ public class NetworkConversionTest {
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(caseUuid, "testCase", "CGMES")));
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
                 eq(HttpMethod.GET),
                 any(HttpEntity.class),
                 eq(String.class), eq(caseUuid)))
                 .willReturn(ResponseEntity.ok("testCase"));
         networkConversionService.setReportServerRest(reportServerRest);
-         mvc.perform(post("/v1/networks/cgmes")
-                        .param("caseUuid", caseUuid.toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new ObjectMapper().writeValueAsString(boundaries)))
+        mvc.perform(post("/v1/networks/cgmes")
+                    .param("caseUuid", caseUuid.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(new ObjectMapper().writeValueAsString(boundaries)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -537,10 +537,7 @@ public class NetworkConversionTest {
                 .andReturn();
 
         String res = mvcResult.getResponse().getContentAsString();
-        assertEquals("test", res);
-
-//        Map<String, String> defaultImportParams = mvcResult.getResponse().getContentAsString();
-
+        assertEquals("{\"iidm.import.cgmes.post-processors\":\"[]\",\"iidm.import.cgmes.ensure-id-alias-unicity\":\"false\",\"iidm.import.cgmes.decode-escaped-identifiers\":\"true\",\"iidm.import.cgmes.profile-for-initial-values-shunt-sections-tap-positions\":\"SSH\",\"iidm.import.cgmes.store-cgmes-model-as-network-extension\":\"true\",\"iidm.import.cgmes.allow-unsupported-tap-changers\":\"true\",\"iidm.import.cgmes.change-sign-for-shunt-reactive-power-flow-initial-state\":\"false\",\"iidm.import.cgmes.convert-boundary\":\"false\",\"iidm.import.cgmes.create-active-power-control-extension\":\"false\",\"iidm.import.cgmes.naming-strategy\":\"identity\",\"iidm.import.cgmes.source-for-iidm-id\":\"mRID\",\"iidm.import.cgmes.import-control-areas\":\"true\",\"iidm.import.cgmes.convert-sv-injections\":\"true\",\"iidm.import.cgmes.create-busbar-section-for-every-connectivity-node\":\"false\",\"iidm.import.cgmes.store-cgmes-conversion-context-as-network-extension\":\"false\",\"iidm.import.cgmes.create-fictitious-switches-for-disconnected-terminals-mode\":\"ALWAYS\"}", res);
     }
 
     @Test
