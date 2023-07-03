@@ -13,6 +13,8 @@ import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
+import com.powsybl.commons.parameters.Parameter;
+import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
@@ -30,6 +32,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.stubbing.Answer;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -95,6 +99,9 @@ public class NetworkConversionTest {
 
     @MockBean
     private NetworkStoreService networkStoreClient;
+
+    @Autowired
+    private ObjectMapper mapper;
 
     @Autowired
     private OutputDestination output;
@@ -506,8 +513,6 @@ public class NetworkConversionTest {
     @Test
     public void testGetDefaultImportParameters() {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
-        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
-        UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         List<BoundaryInfos> boundaries = new ArrayList<>();
         String eqbdContent = "fake content of eqbd boundary";
         String tpbdContent = "fake content of tpbd boundary";
@@ -515,19 +520,11 @@ public class NetworkConversionTest {
         boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
-        given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(caseUuid, "testCase", "CGMES")));
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(String.class), eq(caseUuid)))
-                .willReturn(ResponseEntity.ok("testCase"));
-        networkConversionService.setReportServerRest(reportServerRest);
         mvc.perform(post("/v1/networks/cgmes")
-                    .param("caseUuid", caseUuid.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(new ObjectMapper().writeValueAsString(boundaries)))
+                        .param("caseUuid", caseUuid.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new ObjectMapper().writeValueAsString(boundaries)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -536,8 +533,10 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String res = mvcResult.getResponse().getContentAsString();
-        assertEquals("{\"iidm.import.cgmes.post-processors\":\"[]\",\"iidm.import.cgmes.ensure-id-alias-unicity\":\"false\",\"iidm.import.cgmes.decode-escaped-identifiers\":\"true\",\"iidm.import.cgmes.profile-for-initial-values-shunt-sections-tap-positions\":\"SSH\",\"iidm.import.cgmes.store-cgmes-model-as-network-extension\":\"true\",\"iidm.import.cgmes.allow-unsupported-tap-changers\":\"true\",\"iidm.import.cgmes.change-sign-for-shunt-reactive-power-flow-initial-state\":\"false\",\"iidm.import.cgmes.convert-boundary\":\"false\",\"iidm.import.cgmes.create-active-power-control-extension\":\"false\",\"iidm.import.cgmes.naming-strategy\":\"identity\",\"iidm.import.cgmes.source-for-iidm-id\":\"mRID\",\"iidm.import.cgmes.import-control-areas\":\"true\",\"iidm.import.cgmes.convert-sv-injections\":\"true\",\"iidm.import.cgmes.create-busbar-section-for-every-connectivity-node\":\"false\",\"iidm.import.cgmes.store-cgmes-conversion-context-as-network-extension\":\"false\",\"iidm.import.cgmes.create-fictitious-switches-for-disconnected-terminals-mode\":\"ALWAYS\"}", res);
+        List<Parameter> defaultParameters = Importer.find("CGMES").getParameters();
+        Map<String, String> defaultParametersMap = new HashMap<>();
+        defaultParameters.stream().filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL)).forEach(parameter -> defaultParametersMap.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+        JSONAssert.assertEquals(mapper.writeValueAsString(defaultParametersMap), mvcResult.getResponse().getContentAsString(), JSONCompareMode.NON_EXTENSIBLE);
     }
 
     @Test
