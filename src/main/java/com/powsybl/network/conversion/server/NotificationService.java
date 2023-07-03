@@ -35,7 +35,6 @@ public class NotificationService {
     public static final String HEADER_RECEIVER = "receiver";
     public static final String HEADER_ERROR_MESSAGE = "errorMessage";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
-    public static final String HEADER_CASE_UUID = "caseUuid";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
     public static final String HEADER_CASE_NAME = "caseName";
 
@@ -70,7 +69,6 @@ public class NotificationService {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
-                .setHeader(HEADER_CASE_UUID, caseInfos.getFormat())
                 .setHeader(HEADER_CASE_FORMAT, caseInfos.getFormat())
                 .setHeader(HEADER_CASE_NAME, caseInfos.getName())
                 .setHeader(HEADER_RECEIVER, receiver)
