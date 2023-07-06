@@ -110,14 +110,6 @@ public class NetworkConversionController {
         return ResponseEntity.ok().body(parameters);
     }
 
-    @GetMapping(value = "/cases/{caseUuid}/default-import-parameters")
-    @Operation(summary = "Get import parameters default values for a case")
-    public ResponseEntity<Map<String, String>> getImportDefaultParameters(@Parameter(description = "Case UUID") @PathVariable(name = "caseUuid") UUID caseUuid) {
-        LOGGER.debug("Get import parameters default values ...");
-        Map<String, String> defaultValues = networkConversionService.getDefaultImportParameters(caseUuid);
-        return ResponseEntity.ok().body(defaultValues);
-    }
-
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
     @Operation(summary = "Export a merged cgmes network from the network-store")
     public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,

@@ -13,8 +13,6 @@ import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
-import com.powsybl.commons.parameters.Parameter;
-import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
@@ -26,14 +24,11 @@ import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
-import lombok.SneakyThrows;
 import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.stubbing.Answer;
-import org.skyscreamer.jsonassert.JSONAssert;
-import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -507,36 +502,6 @@ public class NetworkConversionTest {
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, null)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
-    }
-
-    @SneakyThrows
-    @Test
-    public void testGetDefaultImportParameters() {
-        UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
-        List<BoundaryInfos> boundaries = new ArrayList<>();
-        String eqbdContent = "fake content of eqbd boundary";
-        String tpbdContent = "fake content of tpbd boundary";
-        boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
-        boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
-        Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(caseUuid, "testCase", "CGMES")));
-        mvc.perform(post("/v1/networks/cgmes")
-                        .param("caseUuid", caseUuid.toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(boundaries)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        MvcResult mvcResult = mvc.perform(get("/v1/cases/{caseUuid}/default-import-parameters", caseUuid)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        List<Parameter> defaultParameters = Importer.find("CGMES").getParameters();
-        Map<String, String> defaultParametersMap = new HashMap<>();
-        defaultParameters.stream().filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL)).forEach(parameter -> defaultParametersMap.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
-        JSONAssert.assertEquals(mapper.writeValueAsString(defaultParametersMap), mvcResult.getResponse().getContentAsString(), JSONCompareMode.NON_EXTENSIBLE);
     }
 
     @Test

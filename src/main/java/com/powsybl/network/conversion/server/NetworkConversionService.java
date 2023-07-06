@@ -142,6 +142,17 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, importParameters, receiver);
     }
 
+    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        Importer importer = Importer.find(caseInfos.getFormat());
+        Map<String, String> defaultValues = new HashMap<>();
+        importer.getParameters()
+                .stream()
+                .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
+                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+        return defaultValues;
+    }
+
     @Bean
     Consumer<Message<UUID>> consumeCaseImportStart() {
         return message -> {
@@ -152,13 +163,15 @@ public class NetworkConversionService {
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object> importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
 
+            Map<String, String> changedImportParameters = importParameters.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toString()));
+            Map<String, String> defaultImportParameters = getDefaultImportParameters(caseUuid);
+            defaultImportParameters.keySet().stream().forEach(key -> changedImportParameters.putIfAbsent(key, defaultImportParameters.get(key)));
+
             NetworkInfos networkInfos;
-
             CaseInfos caseInfos = getCaseInfos(caseUuid);
-
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, importParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, changedImportParameters);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
@@ -337,17 +350,6 @@ public class NetworkConversionService {
                 .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
-    }
-
-    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
-        CaseInfos caseInfos = getCaseInfos(caseUuid);
-        Importer importer = Importer.find(caseInfos.getFormat());
-        Map<String, String> defaultValues = new HashMap<>();
-        importer.getParameters()
-                .stream()
-                .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
-                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
-        return defaultValues;
     }
 
     CaseInfos getCaseInfos(UUID caseUuid) {

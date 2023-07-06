@@ -65,7 +65,7 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver, Map<String, Object> importParameters) {
+    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver, Map<String, String> importParameters) {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
