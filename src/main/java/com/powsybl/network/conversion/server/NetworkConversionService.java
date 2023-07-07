@@ -163,12 +163,12 @@ public class NetworkConversionService {
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object> importParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
 
+            NetworkInfos networkInfos;
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
             Map<String, String> changedImportParameters = importParameters.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toString()));
             Map<String, String> defaultImportParameters = getDefaultImportParameters(caseUuid);
             defaultImportParameters.keySet().stream().forEach(key -> changedImportParameters.putIfAbsent(key, defaultImportParameters.get(key)));
 
-            NetworkInfos networkInfos;
-            CaseInfos caseInfos = getCaseInfos(caseUuid);
             try {
                 networkInfos = importCase(caseUuid, variantId, reportUuid, importParameters);
                 notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, changedImportParameters);
