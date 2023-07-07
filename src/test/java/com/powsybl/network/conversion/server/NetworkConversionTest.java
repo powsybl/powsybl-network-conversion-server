@@ -96,9 +96,6 @@ public class NetworkConversionTest {
     private NetworkStoreService networkStoreClient;
 
     @Autowired
-    private ObjectMapper mapper;
-
-    @Autowired
     private OutputDestination output;
 
     @Before
@@ -237,7 +234,7 @@ public class NetworkConversionTest {
 
             mvc.perform(post("/v1/networks")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(importParameters))
+                    .content(new ObjectMapper().writeValueAsString(importParameters))
                     .param("caseUuid", caseUuid)
                     .param("variantId", "import_params_variant_id")
                     .param("reportUuid", UUID.randomUUID().toString())
@@ -282,7 +279,7 @@ public class NetworkConversionTest {
 
         mvc.perform(post("/v1/networks")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(importParameters))
+                .content(new ObjectMapper().writeValueAsString(importParameters))
                 .param("caseUuid", caseUuid)
                 .param("variantId", "async_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString())
@@ -317,7 +314,7 @@ public class NetworkConversionTest {
 
         mvc.perform(post("/v1/networks")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(importParameters))
+                .content(new ObjectMapper().writeValueAsString(importParameters))
                 .param("caseUuid", caseUuid)
                 .param("variantId", "async_failure_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString())
@@ -430,7 +427,7 @@ public class NetworkConversionTest {
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
                 .param("caseUuid", caseUuid.toString())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(boundaries)))
+                .content(new ObjectMapper().writeValueAsString(boundaries)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -440,7 +437,7 @@ public class NetworkConversionTest {
         mvcResult = mvc.perform(post("/v1/networks/cgmes")
                 .param("caseUuid", caseUuid.toString())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(Collections.emptyList())))
+                .content(new ObjectMapper().writeValueAsString(Collections.emptyList())))
                 .andExpect(status().isOk())
                 .andReturn();
 
