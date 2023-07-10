@@ -165,7 +165,7 @@ public class NetworkConversionService {
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             Map<String, String> allImportParameters = new HashMap<>();
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
-            getDefaultImportParameters(caseUuid).forEach((k, v) -> allImportParameters.putIfAbsent(k, v));
+            getDefaultImportParameters(caseUuid).forEach(allImportParameters::putIfAbsent);
 
             try {
                 NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, changedImportParameters);
