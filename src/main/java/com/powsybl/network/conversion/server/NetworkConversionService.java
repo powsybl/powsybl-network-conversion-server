@@ -191,7 +191,7 @@ public class NetworkConversionService {
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
-        if (importParameters != null) {
+        if (importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
             network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
@@ -403,7 +403,7 @@ public class NetworkConversionService {
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid, null, UUID.randomUUID(), null);
+            return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
             var network = networkStoreService.importNetwork(dataSource);
