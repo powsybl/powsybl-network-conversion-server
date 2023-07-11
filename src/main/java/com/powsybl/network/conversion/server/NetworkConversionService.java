@@ -191,7 +191,7 @@ public class NetworkConversionService {
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
-        if (importParameters.isEmpty()) {
+        if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
             network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
