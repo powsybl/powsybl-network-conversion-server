@@ -74,6 +74,8 @@ public class NetworkConversionTest {
 
     private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
 
+    private static final Map<String, Object> EMPTY_PARAMETERS = new HashMap<>();
+
     @Autowired
     private MockMvc mvc;
 
@@ -497,8 +499,8 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        Exception exception = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, new HashMap<>()));
-        assertTrue(exception.getMessage().contains(String.format("The save of network '%s' has failed", networkUuid)));
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, EMPTY_PARAMETERS)).getMessage();
+        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
     @Test
@@ -523,7 +525,7 @@ public class NetworkConversionTest {
             eq(String.class), eq(caseUuid)))
             .willReturn(ResponseEntity.ok("testCase"));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, new HashMap<>())).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
