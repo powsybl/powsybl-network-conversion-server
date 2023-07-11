@@ -148,7 +148,7 @@ public class NetworkConversionService {
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
                 .stream()
-                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : null));
+                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
         return defaultValues;
     }
 
