@@ -497,8 +497,8 @@ public class NetworkConversionTest {
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, new HashMap<>())).getMessage();
-        assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
+        Exception exception = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, new HashMap<>()));
+        assertTrue(exception.getMessage().contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
     @Test
