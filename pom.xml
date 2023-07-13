@@ -25,7 +25,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <equalsverifier-version>3.7.1</equalsverifier-version>
         <powsybl-ws-dependencies.version>2.3.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
@@ -80,11 +79,6 @@
                 <groupId>de.dentrassi.elasticsearch</groupId>
                 <artifactId>log4j2-mock</artifactId>
                 <version>${log4j2-mock-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>nl.jqno.equalsverifier</groupId>
-                <artifactId>equalsverifier</artifactId>
-                <version>${equalsverifier-version}</version>
             </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
@@ -232,11 +226,6 @@
         <dependency>
             <groupId>de.dentrassi.elasticsearch</groupId>
             <artifactId>log4j2-mock</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>nl.jqno.equalsverifier</groupId>
-            <artifactId>equalsverifier</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
