@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>11</version>
+        <version>12</version>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -25,7 +25,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <equalsverifier-version>3.7.1</equalsverifier-version>
         <powsybl-ws-dependencies.version>2.3.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
@@ -82,11 +81,6 @@
                 <version>${log4j2-mock-version}</version>
             </dependency>
             <dependency>
-                <groupId>nl.jqno.equalsverifier</groupId>
-                <artifactId>equalsverifier</artifactId>
-                <version>${equalsverifier-version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>elasticsearch</artifactId>
                 <version>${testcontainers.version}</version>
@@ -96,6 +90,13 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- Annotation processors dependencies -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Compilation dependencies -->
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -232,11 +233,6 @@
         <dependency>
             <groupId>de.dentrassi.elasticsearch</groupId>
             <artifactId>log4j2-mock</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>nl.jqno.equalsverifier</groupId>
-            <artifactId>equalsverifier</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
