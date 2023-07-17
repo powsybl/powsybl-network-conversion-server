@@ -65,13 +65,14 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver) {
+    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver, Map<String, String> importParameters) {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
                 .setHeader(HEADER_CASE_FORMAT, caseInfos.getFormat())
                 .setHeader(HEADER_CASE_NAME, caseInfos.getName())
                 .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .build());
     }
 
