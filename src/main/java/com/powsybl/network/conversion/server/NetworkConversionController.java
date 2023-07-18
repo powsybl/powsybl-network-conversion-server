@@ -28,11 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -60,12 +56,13 @@ public class NetworkConversionController {
                                                    @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
                                                    @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
         LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
+        Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
-            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, importParameters);
+            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, nonNullImportParameters);
             return ResponseEntity.ok().body(networkInfos);
         }
 
-        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, importParameters, receiver);
+        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, nonNullImportParameters, receiver);
         return ResponseEntity.ok().build();
     }
 
