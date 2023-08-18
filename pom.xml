@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>12</version>
+        <version>14</version>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -25,10 +25,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <powsybl-ws-dependencies.version>2.3.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.4.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
         <!-- to remove when powsybl-ws-dependencies is released -->
-        <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>
+        <spring.cloud.stream.version>4.0.3</spring.cloud.stream.version>
     </properties>
 
     <build>
@@ -138,10 +138,6 @@
 
         <!-- elasticsearch -->
         <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-elasticsearch</artifactId>
         </dependency>
@@ -237,11 +233,9 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-stream</artifactId>
+            <artifactId>spring-cloud-stream-test-binder</artifactId>
             <version>${spring.cloud.stream.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
-            <classifier>test-binder</classifier>
         </dependency>
     </dependencies>
 </project>
