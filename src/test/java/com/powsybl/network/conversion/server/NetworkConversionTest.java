@@ -217,7 +217,7 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            assertEquals(77, infos.size());
+            assertEquals(92, infos.size());
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 

@@ -1,6 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <iidm:network xmlns:iidm="http://www.itesla_project.eu/schema/iidm/1_0" id="20140116_0830_2D4_UX1_pst" caseDate="2014-01-16T08:30:00.000+01:00" forecastDistance="0" sourceFormat="UCTE">
+    <iidm:substation id="FRA1AA" country="FR">
+        <iidm:voltageLevel id="FRA1AA1" nominalV="380.0" topologyKind="NODE_BREAKER">
+            <iidm:nodeBreakerTopology>
+                <iidm:busbarSection id="FRA1AA1_1" name="1" node="0"/>
+                <iidm:busbarSection id="FRA1AA1_2" name="2" node="1"/>
+                <iidm:switch id="FRA1AA1_switch" kind="DISCONNECTOR" retained="false" open="false" node1="0" node2="1"/>
+            </iidm:nodeBreakerTopology>
+            <iidm:vscConverterStation id="FRA1AA1_ct_1" voltageRegulatorOn="false" lossFactor="0.0" voltageSetpoint="400.0" reactivePowerSetpoint="0.0" node="2" p="0.0" q="-0.0">
+                <iidm:reactiveCapabilityCurve>
+                    <iidm:point p="-1030.0" minQ="-361.0" maxQ="330.0"/>
+                    <iidm:point p="0.0" minQ="-361.0" maxQ="330.0"/>
+                    <iidm:point p="1030.0" minQ="-361.0" maxQ="330.0"/>
+                </iidm:reactiveCapabilityCurve>
+            </iidm:vscConverterStation>
+         </iidm:voltageLevel>
+    </iidm:substation>
+
     <iidm:substation id="BBE1AA" country="BE">
+        <iidm:voltageLevel id="BBE1TR1" nominalV="380.0" topologyKind="NODE_BREAKER">
+        </iidm:voltageLevel>
+        <iidm:voltageLevel id="BBE1TR2" nominalV="380.0" topologyKind="NODE_BREAKER">
+        </iidm:voltageLevel>
+        <iidm:voltageLevel id="BBE1TR3" nominalV="380.0" topologyKind="NODE_BREAKER">
+        </iidm:voltageLevel>
+        <iidm:voltageLevel id="BBE1AA5" nominalV="380.0" topologyKind="NODE_BREAKER">
+            <iidm:nodeBreakerTopology>
+                <iidm:busbarSection id="BBE1AA5_1" name="3" node="3"/>
+                <iidm:busbarSection id="BBE1AA5_2" name="4" node="4"/>
+            </iidm:nodeBreakerTopology>
+            <iidm:vscConverterStation id="BBE1AA5_ct_1" voltageRegulatorOn="false" lossFactor="0.0" voltageSetpoint="400.0" reactivePowerSetpoint="0.0" node="5" p="0.0" q="-0.0">
+                <iidm:reactiveCapabilityCurve>
+                    <iidm:point p="-1030.0" minQ="-361.0" maxQ="330.0"/>
+                    <iidm:point p="0.0" minQ="-361.0" maxQ="330.0"/>
+                    <iidm:point p="1030.0" minQ="-361.0" maxQ="330.0"/>
+                </iidm:reactiveCapabilityCurve>
+            </iidm:vscConverterStation>
+        </iidm:voltageLevel>
         <iidm:voltageLevel id="BBE1AA2" nominalV="380.0" topologyKind="BUS_BREAKER">
             <iidm:busBreakerTopology>
                 <iidm:bus id="BBE1AA2 " v="380.0" angle="-5.659938335418701"/>
@@ -20,6 +56,7 @@
             <iidm:load id="BBE1AA1 _load" loadType="UNDEFINED" p0="3000.0" q0="0.0" bus="BBE1AA1 " connectableBus="BBE1AA1 " p="3000.0"/>
             <iidm:load id="BBE3AA1 _load" loadType="UNDEFINED" p0="1500.0" q0="0.0" bus="BBE3AA1 " connectableBus="BBE3AA1 " p="1500.0"/>
         </iidm:voltageLevel>
+        <iidm:threeWindingsTransformer id="BBE1AA_w3t" r1="0.2311375" x1="-12.38077533" g1="6.3E-7" b1="0.0" ratedU1="410.0" r2="0.4832875000000001" x2="96.0074737597917" ratedU2="120.0" r3="2.4164394058956917" x3="178.6105916303855" ratedU3="21.0" node1="3" voltageLevelId1="BBE1TR1" node2="4" voltageLevelId2="BBE1TR2" node3="5" voltageLevelId3="BBE1TR3" p1="89.78096" q1="126.443886" p2="-89.54702" q2="-57.0051651" p3="-4.656613E-7" q3="-60.3300171"/>
         <iidm:twoWindingsTransformer id="BBE1AA2  BBE3AA1  2" r="0.20800000429153442" x="25.5" g="1.0625000186337274E-6" b="-2.1624998680636054E-6" ratedU1="400.0" ratedU2="400.0" bus1="BBE3AA1 " connectableBus1="BBE3AA1 " voltageLevelId1="BBE1AA1" bus2="BBE1AA2 " connectableBus2="BBE1AA2 " voltageLevelId2="BBE1AA2" p1="-227.49346923828125" p2="227.49346923828125">
             <iidm:phaseTapChanger lowTapPosition="-33" tapPosition="5" regulationMode="FIXED_TAP">
                 <iidm:step r="0.0" x="0.0" g="0.0" b="0.0" rho="1.0" alpha="30.036436080932617"/>
@@ -305,4 +342,5 @@
         <iidm:currentLimits1 permanentLimit="5000.0"/>
         <iidm:currentLimits2 permanentLimit="5000.0"/>
     </iidm:line>
+    <iidm:hvdcLine id="FRA1AA_BBE1AA_hvdcline" r="0.125" nominalV="320.0" convertersMode="SIDE_1_RECTIFIER_SIDE_2_INVERTER" activePowerSetpoint="0.0" maxP="1030.0" converterStation1="FRA1AA1_ct_1" converterStation2="BBE1AA5_ct_1"/>
 </iidm:network>
