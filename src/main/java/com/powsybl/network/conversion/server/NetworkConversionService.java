@@ -481,4 +481,8 @@ public class NetworkConversionService {
         equipmentInfosService.findAll(networkUuid).forEach(infos::add);
         return infos;
     }
+
+    public boolean hasEquipmentInfos(UUID networkUuid) {
+        return equipmentInfosService.count(networkUuid) > 0;
+    }
 }

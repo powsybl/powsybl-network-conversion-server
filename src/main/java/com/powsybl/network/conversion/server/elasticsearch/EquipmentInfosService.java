@@ -42,6 +42,10 @@ public class EquipmentInfosService {
         return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
+    public long count(@NonNull UUID networkUuid) {
+        return equipmentInfosRepository.countByNetworkUuid(networkUuid);
+    }
+
     public void deleteAll(@NonNull UUID networkUuid) {
         equipmentInfosRepository.deleteAllByNetworkUuid(networkUuid);
     }
