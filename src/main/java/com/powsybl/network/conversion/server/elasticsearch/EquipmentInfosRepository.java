@@ -20,5 +20,5 @@ public interface EquipmentInfosRepository extends ElasticsearchRepository<Equipm
 
     long countByNetworkUuid(@NonNull UUID networkUuid);
 
-    void deleteAllByNetworkUuid(UUID networkUuid);
+    void deleteAllByNetworkUuidAndVariantId(@NonNull UUID networkUuid, @NonNull String variantId);
 }

@@ -234,13 +234,13 @@ public class NetworkConversionService {
         if (reportUuid == null) {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         } else {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
                 networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         }
         try {
@@ -466,14 +466,14 @@ public class NetworkConversionService {
         Network network = getNetwork(networkUuid);
 
         // delete all network equipments infos
-        deleteAllEquipmentInfos(networkUuid);
+        deleteAllEquipmentInfosOnInitialVariant(networkUuid);
 
         // recreate all equipments infos
         insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
     }
 
-    public void deleteAllEquipmentInfos(UUID networkUuid) {
-        equipmentInfosService.deleteAll(networkUuid);
+    public void deleteAllEquipmentInfosOnInitialVariant(UUID networkUuid) {
+        equipmentInfosService.deleteAllOnInitialVariant(networkUuid);
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
