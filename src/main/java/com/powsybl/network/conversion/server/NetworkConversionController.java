@@ -138,7 +138,7 @@ public class NetworkConversionController {
         return ResponseEntity.ok().build();
     }
 
-    @RequestMapping(value = "/networks/{networkUuid}/indexes", method = RequestMethod.HEAD)
+    @RequestMapping(value = "/networks/{networkUuid}/indexed-equipments", method = RequestMethod.HEAD)
     @Operation(summary = "Check if the given network contains indexed equipments")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "The network is indexed"),

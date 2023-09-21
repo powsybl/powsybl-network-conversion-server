@@ -214,7 +214,7 @@ public class NetworkConversionTest {
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexes", networkUuid.toString()))
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isNoContent())
                 .andReturn();
 
@@ -224,7 +224,7 @@ public class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertEquals(77, infos.size());
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexes", networkUuid.toString()))
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
 
