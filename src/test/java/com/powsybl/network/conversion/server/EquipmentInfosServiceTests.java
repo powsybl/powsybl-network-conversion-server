@@ -13,6 +13,7 @@ import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.network.Identifiable;
 import com.powsybl.iidm.network.IdentifiableType;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.iidm.xml.XMLImporter;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
@@ -48,20 +49,20 @@ public class EquipmentInfosServiceTests {
 
     @Before
     public void setup() {
-        equipmentInfosService.deleteAll(NETWORK_UUID);
+        equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
     }
 
     @Test
     public void testAddDeleteEquipmentInfos() {
         List<EquipmentInfos> infos = List.of(
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).build()
         );
 
         equipmentInfosService.addAll(infos);
         assertEquals(2, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
 
-        equipmentInfosService.deleteAll(NETWORK_UUID);
+        equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
     }
 

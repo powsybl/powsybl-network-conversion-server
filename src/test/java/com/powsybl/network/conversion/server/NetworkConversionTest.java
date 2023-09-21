@@ -212,7 +212,7 @@ public class NetworkConversionTest {
                         .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
-            networkConversionService.deleteAllEquipmentInfos(networkUuid);
+            networkConversionService.deleteAllEquipmentInfosOnInitialVariant(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
