@@ -175,7 +175,8 @@ public class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
 
-            assertEquals(String.format("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID)));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
@@ -190,9 +191,11 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
-            String exported2 = mvcResult.getResponse().getContentAsString();
+            String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-            assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            //assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // takes the iidm.export.xml.indent param into account
@@ -345,7 +348,8 @@ public class NetworkConversionTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
 
-        assertEquals(String.format("attachment; filename*=UTF-8''merged_network_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''merged_network_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID)));
         assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     }
 
@@ -361,7 +365,8 @@ public class NetworkConversionTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
 
-        assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73", mvcResult.getResponse().getHeader("content-disposition"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73"));
         assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>SV Model</md:Model.description>\n" +
                 "        <md:Model.version>1</md:Model.version>\n" +
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:2399cbd1-9a39-11e0-aa80-0800200c9a66\"/>\n" +
@@ -469,7 +474,7 @@ public class NetworkConversionTest {
             eq(String.class), eq(caseUuid)))
             .willReturn(ResponseEntity.ok("testCase"));
 
-        MvcResult mvcResult = mvc.perform(post("/v1/networks/")
+        MvcResult mvcResult = mvc.perform(post("/v1/networks")
             .param("caseUuid", caseUuid.toString())
             .param("reportUuid", reportUuid.toString())
             .param("isAsyncRun", "false"))
