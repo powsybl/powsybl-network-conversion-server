@@ -142,8 +142,13 @@ public class NetworkConversionController {
     @Operation(summary = "Check if the given network contains indexed equipments")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "The network is indexed"),
-        @ApiResponse(responseCode = "204", description = "The network isn't indexed")})
+        @ApiResponse(responseCode = "204", description = "The network isn't indexed"),
+        @ApiResponse(responseCode = "404", description = "The network doesn't exist"),
+    })
     public ResponseEntity<Void> checkNetworkIndexation(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
+        if (!networkConversionService.doesNetworkExist(networkUuid)) {
+            return ResponseEntity.notFound().build();
+        }
         return networkConversionService.hasEquipmentInfos(networkUuid)
             ? ResponseEntity.ok().build()
             : ResponseEntity.noContent().build();
