@@ -170,6 +170,8 @@ public class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                     .andReturn();
 
+            UUID notFoundNetworkUuid = UUID.randomUUID();
+            given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
@@ -216,6 +218,10 @@ public class NetworkConversionTest {
             networkConversionService.deleteAllEquipmentInfosOnInitialVariant(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
+
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString()))
+                .andExpect(status().isNotFound())
+                .andReturn();
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isNoContent())
