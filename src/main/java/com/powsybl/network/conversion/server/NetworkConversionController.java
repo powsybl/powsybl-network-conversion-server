@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,8 +133,25 @@ public class NetworkConversionController {
     @PostMapping(value = "/networks/{networkUuid}/reindex-all")
     @Operation(summary = "reindex all equipments in network")
     public ResponseEntity<Void> reindexAllEquipments(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
-        LOGGER.debug("reindex all equipments in network");
+        LOGGER.debug("Reindex all equipments in network");
         networkConversionService.reindexAllEquipments(networkUuid);
         return ResponseEntity.ok().build();
+    }
+
+    @RequestMapping(value = "/networks/{networkUuid}/indexed-equipments", method = RequestMethod.HEAD)
+    @Operation(summary = "Check if the given network contains indexed equipments")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "The network is indexed"),
+        @ApiResponse(responseCode = "204", description = "The network isn't indexed"),
+        @ApiResponse(responseCode = "404", description = "The network doesn't exist"),
+    })
+    public ResponseEntity<Void> checkNetworkIndexation(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
+        if (!networkConversionService.doesNetworkExist(networkUuid)) {
+            return ResponseEntity.notFound().build();
+        }
+        return networkConversionService.hasEquipmentInfos(networkUuid)
+            ? ResponseEntity.ok().build()
+            : ResponseEntity.noContent().build();
+
     }
 }

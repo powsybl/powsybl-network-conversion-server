@@ -234,13 +234,13 @@ public class NetworkConversionService {
         if (reportUuid == null) {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         } else {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
                 networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         }
         try {
@@ -251,6 +251,16 @@ public class NetworkConversionService {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    public boolean doesNetworkExist(UUID networkUuid) {
+        try {
+            networkStoreService.getNetwork(networkUuid);
+            return true;
+        } catch (PowsyblException e) {
+            return false;
+        }
+
     }
 
     private Network getNetwork(UUID networkUuid) {
@@ -466,19 +476,23 @@ public class NetworkConversionService {
         Network network = getNetwork(networkUuid);
 
         // delete all network equipments infos
-        deleteAllEquipmentInfos(networkUuid);
+        deleteAllEquipmentInfosOnInitialVariant(networkUuid);
 
         // recreate all equipments infos
         insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
     }
 
-    public void deleteAllEquipmentInfos(UUID networkUuid) {
-        equipmentInfosService.deleteAll(networkUuid);
+    public void deleteAllEquipmentInfosOnInitialVariant(UUID networkUuid) {
+        equipmentInfosService.deleteAllOnInitialVariant(networkUuid);
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
         List<EquipmentInfos> infos = new ArrayList<>();
         equipmentInfosService.findAll(networkUuid).forEach(infos::add);
         return infos;
+    }
+
+    public boolean hasEquipmentInfos(UUID networkUuid) {
+        return equipmentInfosService.count(networkUuid) > 0;
     }
 }
