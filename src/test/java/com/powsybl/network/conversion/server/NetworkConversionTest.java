@@ -231,7 +231,7 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            assertEquals(77, infos.size());
+            assertEquals(92, infos.size());
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
