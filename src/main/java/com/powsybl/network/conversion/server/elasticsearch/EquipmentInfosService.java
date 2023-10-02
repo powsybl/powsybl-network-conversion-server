@@ -43,6 +43,10 @@ public class EquipmentInfosService {
         return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
+    public long count(@NonNull UUID networkUuid) {
+        return equipmentInfosRepository.countByNetworkUuid(networkUuid);
+    }
+
     public void deleteAllOnInitialVariant(@NonNull UUID networkUuid) {
         equipmentInfosRepository.deleteAllByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
     }

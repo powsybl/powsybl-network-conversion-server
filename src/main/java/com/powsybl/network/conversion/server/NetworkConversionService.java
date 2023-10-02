@@ -253,6 +253,16 @@ public class NetworkConversionService {
         }
     }
 
+    public boolean doesNetworkExist(UUID networkUuid) {
+        try {
+            networkStoreService.getNetwork(networkUuid);
+            return true;
+        } catch (PowsyblException e) {
+            return false;
+        }
+
+    }
+
     private Network getNetwork(UUID networkUuid) {
         try {
             return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.COLLECTION);
@@ -480,5 +490,9 @@ public class NetworkConversionService {
         List<EquipmentInfos> infos = new ArrayList<>();
         equipmentInfosService.findAll(networkUuid).forEach(infos::add);
         return infos;
+    }
+
+    public boolean hasEquipmentInfos(UUID networkUuid) {
+        return equipmentInfosService.count(networkUuid) > 0;
     }
 }
