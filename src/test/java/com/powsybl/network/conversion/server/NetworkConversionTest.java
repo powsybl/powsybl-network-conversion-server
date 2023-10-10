@@ -235,6 +235,7 @@ public class NetworkConversionTest {
                 .build();
         assertEquals(expectedEquipmentInfos, equipmentInfos);
     }
+
     @Test
     public void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {

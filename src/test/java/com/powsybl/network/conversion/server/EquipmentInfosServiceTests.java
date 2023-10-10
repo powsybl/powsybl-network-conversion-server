@@ -69,7 +69,6 @@ public class EquipmentInfosServiceTests {
                 .collect(Collectors.toList());
         assertEquals(infos, allList);
 
-
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
     }
