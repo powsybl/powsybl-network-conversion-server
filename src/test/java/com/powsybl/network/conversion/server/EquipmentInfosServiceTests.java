@@ -31,6 +31,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
 
@@ -61,7 +63,12 @@ public class EquipmentInfosServiceTests {
         );
 
         equipmentInfosService.addAll(infos);
-        assertEquals(2, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
+        Iterable<EquipmentInfos> all = equipmentInfosService.findAll(NETWORK_UUID);
+        assertEquals(2, Iterables.size(all));
+        List<EquipmentInfos> allList = StreamSupport.stream(all.spliterator(), false)
+                .collect(Collectors.toList());
+        assertEquals(infos, allList);
+
 
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));

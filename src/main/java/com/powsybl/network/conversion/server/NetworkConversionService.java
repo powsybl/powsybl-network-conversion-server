@@ -127,7 +127,7 @@ public class NetworkConversionService {
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
-    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
+    public static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
         return EquipmentInfos.builder()
             .networkUuid(networkUuid)
             .variantId(variantId)
