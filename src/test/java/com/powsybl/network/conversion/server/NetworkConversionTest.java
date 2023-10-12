@@ -234,6 +234,19 @@ public class NetworkConversionTest {
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
         assertEquals(expectedEquipmentInfos, equipmentInfos);
+
+        Line line = network.getLine("BBE1AA1  BBE2AA1  1");
+        equipmentInfos = networkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        expectedEquipmentInfos = EquipmentInfos.builder()
+            .networkUuid(networkUuid)
+            .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
+            .id("BBE1AA1  BBE2AA1  1")
+            .name("BBE1AA1  BBE2AA1  1")
+            .type(IdentifiableType.LINE.name())
+            .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build(), VoltageLevelInfos.builder().id("BBE2AA1").name("BBE2AA1").build()))
+            .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build(), SubstationInfos.builder().id("BBE2AA").name("BBE2AA").build()))
+            .build();
+        assertEquals(expectedEquipmentInfos, equipmentInfos);
     }
 
     @Test
