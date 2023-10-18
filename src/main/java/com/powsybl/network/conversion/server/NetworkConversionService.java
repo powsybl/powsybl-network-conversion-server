@@ -127,7 +127,7 @@ public class NetworkConversionService {
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
-    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
+    static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
         return EquipmentInfos.builder()
             .networkUuid(networkUuid)
             .variantId(variantId)
@@ -135,6 +135,7 @@ public class NetworkConversionService {
             .name(i.getNameOrId())
             .type(i.getType().name())
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
+            .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();
     }
 
