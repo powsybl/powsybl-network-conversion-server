@@ -214,6 +214,24 @@ public class EquipmentInfosServiceTests {
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build(), SubstationInfos.builder().id("BBE2AA").name("BBE2AA").build()))
                 .build();
         assertEquals(expectedEquipmentInfos, equipmentInfos);
+
+        // test with a line belonging to one voltage level
+        dataSource = new ResourceDataSource("fourSubstations_first_variant_id", new ResourceSet("", "fourSubstations_first_variant_id.xiidm"));
+        network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+        networkUuid = UUID.randomUUID();
+
+        line = network.getLine("LINE_S1VL1");
+        equipmentInfos = networkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        expectedEquipmentInfos = EquipmentInfos.builder()
+                .networkUuid(networkUuid)
+                .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
+                .id("LINE_S1VL1")
+                .name("LINE_S1VL1")
+                .type(IdentifiableType.LINE.name())
+                .voltageLevels(Set.of(VoltageLevelInfos.builder().id("S1VL1").name("S1VL1").build()))
+                .substations(Set.of(SubstationInfos.builder().id("S1").name("S1").build()))
+                .build();
+        assertEquals(expectedEquipmentInfos, equipmentInfos);
     }
 
     @Test
