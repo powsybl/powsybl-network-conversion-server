@@ -74,7 +74,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testToEquipmentInfos() {
+    public void testEquipmentInfos() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
         UUID networkUuid = UUID.randomUUID();
