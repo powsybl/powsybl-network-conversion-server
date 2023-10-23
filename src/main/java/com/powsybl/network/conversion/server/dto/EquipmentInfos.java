@@ -22,6 +22,7 @@ import org.springframework.data.elasticsearch.annotations.Setting;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
@@ -82,23 +83,23 @@ public class EquipmentInfos {
             return Set.of(((Bus) identifiable).getVoltageLevel());
         } else if (identifiable instanceof HvdcLine) {
             HvdcLine hvdcLine = (HvdcLine) identifiable;
-            return Set.of(
+            return Stream.of(
                     hvdcLine.getConverterStation1().getTerminal().getVoltageLevel(),
                     hvdcLine.getConverterStation2().getTerminal().getVoltageLevel()
-            );
+            ).collect(Collectors.toSet());
         } else if (identifiable instanceof Branch) {
             Branch<?> branch = (Branch<?>) identifiable;
-            return Set.of(
+            return Stream.of(
                     branch.getTerminal1().getVoltageLevel(),
                     branch.getTerminal2().getVoltageLevel()
-            );
+            ).collect(Collectors.toSet());
         } else if (identifiable instanceof ThreeWindingsTransformer) {
             ThreeWindingsTransformer w3t = (ThreeWindingsTransformer) identifiable;
-            return Set.of(
+            return Stream.of(
                     w3t.getTerminal(ThreeWindingsTransformer.Side.ONE).getVoltageLevel(),
                     w3t.getTerminal(ThreeWindingsTransformer.Side.TWO).getVoltageLevel(),
                     w3t.getTerminal(ThreeWindingsTransformer.Side.THREE).getVoltageLevel()
-            );
+            ).collect(Collectors.toSet());
         }
 
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
