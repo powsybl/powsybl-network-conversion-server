@@ -345,28 +345,6 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testWithMergingView() throws Exception {
-        UUID testNetworkId1 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e4");
-        UUID testNetworkId2 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e5");
-        UUID testNetworkId3 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e6");
-
-        given(networkStoreClient.getNetwork(testNetworkId1, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("1_"));
-        given(networkStoreClient.getNetwork(testNetworkId2, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("2_"));
-        given(networkStoreClient.getNetwork(testNetworkId3, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("3_"));
-
-        MvcResult mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", testNetworkId1.toString(), "XIIDM")
-                .param("networkUuid", testNetworkId2.toString())
-                .param("networkUuid", testNetworkId3.toString()))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-
-        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''merged_network_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID)));
-        assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-    }
-
-    @Test
     public void testExportSv() throws Exception {
         Network network = new CgmesImport()
                 .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);

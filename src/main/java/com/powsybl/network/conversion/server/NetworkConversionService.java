@@ -23,7 +23,6 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
-import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
@@ -272,20 +271,7 @@ public class NetworkConversionService {
         }
     }
 
-    private Network networksListToMergedNetwork(List<Network> networks) {
-        if (networks.size() == 1) {
-            return networks.get(0);
-        } else {
-            // creation of the merging view and merging the networks
-            MergingView merginvView = MergingView.create("merged_network", "iidm");
-
-            merginvView.merge(networks.toArray(new Network[networks.size()]));
-
-            return merginvView;
-        }
-    }
-
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId,
         String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
@@ -297,7 +283,7 @@ public class NetworkConversionService {
             exportProperties.putAll(formatParameters);
         }
 
-        Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
+        Network network = getNetwork(networkUuid);
         if (variantId != null) {
             if (network.getVariantManager().getVariantIds().contains(variantId)) {
                 network.getVariantManager().setWorkingVariant(variantId);
@@ -373,16 +359,8 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    public List<Network> getNetworkAsList(UUID networkUuid, List<UUID> otherNetworksUuid) {
-        List<Network> networks = new ArrayList<>();
-        networks.add(getNetwork(networkUuid));
-        otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
-        return networks;
-    }
-
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid, List<UUID> otherNetworksUuid) throws XMLStreamException {
-        List<Network> networks = getNetworkAsList(networkUuid, otherNetworksUuid);
-        Network mergedNetwork = networksListToMergedNetwork(networks);
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
+        Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
         properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
@@ -392,23 +370,21 @@ public class NetworkConversionService {
 
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
-            StateVariablesExport.write(mergedNetwork, writer, createContext(mergedNetwork, networks));
+            StateVariablesExport.write(network, writer, createContext(network));
         } finally {
             if (writer != null) {
                 writer.close();
             }
         }
-        return new ExportNetworkInfos(mergedNetwork.getNameOrId(), outputStream.toByteArray());
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
     }
 
-    private static CgmesExportContext createContext(Network mergedNetwork, List<Network> networks) {
+    private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
-        context.setScenarioTime(mergedNetwork.getCaseDate());
-        networks.forEach(network -> {
-            context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
-            context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
-            context.addIidmMappings(network);
-        });
+        context.setScenarioTime(network.getCaseDate());
+        context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
+        context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
+        context.addIidmMappings(network);
         return context;
     }
 
