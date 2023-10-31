@@ -26,10 +26,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <powsybl-ws-dependencies.version>2.4.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.5.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
-        <!-- to remove when powsybl-ws-dependencies is released -->
-        <spring.cloud.stream.version>4.0.3</spring.cloud.stream.version>
     </properties>
 
     <build>
@@ -113,10 +111,6 @@
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-mergingview</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.powsybl</groupId>
             <artifactId>powsybl-cgmes-conversion</artifactId>
         </dependency>
         <dependency>
@@ -130,7 +124,6 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream</artifactId>
-            <version>${spring.cloud.stream.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -182,7 +175,6 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-binder-rabbit</artifactId>
-            <version>${spring.cloud.stream.version}</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -235,7 +227,6 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-test-binder</artifactId>
-            <version>${spring.cloud.stream.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
