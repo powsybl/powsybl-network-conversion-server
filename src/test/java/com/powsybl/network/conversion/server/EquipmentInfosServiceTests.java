@@ -62,6 +62,7 @@ public class EquipmentInfosServiceTests {
         List<EquipmentInfos> infosDB = equipmentInfosService.findAll(NETWORK_UUID);
         assertEquals(2, infosDB.size());
         assertEquals(infos, infosDB);
+        assertEquals(infos.stream().map(i -> i.getNetworkUuid() + "_" + i.getVariantId() + "_" + i.getId()).toList(), infosDB.stream().map(i -> i.getUniqueId()).toList());
 
         // Change names but uniqueIds are same
         infos = List.of(
@@ -72,6 +73,7 @@ public class EquipmentInfosServiceTests {
         infosDB = equipmentInfosService.findAll(NETWORK_UUID);
         assertEquals(2, infosDB.size());
         assertEquals(infos, infosDB);
+        assertEquals(infos.stream().map(i -> i.getNetworkUuid() + "_" + i.getVariantId() + "_" + i.getId()).toList(), infosDB.stream().map(i -> i.getUniqueId()).toList());
 
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
         assertEquals(0, equipmentInfosService.findAll(NETWORK_UUID).size());

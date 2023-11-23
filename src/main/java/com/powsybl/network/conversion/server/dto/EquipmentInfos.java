@@ -39,9 +39,9 @@ public class EquipmentInfos {
         return networkUuid + "_" + variantId + "_" + id;
     }
 
-    // No setter because it a composite value
     @SuppressWarnings("unused")
     public void setUniqueId(String uniqueId) {
+        // No setter because it a composite value
     }
 
     @MultiField(
