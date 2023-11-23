@@ -464,9 +464,7 @@ public class NetworkConversionService {
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
-        List<EquipmentInfos> infos = new ArrayList<>();
-        equipmentInfosService.findAll(networkUuid).forEach(infos::add);
-        return infos;
+        return equipmentInfosService.findAll(networkUuid);
     }
 
     public boolean hasEquipmentInfos(UUID networkUuid) {

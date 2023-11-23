@@ -28,8 +28,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
 
@@ -61,13 +59,20 @@ public class EquipmentInfosServiceTests {
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
         );
-
         equipmentInfosService.addAll(infos);
-        Iterable<EquipmentInfos> all = equipmentInfosService.findAll(NETWORK_UUID);
-        assertEquals(2, Iterables.size(all));
-        List<EquipmentInfos> allList = StreamSupport.stream(all.spliterator(), false)
-                .collect(Collectors.toList());
-        assertEquals(infos, allList);
+        List<EquipmentInfos> infosDB = equipmentInfosService.findAll(NETWORK_UUID);
+        assertEquals(2, Iterables.size(infosDB));
+        assertEquals(infos, infosDB);
+
+        // Change names but uniqueIds are same
+        infos = List.of(
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("newName1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("newName2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
+        );
+        equipmentInfosService.addAll(infos);
+        infosDB = equipmentInfosService.findAll(NETWORK_UUID);
+        assertEquals(2, Iterables.size(infosDB));
+        assertEquals(infos, infosDB);
 
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
         assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
