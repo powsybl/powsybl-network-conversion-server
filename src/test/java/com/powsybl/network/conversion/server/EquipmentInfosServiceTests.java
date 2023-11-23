@@ -6,7 +6,6 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.google.common.collect.Iterables;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -61,7 +60,7 @@ public class EquipmentInfosServiceTests {
         );
         equipmentInfosService.addAll(infos);
         List<EquipmentInfos> infosDB = equipmentInfosService.findAll(NETWORK_UUID);
-        assertEquals(2, Iterables.size(infosDB));
+        assertEquals(2, infosDB.size());
         assertEquals(infos, infosDB);
 
         // Change names but uniqueIds are same
@@ -71,11 +70,11 @@ public class EquipmentInfosServiceTests {
         );
         equipmentInfosService.addAll(infos);
         infosDB = equipmentInfosService.findAll(NETWORK_UUID);
-        assertEquals(2, Iterables.size(infosDB));
+        assertEquals(2, infosDB.size());
         assertEquals(infos, infosDB);
 
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
-        assertEquals(0, Iterables.size(equipmentInfosService.findAll(NETWORK_UUID)));
+        assertEquals(0, equipmentInfosService.findAll(NETWORK_UUID).size());
     }
 
     @Test
@@ -85,7 +84,7 @@ public class EquipmentInfosServiceTests {
         UUID networkUuid = UUID.randomUUID();
 
         VoltageLevel vl = network.getVoltageLevel("BBE1AA1");
-        EquipmentInfos equipmentInfos = networkConversionService.toEquipmentInfos(vl, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        EquipmentInfos equipmentInfos = NetworkConversionService.toEquipmentInfos(vl, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         EquipmentInfos expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -98,7 +97,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Substation substation = network.getSubstation("BBE1AA");
-        equipmentInfos = networkConversionService.toEquipmentInfos(substation, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(substation, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -117,7 +116,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Switch switch1 = network.getSwitch("FRA1AA1_switch");
-        equipmentInfos = networkConversionService.toEquipmentInfos(switch1, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(switch1, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -130,7 +129,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Load load = network.getLoad("BBE1AA1 _load");
-        equipmentInfos = networkConversionService.toEquipmentInfos(load, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(load, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -143,7 +142,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Bus bus = network.getBusBreakerView().getBus("BBE1AA1 ");
-        equipmentInfos = networkConversionService.toEquipmentInfos(bus, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(bus, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -156,7 +155,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Generator generator = network.getGenerator("BBE1AA1 _generator");
-        equipmentInfos = networkConversionService.toEquipmentInfos(generator, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(generator, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -169,7 +168,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         HvdcLine hvdcLine = network.getHvdcLine("FRA1AA_BBE1AA_hvdcline");
-        equipmentInfos = networkConversionService.toEquipmentInfos(hvdcLine, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(hvdcLine, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -182,7 +181,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         TwoWindingsTransformer twoWindingsTransformer = network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2");
-        equipmentInfos = networkConversionService.toEquipmentInfos(twoWindingsTransformer, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(twoWindingsTransformer, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -195,7 +194,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         ThreeWindingsTransformer threeWindingsTransformer = network.getThreeWindingsTransformer("BBE1AA_w3t");
-        equipmentInfos = networkConversionService.toEquipmentInfos(threeWindingsTransformer, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(threeWindingsTransformer, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -208,7 +207,7 @@ public class EquipmentInfosServiceTests {
         assertEquals(expectedEquipmentInfos, equipmentInfos);
 
         Line line = network.getLine("BBE1AA1  BBE2AA1  1");
-        equipmentInfos = networkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
@@ -226,7 +225,7 @@ public class EquipmentInfosServiceTests {
         networkUuid = UUID.randomUUID();
 
         line = network.getLine("LINE_S1VL1");
-        equipmentInfos = networkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        equipmentInfos = NetworkConversionService.toEquipmentInfos(line, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         expectedEquipmentInfos = EquipmentInfos.builder()
                 .networkUuid(networkUuid)
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
