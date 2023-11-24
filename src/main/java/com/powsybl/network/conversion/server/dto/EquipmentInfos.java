@@ -10,14 +10,10 @@ import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.NetworkConversionException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.annotation.AccessType;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.InnerField;
-import org.springframework.data.elasticsearch.annotations.MultiField;
-import org.springframework.data.elasticsearch.annotations.Setting;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.util.Set;
 import java.util.UUID;
@@ -37,7 +33,16 @@ import java.util.stream.Stream;
 @TypeAlias(value = "EquipmentInfos")
 public class EquipmentInfos {
     @Id
-    String uniqueId;
+    @AccessType(AccessType.Type.PROPERTY)
+    @SuppressWarnings("unused")
+    public String getUniqueId() {
+        return networkUuid + "_" + variantId + "_" + id;
+    }
+
+    @SuppressWarnings("unused")
+    public void setUniqueId(String uniqueId) {
+        // No setter because it a composite value
+    }
 
     @MultiField(
         mainField = @Field(name = "equipmentId", type = FieldType.Text),

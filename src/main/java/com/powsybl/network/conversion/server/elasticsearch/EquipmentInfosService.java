@@ -39,7 +39,7 @@ public class EquipmentInfosService {
                 .forEach(equipmentInfosRepository::saveAll);
     }
 
-    public Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
+    public List<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
         return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
