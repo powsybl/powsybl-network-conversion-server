@@ -96,6 +96,8 @@ public class NetworkConversionService {
 
     private final NotificationService notificationService;
 
+    private final NetworkConversionObserver networkConversionObserver;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -105,11 +107,13 @@ public class NetworkConversionService {
                                     NetworkStoreService networkStoreService,
                                     EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
-                                    NotificationService notificationService) {
+                                    NotificationService notificationService,
+                                    NetworkConversionObserver networkConversionObserver) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
+        this.networkConversionObserver = networkConversionObserver;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -190,13 +194,17 @@ public class NetworkConversionService {
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        String format = caseInfos.getFormat();
+        Long size = caseInfos.getSize();
         Network network;
+        Reporter finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+            network = networkConversionObserver.observeImport("import", format, size, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkStoreService.importNetwork(dataSource, reporter, false);
+            network = networkConversionObserver.observeImport("import", format, size, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -393,8 +401,10 @@ public class NetworkConversionService {
             return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            var network = networkStoreService.importNetwork(dataSource);
-            var networkUuid = networkStoreService.getNetworkUuid(network);
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+            Long size = caseInfos.getSize();
+            Network network = networkConversionObserver.observeImport("import", "CGMES", size, () -> networkStoreService.importNetwork(dataSource));
+            UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }
     }
