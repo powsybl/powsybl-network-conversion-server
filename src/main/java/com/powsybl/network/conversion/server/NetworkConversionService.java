@@ -196,15 +196,14 @@ public class NetworkConversionService {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         CaseInfos caseInfos = getCaseInfos(caseUuid);
         String format = caseInfos.getFormat();
-        Long size = caseInfos.getSize();
         Network network;
         Reporter finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkConversionObserver.observeImport("import", format, size, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
+            network = networkConversionObserver.observeImport("import", format, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkConversionObserver.observeImport("import", format, size, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
+            network = networkConversionObserver.observeImport("import", format, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -314,7 +313,8 @@ public class NetworkConversionService {
             networkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
-        return new ExportNetworkInfos(networkName, networkData);
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(networkName, networkData, networkSize);
     }
 
     ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
@@ -384,7 +384,8 @@ public class NetworkConversionService {
                 writer.close();
             }
         }
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
     }
 
     private static CgmesExportContext createContext(Network network) {
@@ -401,9 +402,7 @@ public class NetworkConversionService {
             return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            CaseInfos caseInfos = getCaseInfos(caseUuid);
-            Long size = caseInfos.getSize();
-            Network network = networkConversionObserver.observeImport("import", "CGMES", size, () -> networkStoreService.importNetwork(dataSource));
+            Network network = networkConversionObserver.observeImport("import", "CGMES", () -> networkStoreService.importNetwork(dataSource));
             UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }

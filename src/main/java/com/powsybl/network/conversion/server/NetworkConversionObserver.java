@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -26,7 +27,7 @@ public class NetworkConversionObserver {
 
     private static final String FORMAT_NAME = "format";
 
-    private static final String NETWORK_DATA_SIZE = "NetworkDataSize";
+    private static final String NUMBER_BUSES = "number of buses";
 
     private final ObservationRegistry observationRegistry;
 
@@ -49,38 +50,53 @@ public class NetworkConversionObserver {
                 T processResult = callable.call();
 
                 // Check if the result is an instance of ExportNetworkInfos.
-                // If it is, calculate the size of the network data in kilobytes.
+                // If it is, calculate the number of buses.
                 if (processResult instanceof ExportNetworkInfos) {
-                    double sizeInKo = ((ExportNetworkInfos) processResult).getNetworkData().length / 1024.0;
-                    // Add the calculated size as a key-value pair to the observation.
-                    observation.lowCardinalityKeyValue(NETWORK_DATA_SIZE, String.format("%.2f", sizeInKo) + " Ko");
-                }
-                if (processResult != null) {
-                    incrementCount(CONVERSION_FAILED_NAME, format);
+                    // Add the number of buses as a key-value pair to the observation.
+                    observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(((ExportNetworkInfos) processResult).getNumberBuses()));
                 }
                 return processResult;
             });
 
             return result;
         } catch (RuntimeException re) {
+            incrementCount(CONVERSION_FAILED_NAME, format);
             throw re;
         } catch (Throwable e) {
+            incrementCount(CONVERSION_FAILED_NAME, format);
             throw (E) e;
         }
     }
 
-    public <T, E extends Throwable> T observeImport(String name, String format, Long size, Observation.CheckedCallable<T, E> callable) throws E {
-        T result = createObservationImport(name, format, size).observeChecked(callable);
-        if (result != null) {
-            incrementCount(CONVERSION_FAILED_NAME, format);
-        }
-        return result;
-    }
+    public <T, E extends Throwable> T observeImport(String name, String format, Observation.CheckedCallable<T, E> callable) throws E {
+        // Create an Observation object with the given name and format.
+        Observation observation = createObservation(name, format);
 
-    private Observation createObservationImport(String name, String format, Long size) {
-        return Observation.createNotStarted(OBSERVATION_PREFIX + name, observationRegistry)
-                .lowCardinalityKeyValue(FORMAT_NAME, format)
-                .lowCardinalityKeyValue(NETWORK_DATA_SIZE, size.toString() + " Ko");
+        try {
+            // Observe the execution of the callable within the context of the observation.
+            // The observeChecked method captures the callable's execution details.
+            T result = observation.observeChecked(() -> {
+                // Call the callable and get the result.
+                T processResult = callable.call();
+
+                // Check if the result is an instance of Network.
+                // If it is, calculate the number of buses.
+                if (processResult instanceof Network) {
+                    long numberBuses = ((Network) processResult).getBusView().getBusStream().count();
+                    // Add the number of buses as a key-value pair to the observation.
+                    observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(numberBuses));
+                }
+                return processResult;
+            });
+
+            return result;
+        } catch (RuntimeException re) {
+            incrementCount(CONVERSION_FAILED_NAME, format);
+            throw re;
+        } catch (Throwable e) {
+            incrementCount(CONVERSION_FAILED_NAME, format);
+            throw (E) e;
+        }
     }
 
     private Observation createObservation(String name, String format) {
