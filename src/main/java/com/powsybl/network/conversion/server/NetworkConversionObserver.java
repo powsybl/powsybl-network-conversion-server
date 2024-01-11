@@ -23,7 +23,8 @@ import org.springframework.stereotype.Service;
 public class NetworkConversionObserver {
 
     private static final String OBSERVATION_PREFIX = "app.conversion.";
-    private static final String CONVERSION_FAILED_NAME = OBSERVATION_PREFIX + "failed";
+    private static final String FAILED_EXPORT_COUNTER_NAME = OBSERVATION_PREFIX + "export.failed";
+    private static final String FAILED_IMPORT_COUNTER_NAME = OBSERVATION_PREFIX + "import.failed";
 
     private static final String FORMAT_NAME = "format";
 
@@ -38,61 +39,48 @@ public class NetworkConversionObserver {
         this.meterRegistry = meterRegistry;
     }
 
-    public <T, E extends Throwable> T observeExport(String name, String format, Observation.CheckedCallable<T, E> callable) throws E {
+    public <E extends Throwable> ExportNetworkInfos observeExport(String name, String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
         // Create an Observation object with the given name and format.
         Observation observation = createObservation(name, format);
-
         try {
             // Observe the execution of the callable within the context of the observation.
             // The observeChecked method captures the callable's execution details.
             return observation.observeChecked(() -> {
                 // Call the callable and get the result.
-                T processResult = callable.call();
-
-                // Check if the result is an instance of ExportNetworkInfos.
-                // If it is, calculate the number of buses.
-                if (processResult instanceof ExportNetworkInfos) {
-                    // Add the number of buses as a key-value pair to the observation.
-                    observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(((ExportNetworkInfos) processResult).getNumberBuses()));
-                }
+                ExportNetworkInfos processResult = callable.call();
+                // Add the number of buses as a key-value pair to the observation.
+                observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(processResult.getNumberBuses()));
                 return processResult;
             });
-
         } catch (RuntimeException re) {
-            incrementCount(CONVERSION_FAILED_NAME, format);
+            incrementCount(FAILED_EXPORT_COUNTER_NAME, format);
             throw re;
         } catch (Throwable e) {
-            incrementCount(CONVERSION_FAILED_NAME, format);
+            incrementCount(FAILED_EXPORT_COUNTER_NAME, format);
             throw (E) e;
         }
     }
 
-    public <T, E extends Throwable> T observeImport(String name, String format, Observation.CheckedCallable<T, E> callable) throws E {
+    public <E extends Throwable> Network observeImport(String name, String format, Observation.CheckedCallable<Network, E> callable) throws E {
         // Create an Observation object with the given name and format.
         Observation observation = createObservation(name, format);
-
         try {
             // Observe the execution of the callable within the context of the observation.
             // The observeChecked method captures the callable's execution details.
             return observation.observeChecked(() -> {
                 // Call the callable and get the result.
-                T processResult = callable.call();
-
-                // Check if the result is an instance of Network.
-                // If it is, calculate the number of buses.
-                if (processResult instanceof Network) {
-                    long numberBuses = ((Network) processResult).getBusView().getBusStream().count();
-                    // Add the number of buses as a key-value pair to the observation.
-                    observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(numberBuses));
-                }
+                Network processResult = callable.call();
+                // calculate the number of buses.
+                long numberBuses = processResult.getBusView().getBusStream().count();
+                // Add the number of buses as a key-value pair to the observation.
+                observation.lowCardinalityKeyValue(NUMBER_BUSES, String.valueOf(numberBuses));
                 return processResult;
             });
-
         } catch (RuntimeException re) {
-            incrementCount(CONVERSION_FAILED_NAME, format);
+            incrementCount(FAILED_IMPORT_COUNTER_NAME, format);
             throw re;
         } catch (Throwable e) {
-            incrementCount(CONVERSION_FAILED_NAME, format);
+            incrementCount(FAILED_IMPORT_COUNTER_NAME, format);
             throw (E) e;
         }
     }
