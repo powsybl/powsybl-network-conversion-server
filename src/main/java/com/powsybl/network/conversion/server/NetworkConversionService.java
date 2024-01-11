@@ -81,6 +81,7 @@ public class NetworkConversionService {
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
     private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
+    private static final String OBSERVER_TYPE_IMPORT = "import";
 
     private RestTemplate caseServerRest;
 
@@ -201,9 +202,9 @@ public class NetworkConversionService {
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkConversionObserver.observeImport("import", format, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
+            network = networkConversionObserver.observeImport(OBSERVER_TYPE_IMPORT, format, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkConversionObserver.observeImport("import", format, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
+            network = networkConversionObserver.observeImport(OBSERVER_TYPE_IMPORT, format, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -402,7 +403,7 @@ public class NetworkConversionService {
             return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            Network network = networkConversionObserver.observeImport("import", "CGMES", () -> networkStoreService.importNetwork(dataSource));
+            Network network = networkConversionObserver.observeImport(OBSERVER_TYPE_IMPORT, "CGMES", () -> networkStoreService.importNetwork(dataSource));
             UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }

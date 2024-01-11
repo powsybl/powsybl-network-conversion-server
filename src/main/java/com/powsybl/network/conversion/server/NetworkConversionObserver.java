@@ -45,7 +45,7 @@ public class NetworkConversionObserver {
         try {
             // Observe the execution of the callable within the context of the observation.
             // The observeChecked method captures the callable's execution details.
-            T result = observation.observeChecked(() -> {
+            return observation.observeChecked(() -> {
                 // Call the callable and get the result.
                 T processResult = callable.call();
 
@@ -58,7 +58,6 @@ public class NetworkConversionObserver {
                 return processResult;
             });
 
-            return result;
         } catch (RuntimeException re) {
             incrementCount(CONVERSION_FAILED_NAME, format);
             throw re;
@@ -75,7 +74,7 @@ public class NetworkConversionObserver {
         try {
             // Observe the execution of the callable within the context of the observation.
             // The observeChecked method captures the callable's execution details.
-            T result = observation.observeChecked(() -> {
+            return observation.observeChecked(() -> {
                 // Call the callable and get the result.
                 T processResult = callable.call();
 
@@ -89,7 +88,6 @@ public class NetworkConversionObserver {
                 return processResult;
             });
 
-            return result;
         } catch (RuntimeException re) {
             incrementCount(CONVERSION_FAILED_NAME, format);
             throw re;
