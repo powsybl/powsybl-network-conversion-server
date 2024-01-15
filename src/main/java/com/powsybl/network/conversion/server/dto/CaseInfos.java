@@ -34,8 +34,5 @@ public class CaseInfos {
     protected String name;
     @NonNull
     protected String format;
-    @NonNull
-    protected Long size;
-
 
 }
