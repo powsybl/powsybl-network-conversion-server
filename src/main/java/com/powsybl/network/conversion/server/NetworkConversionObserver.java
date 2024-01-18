@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author Anis Touri <anis.touri at rte-france.com>
@@ -45,13 +46,15 @@ public class NetworkConversionObserver {
 
     public <E extends Throwable> ExportNetworkInfos observeExport(String name, String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
         ExportNetworkInfos result = createObservation(name, format).observeChecked(callable);
-        observeExportNetworkSize(NUMBER_BUSES_EXPORTED_NAME, format, result.getNumberBuses());
+        Optional.ofNullable(result)
+                .ifPresent(r -> observeExportNetworkSize(NUMBER_BUSES_EXPORTED_NAME, format, result.getNumberBuses()));
         return result;
     }
 
     public <E extends Throwable> Network observeImport(String name, String format, Observation.CheckedCallable<Network, E> callable) throws E {
         Network result = createObservation(name, format).observeChecked(callable);
-        observeImportNetworkSize(NUMBER_BUSES_IMPORTED_NAME, format, result.getBusView().getBusStream().count());
+        Optional.ofNullable(result)
+                .ifPresent(r -> observeImportNetworkSize(NUMBER_BUSES_IMPORTED_NAME, format, r.getBusView().getBusStream().count()));
         return result;
     }
 
