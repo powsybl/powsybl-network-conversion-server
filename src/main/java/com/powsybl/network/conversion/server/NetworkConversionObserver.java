@@ -8,15 +8,12 @@ package com.powsybl.network.conversion.server;
 
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
-import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.NonNull;
 import org.springframework.stereotype.Service;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author Anis Touri <anis.touri at rte-france.com>
@@ -26,51 +23,49 @@ import java.util.Map;
 public class NetworkConversionObserver {
 
     private static final String OBSERVATION_PREFIX = "app.conversion.";
-    private static final String FORMAT_NAME = "format";
+    private static final String FORMAT_TAG_NAME = "format";
 
-    private static final String NUMBER_BUSES_EXPORTED_NAME = OBSERVATION_PREFIX + "buses.exported";
-    private static final String NUMBER_BUSES_IMPORTED_NAME = OBSERVATION_PREFIX + "buses.imported";
+    private static final String IMPORT_OBSERVATION_NAME = OBSERVATION_PREFIX + "import";
+    private static final String NUMBER_BUSES_IMPORTED_METER_NAME = IMPORT_OBSERVATION_NAME + ".buses";
+
+    private static final String EXPORT_OBSERVATION_NAME = OBSERVATION_PREFIX + "export";
+    private static final String NUMBER_BUSES_EXPORTED_METER_NAME = EXPORT_OBSERVATION_NAME + ".buses";
 
     private final ObservationRegistry observationRegistry;
 
     private final MeterRegistry meterRegistry;
-
-    private Map<String, Double> exportFormats = new HashMap<>();
-    private Map<String, Double> importFormats = new HashMap<>();
 
     public NetworkConversionObserver(@NonNull ObservationRegistry observationRegistry, @NonNull MeterRegistry meterRegistry) {
         this.observationRegistry = observationRegistry;
         this.meterRegistry = meterRegistry;
     }
 
-    public <E extends Throwable> ExportNetworkInfos observeExport(String name, String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
-        ExportNetworkInfos result = createObservation(name, format).observeChecked(callable);
-        observeExportNetworkSize(NUMBER_BUSES_EXPORTED_NAME, format, result.getNumberBuses());
-        return result;
+    public <E extends Throwable> ExportNetworkInfos observeExport(String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
+        Observation observation = createObservation(EXPORT_OBSERVATION_NAME, format);
+        ExportNetworkInfos exportInfos = observation.observeChecked(callable);
+        if (exportInfos != null) {
+            recordNumberBuses(NUMBER_BUSES_EXPORTED_METER_NAME, format, exportInfos.getNumberBuses());
+        }
+        return exportInfos;
     }
 
-    public <E extends Throwable> Network observeImport(String name, String format, Observation.CheckedCallable<Network, E> callable) throws E {
-        Network result = createObservation(name, format).observeChecked(callable);
-        observeImportNetworkSize(NUMBER_BUSES_IMPORTED_NAME, format, result.getBusView().getBusStream().count());
-        return result;
+    public <E extends Throwable> Network observeImport(String format, Observation.CheckedCallable<Network, E> callable) throws E {
+        Network network = createObservation(IMPORT_OBSERVATION_NAME, format).observeChecked(callable);
+        if (network != null) {
+            recordNumberBuses(NUMBER_BUSES_IMPORTED_METER_NAME, format, network.getBusView().getBusStream().count());
+        }
+        return network;
     }
 
     private Observation createObservation(String name, String format) {
-        return Observation.createNotStarted(OBSERVATION_PREFIX + name, observationRegistry)
-                .lowCardinalityKeyValue(FORMAT_NAME, format);
+        return Observation.createNotStarted(name, observationRegistry)
+                .lowCardinalityKeyValue(FORMAT_TAG_NAME, format);
     }
 
-    private void observeExportNetworkSize(String name, String format, double networkSize) {
-        exportFormats.put(format, networkSize);
-        Gauge.builder(name, exportFormats, map -> map.get(format))
-                .tags("format", format)
-                .register(meterRegistry);
-    }
-
-    private void observeImportNetworkSize(String name, String format, double networkSize) {
-        importFormats.put(format, networkSize);
-        Gauge.builder(name, importFormats, map -> map.get(format))
-                .tags("format", format)
-                .register(meterRegistry);
+    private void recordNumberBuses(String meterName, String format, long numberBuses) {
+        DistributionSummary.builder(meterName)
+                .tags(FORMAT_TAG_NAME, format)
+                .register(meterRegistry)
+                .record(numberBuses);
     }
 }
