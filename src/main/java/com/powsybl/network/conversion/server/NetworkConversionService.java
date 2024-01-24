@@ -96,6 +96,8 @@ public class NetworkConversionService {
 
     private final NotificationService notificationService;
 
+    private final NetworkConversionObserver networkConversionObserver;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -105,11 +107,13 @@ public class NetworkConversionService {
                                     NetworkStoreService networkStoreService,
                                     EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
-                                    NotificationService notificationService) {
+                                    NotificationService notificationService,
+                                    NetworkConversionObserver networkConversionObserver) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
+        this.networkConversionObserver = networkConversionObserver;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -190,13 +194,16 @@ public class NetworkConversionService {
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        CaseInfos caseInfos = getCaseInfos(caseUuid);
+        String format = caseInfos.getFormat();
         Network network;
+        Reporter finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+            network = networkConversionObserver.observeImport(format, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkStoreService.importNetwork(dataSource, reporter, false);
+            network = networkConversionObserver.observeImport(format, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -306,7 +313,8 @@ public class NetworkConversionService {
             networkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
-        return new ExportNetworkInfos(networkName, networkData);
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(networkName, networkData, networkSize);
     }
 
     ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
@@ -376,7 +384,8 @@ public class NetworkConversionService {
                 writer.close();
             }
         }
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray());
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
     }
 
     private static CgmesExportContext createContext(Network network) {
@@ -393,8 +402,8 @@ public class NetworkConversionService {
             return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            var network = networkStoreService.importNetwork(dataSource);
-            var networkUuid = networkStoreService.getNetworkUuid(network);
+            Network network = networkConversionObserver.observeImport("CGMES", () -> networkStoreService.importNetwork(dataSource));
+            UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }
     }
