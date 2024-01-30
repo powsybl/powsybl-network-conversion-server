@@ -24,13 +24,7 @@ import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.network.*;
-import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.CaseInfos;
-import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
-import com.powsybl.network.conversion.server.dto.NetworkInfos;
-import com.powsybl.network.conversion.server.dto.ParamMeta;
+import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
@@ -164,7 +158,12 @@ public class NetworkConversionService {
             String reportUuidStr = message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class);
             UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            Map<String, Object> changedImportParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+            // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
+            Map<String, Object> changedImportParameters = new HashMap<>();
+            if (rawParameters != null) {
+                rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
+            }
 
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             Map<String, String> allImportParameters = new HashMap<>();

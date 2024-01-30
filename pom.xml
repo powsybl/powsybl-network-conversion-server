@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <powsybl-ws-dependencies.version>2.6.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.7.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
     </properties>
 
@@ -159,7 +159,7 @@
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-xml-converter</artifactId>
+            <artifactId>powsybl-iidm-serde</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
