@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2022, RTE (http://www.rte-france.com)
+ * Copyright (c) 2024, RTE (http://www.rte-france.com)
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,7 +17,8 @@ import com.powsybl.iidm.network.extensions.ActivePowerControl;
 import com.powsybl.iidm.network.extensions.ActivePowerControlAdder;
 
 /**
- * @author Geoffroy Jamgotchian <geoffroy.jamgotchian at rte-france.com>
+ * HACK!!! this class should be included in iidm-cvg-extensions. To remove when handled in rte-core.
+ * @author Antoine Bouhours <antoine.bouhours at rte-france.com>
  */
 @AutoService(ExtensionSerDe.class)
 public class GeneratorActivePowerControlSerDe<T extends Injection<T>> extends AbstractExtensionSerDe<T, ActivePowerControl<T>> {
