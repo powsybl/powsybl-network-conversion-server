@@ -17,6 +17,8 @@ import com.powsybl.iidm.network.extensions.GeneratorShortCircuit;
 import com.powsybl.iidm.network.extensions.GeneratorShortCircuitAdder;
 
 /**
+ * FIXME This class is duplicated from rte-core/iidm-cvg-extensions.
+ * It can be removed when private extensions are managed in the network-store.
  * @author Antoine Bouhours <antoine.bouhours at rte-france.com>
  */
 @AutoService(ExtensionSerDe.class)
