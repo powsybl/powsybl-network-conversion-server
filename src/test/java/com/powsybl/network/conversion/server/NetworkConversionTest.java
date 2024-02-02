@@ -16,7 +16,7 @@ import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
-import com.powsybl.iidm.xml.XMLImporter;
+import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
