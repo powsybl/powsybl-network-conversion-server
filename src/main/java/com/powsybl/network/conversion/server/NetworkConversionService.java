@@ -140,8 +140,7 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
-        CaseInfos caseInfos = getCaseInfos(caseUuid);
+    Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
@@ -156,8 +155,6 @@ public class NetworkConversionService {
             UUID caseUuid = message.getPayload();
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String reportUuidStr = message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class);
-            String caseFormatStr = message.getHeaders().get(NotificationService.HEADER_CASE_FORMAT, String.class);
-            String caseNameStr = message.getHeaders().get(NotificationService.HEADER_CASE_NAME, String.class);
             UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
@@ -169,11 +166,12 @@ public class NetworkConversionService {
 
             Map<String, String> allImportParameters = new HashMap<>();
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
-            getDefaultImportParameters(caseUuid).forEach(allImportParameters::putIfAbsent);
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+            getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
             try {
-                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseFormatStr, changedImportParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseNameStr, caseFormatStr, receiver, allImportParameters);
+                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
