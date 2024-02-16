@@ -136,12 +136,11 @@ public class NetworkConversionService {
             .build();
     }
 
-    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
-        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, importParameters, receiver);
+    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
+        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
-        CaseInfos caseInfos = getCaseInfos(caseUuid);
+    Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
@@ -165,14 +164,14 @@ public class NetworkConversionService {
                 rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
             }
 
-            CaseInfos caseInfos = getCaseInfos(caseUuid);
             Map<String, String> allImportParameters = new HashMap<>();
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
-            getDefaultImportParameters(caseUuid).forEach(allImportParameters::putIfAbsent);
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+            getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
             try {
-                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, changedImportParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, allImportParameters);
+                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
@@ -180,7 +179,7 @@ public class NetworkConversionService {
         };
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
 
         Reporter rootReporter = Reporter.NO_OP;
@@ -193,16 +192,14 @@ public class NetworkConversionService {
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        CaseInfos caseInfos = getCaseInfos(caseUuid);
-        String format = caseInfos.getFormat();
         Network network;
         Reporter finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkConversionObserver.observeImport(format, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
+            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkConversionObserver.observeImport(format, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
+            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -397,11 +394,12 @@ public class NetworkConversionService {
     }
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
+        String caseFormat = "CGMES";
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
+            return importCase(caseUuid, null, UUID.randomUUID(), caseFormat, new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            Network network = networkConversionObserver.observeImport("CGMES", () -> networkStoreService.importNetwork(dataSource));
+            Network network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource));
             UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }

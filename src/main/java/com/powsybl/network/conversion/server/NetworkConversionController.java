@@ -54,6 +54,7 @@ public class NetworkConversionController {
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
+                                                   @Parameter(description = "Case format") @RequestParam(name = "caseFormat") String caseFormat,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid", required = false) UUID reportUuid,
                                                    @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters,
@@ -62,11 +63,11 @@ public class NetworkConversionController {
         LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
         Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
-            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, nonNullImportParameters);
+            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters);
             return ResponseEntity.ok().body(networkInfos);
         }
 
-        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, nonNullImportParameters, receiver);
+        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters, receiver);
         return ResponseEntity.ok().build();
     }
 
