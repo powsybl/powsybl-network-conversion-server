@@ -2,7 +2,7 @@
 <iidm:network xmlns:iidm="http://www.itesla_project.eu/schema/iidm/1_0" id="20140116_0830_2D4_UX1_pst" caseDate="2014-01-16T08:30:00.000+01:00" forecastDistance="0" sourceFormat="UCTE">
     <iidm:substation id="FRA1AA" country="FR">
         <iidm:voltageLevel id="FRA1AA1" nominalV="380.0" topologyKind="NODE_BREAKER">
-            <iidm:nodeBreakerTopology>
+            <iidm:nodeBreakerTopology nodeCount="3">
                 <iidm:busbarSection id="FRA1AA1_1" name="1" node="0"/>
                 <iidm:busbarSection id="FRA1AA1_2" name="2" node="1"/>
                 <iidm:switch id="FRA1AA1_switch" kind="DISCONNECTOR" retained="false" open="false" node1="0" node2="1"/>
@@ -25,7 +25,7 @@
         <iidm:voltageLevel id="BBE1TR3" nominalV="380.0" topologyKind="NODE_BREAKER">
         </iidm:voltageLevel>
         <iidm:voltageLevel id="BBE1AA5" nominalV="380.0" topologyKind="NODE_BREAKER">
-            <iidm:nodeBreakerTopology>
+            <iidm:nodeBreakerTopology nodeCount="2">
                 <iidm:busbarSection id="BBE1AA5_1" name="3" node="3"/>
                 <iidm:busbarSection id="BBE1AA5_2" name="4" node="4"/>
             </iidm:nodeBreakerTopology>
