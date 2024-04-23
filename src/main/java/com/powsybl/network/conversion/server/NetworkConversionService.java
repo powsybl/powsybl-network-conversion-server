@@ -13,15 +13,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
-import com.powsybl.cgmes.extensions.CgmesSshMetadata;
-import com.powsybl.cgmes.extensions.CgmesSvMetadata;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
-import com.powsybl.commons.reporter.Reporter;
-import com.powsybl.commons.reporter.ReporterModel;
-import com.powsybl.commons.reporter.ReporterModelDeserializer;
-import com.powsybl.commons.reporter.ReporterModelJsonModule;
+import com.powsybl.commons.report.ReportNode;
+import com.powsybl.commons.report.ReportNodeDeserializer;
+import com.powsybl.commons.report.ReportNodeJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.*;
@@ -123,8 +120,8 @@ public class NetworkConversionService {
         reportServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(reportServerURI));
 
         objectMapper = Jackson2ObjectMapperBuilder.json().build();
-        objectMapper.registerModule(new ReporterModelJsonModule());
-        objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
+        objectMapper.registerModule(new ReportNodeJsonModule());
+        objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReportNodeDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
     static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
@@ -189,18 +186,24 @@ public class NetworkConversionService {
     NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
 
-        Reporter rootReporter = Reporter.NO_OP;
-        Reporter reporter = Reporter.NO_OP;
+        ReportNode rootReport = ReportNode.NO_OP;
+        ReportNode reporter = ReportNode.NO_OP;
         if (reportUuid != null) {
             String reporterId = "Root@" + IMPORT_TYPE_REPORT;
-            rootReporter = new ReporterModel(reporterId, reporterId);
+            rootReport = ReportNode.newRootReportNode()
+                    .withMessageTemplate(reporterId, reporterId)
+                    .build();
+
             String subReporterId = "Import Case : " + dataSource.getBaseName();
-            reporter = rootReporter.createSubReporter(subReporterId, subReporterId);
+            reporter = rootReport.newReportNode()
+                    .withMessageTemplate(subReporterId, subReporterId)
+                    .add();
+
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
-        Reporter finalReporter = reporter;
+        ReportNode finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
@@ -210,11 +213,11 @@ public class NetworkConversionService {
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, variantId, rootReporter, reportUuid);
+        saveNetwork(network, networkUuid, variantId, rootReport, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    private void saveNetwork(Network network, UUID networkUuid, String variantId, Reporter reporter, UUID reportUuid) {
+    private void saveNetwork(Network network, UUID networkUuid, String variantId, ReportNode reporter, UUID reportUuid) {
         CompletableFuture<Void> saveInParallel;
         if (reportUuid == null) {
             saveInParallel = CompletableFuture.allOf(
@@ -396,8 +399,9 @@ public class NetworkConversionService {
     private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
         context.setScenarioTime(network.getCaseDate());
-        context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
-        context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
+        //TODO now: use CgmesMetadataModels
+//        context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
+//        context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
         context.addIidmMappings(network);
         return context;
     }
@@ -440,14 +444,14 @@ public class NetworkConversionService {
         }
     }
 
-    private void sendReport(UUID networkUuid, Reporter reporter, UUID reportUuid) {
+    private void sendReport(UUID networkUuid, ReportNode reportNode, UUID reportUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
         var uriBuilder = UriComponentsBuilder.fromPath(resourceUrl);
         try {
-            reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reporter), headers), ReporterModel.class);
+            reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reportNode), headers), ReportNode.class);
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
         } finally {

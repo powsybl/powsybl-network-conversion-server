@@ -13,8 +13,7 @@ import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
-import com.powsybl.commons.reporter.Reporter;
-import com.powsybl.commons.reporter.ReporterModel;
+import com.powsybl.commons.report.ReportNode;
 import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.*;
@@ -118,12 +117,12 @@ public class NetworkConversionTest {
                     new ResourceSet("", "testCase.xiidm"));
             Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
-            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
+            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
             UUID reportUuid = UUID.fromString("11111111-f351-4c2e-a383-2ad08dd5f8fb");
-            given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+            given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
             String caseUuid = UUID.randomUUID().toString();
@@ -252,7 +251,7 @@ public class NetworkConversionTest {
             Map<String, Object> importParameters = new HashMap<>();
             importParameters.put("randomImportParameters", "randomImportValue");
 
-            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
+            given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class), any(Boolean.class))).willReturn(network);
 
             mvc.perform(post("/v1/networks")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -291,7 +290,7 @@ public class NetworkConversionTest {
         String caseUuid = UUID.randomUUID().toString();
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class), any(Boolean.class))).willReturn(network);
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
             eq(HttpMethod.GET),
@@ -327,7 +326,7 @@ public class NetworkConversionTest {
         String caseUuid = UUID.randomUUID().toString();
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
             eq(HttpMethod.GET),
@@ -423,7 +422,7 @@ public class NetworkConversionTest {
 
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
             eq(HttpMethod.GET),
@@ -461,13 +460,15 @@ public class NetworkConversionTest {
         networkConversionService.setReportServerRest(reportServerRest);
 
         Network network = new CgmesImport().importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), new NetworkFactoryImpl(), null);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class))).willAnswer((Answer<Network>) invocationOnMock -> {
-            var reporter = invocationOnMock.getArgument(1, ReporterModel.class);
-            reporter.addSubReporter(new ReporterModel("test", "test"));
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willAnswer((Answer<Network>) invocationOnMock -> {
+            var reportNode = invocationOnMock.getArgument(1, ReportNode.class);
+            reportNode.newReportNode()
+                    .withMessageTemplate("test", "test")
+                    .add();
             return network;
         });
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
             .willReturn(new ResponseEntity<>(HttpStatus.OK));
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
             eq(HttpMethod.GET),
@@ -501,10 +502,10 @@ public class NetworkConversionTest {
             .willReturn(ResponseEntity.ok("testCase"));
 
         Network network = createNetwork("test");
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReporterModel.class), any(Boolean.class)))
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class)))
                 .willThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())));
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
@@ -520,11 +521,11 @@ public class NetworkConversionTest {
         networkConversionService.setReportServerRest(reportServerRest);
 
         Network network = createNetwork("test");
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(Reporter.class), any(Boolean.class))).willReturn(network);
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
         doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())))
                 .when(networkStoreClient).flush(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
+        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
