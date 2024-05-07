@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
+import com.powsybl.cgmes.extensions.CgmesMetadataModels;
+import com.powsybl.cgmes.model.CgmesSubset;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
@@ -399,9 +401,8 @@ public class NetworkConversionService {
     private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
         context.setScenarioTime(network.getCaseDate());
-        //TODO now: use CgmesMetadataModels
-//        context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
-//        context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
+        context.getExportedSVModel().addDependentOn(network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STATE_VARIABLES).get().getId());
+        context.getExportedSSHModel().addDependentOn(network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STEADY_STATE_HYPOTHESIS).get().getId());
         context.addIidmMappings(network);
         return context;
     }
