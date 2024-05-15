@@ -7,6 +7,7 @@
 package com.powsybl.network.conversion.server.elasticsearch;
 
 import com.google.common.collect.Lists;
+import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
@@ -38,11 +39,15 @@ public class EquipmentInfosService {
                 .forEach(equipmentInfosRepository::saveAll);
     }
 
-    public Iterable<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
+    public List<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
         return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
-    public void deleteAll(@NonNull UUID networkUuid) {
-        equipmentInfosRepository.deleteAllByNetworkUuid(networkUuid);
+    public long count(@NonNull UUID networkUuid) {
+        return equipmentInfosRepository.countByNetworkUuid(networkUuid);
+    }
+
+    public void deleteAllOnInitialVariant(@NonNull UUID networkUuid) {
+        equipmentInfosRepository.deleteAllByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
     }
 }

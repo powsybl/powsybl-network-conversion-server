@@ -23,15 +23,8 @@ import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.commons.reporter.ReporterModelDeserializer;
 import com.powsybl.commons.reporter.ReporterModelJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
-import com.powsybl.iidm.mergingview.MergingView;
 import com.powsybl.iidm.network.*;
-import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.CaseInfos;
-import com.powsybl.network.conversion.server.dto.EquipmentInfos;
-import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
-import com.powsybl.network.conversion.server.dto.NetworkInfos;
-import com.powsybl.network.conversion.server.dto.ParamMeta;
+import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
@@ -83,6 +76,9 @@ public class NetworkConversionService {
 
     private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
 
+    // Temporary fix to override default import parameter from Powsybl while merge is not implemented in the network-store
+    public static final Map<String, Object> IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE = Map.of("iidm.import.cgmes.cgm-with-subnetworks", false);
+
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
@@ -97,6 +93,8 @@ public class NetworkConversionService {
 
     private final NotificationService notificationService;
 
+    private final NetworkConversionObserver networkConversionObserver;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -106,11 +104,13 @@ public class NetworkConversionService {
                                     NetworkStoreService networkStoreService,
                                     EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
-                                    NotificationService notificationService) {
+                                    NotificationService notificationService,
+                                    NetworkConversionObserver networkConversionObserver) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
+        this.networkConversionObserver = networkConversionObserver;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -127,28 +127,29 @@ public class NetworkConversionService {
         objectMapper.setInjectableValues(new InjectableValues.Std().addValue(ReporterModelDeserializer.DICTIONARY_VALUE_ID, null));
     }
 
-    private static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
+    static EquipmentInfos toEquipmentInfos(Identifiable<?> i, UUID networkUuid, String variantId) {
         return EquipmentInfos.builder()
             .networkUuid(networkUuid)
             .variantId(variantId)
             .id(i.getId())
             .name(i.getNameOrId())
             .type(i.getType().name())
-            .voltageLevels(EquipmentInfos.getVoltageLevels(i))
+            .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
+            .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();
     }
 
-    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
-        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, importParameters, receiver);
+    void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
+        notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    Map<String, String> getDefaultImportParameters(UUID caseUuid) {
-        CaseInfos caseInfos = getCaseInfos(caseUuid);
+    Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
                 .stream()
-                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+                .forEach(parameter -> defaultValues.put(parameter.getName(),
+                        parameter.getDefaultValue() != null ? IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(parameter.getName(), parameter.getDefaultValue()).toString() : ""));
         return defaultValues;
     }
 
@@ -160,16 +161,24 @@ public class NetworkConversionService {
             String reportUuidStr = message.getHeaders().get(NotificationService.HEADER_REPORT_UUID, String.class);
             UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            Map<String, Object> changedImportParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
+            // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
+            Map<String, Object> changedImportParameters = new HashMap<>();
+            if (rawParameters != null) {
+                rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
+            }
 
-            CaseInfos caseInfos = getCaseInfos(caseUuid);
             Map<String, String> allImportParameters = new HashMap<>();
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
-            getDefaultImportParameters(caseUuid).forEach(allImportParameters::putIfAbsent);
+            CaseInfos caseInfos = getCaseInfos(caseUuid);
+            getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
+            IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.entrySet().stream()
+                    .filter(entry -> allImportParameters.containsKey(entry.getKey()))
+                    .forEach(entry -> changedImportParameters.putIfAbsent(entry.getKey(), entry.getValue()));
 
             try {
-                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, changedImportParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos, receiver, allImportParameters);
+                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 notificationService.emitCaseImportFailed(receiver, e.getMessage());
@@ -177,7 +186,7 @@ public class NetworkConversionService {
         };
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters) {
+    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
 
         Reporter rootReporter = Reporter.NO_OP;
@@ -191,12 +200,13 @@ public class NetworkConversionService {
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         Network network;
+        Reporter finalReporter = reporter;
         if (!importParameters.isEmpty()) {
             Properties importProperties = new Properties();
             importProperties.putAll(importParameters);
-            network = networkStoreService.importNetwork(dataSource, reporter, importProperties, false);
+            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
         } else {
-            network = networkStoreService.importNetwork(dataSource, reporter, false);
+            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
         }
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
@@ -234,13 +244,13 @@ public class NetworkConversionService {
         if (reportUuid == null) {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         } else {
             deleteInParallel = CompletableFuture.allOf(
                 networkConversionExecutionService.runAsync(() -> networkStoreService.deleteNetwork(networkUuid)),
                 networkConversionExecutionService.runAsync(() -> deleteReport(reportUuid)),
-                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAll(networkUuid))
+                networkConversionExecutionService.runAsync(() -> equipmentInfosService.deleteAllOnInitialVariant(networkUuid))
             );
         }
         try {
@@ -253,6 +263,16 @@ public class NetworkConversionService {
         }
     }
 
+    public boolean doesNetworkExist(UUID networkUuid) {
+        try {
+            networkStoreService.getNetwork(networkUuid);
+            return true;
+        } catch (PowsyblException e) {
+            return false;
+        }
+
+    }
+
     private Network getNetwork(UUID networkUuid) {
         try {
             return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.COLLECTION);
@@ -261,20 +281,7 @@ public class NetworkConversionService {
         }
     }
 
-    private Network networksListToMergedNetwork(List<Network> networks) {
-        if (networks.size() == 1) {
-            return networks.get(0);
-        } else {
-            // creation of the merging view and merging the networks
-            MergingView merginvView = MergingView.create("merged_network", "iidm");
-
-            merginvView.merge(networks.toArray(new Network[networks.size()]));
-
-            return merginvView;
-        }
-    }
-
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, List<UUID> otherNetworksUuid,
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId,
         String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
@@ -286,7 +293,7 @@ public class NetworkConversionService {
             exportProperties.putAll(formatParameters);
         }
 
-        Network network = networksListToMergedNetwork(getNetworkAsList(networkUuid, otherNetworksUuid));
+        Network network = getNetwork(networkUuid);
         if (variantId != null) {
             if (network.getVariantManager().getVariantIds().contains(variantId)) {
                 network.getVariantManager().setWorkingVariant(variantId);
@@ -309,7 +316,8 @@ public class NetworkConversionService {
             networkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
-        return new ExportNetworkInfos(networkName, networkData);
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(networkName, networkData, networkSize);
     }
 
     ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
@@ -345,7 +353,9 @@ public class NetworkConversionService {
         List<ParamMeta> paramsMeta = importer.getParameters()
                 .stream()
                 .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
-                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
+                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(),
+                        IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(pp.getName(), pp.getDefaultValue()),
+                        pp.getPossibleValues()))
                 .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
@@ -362,16 +372,8 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    public List<Network> getNetworkAsList(UUID networkUuid, List<UUID> otherNetworksUuid) {
-        List<Network> networks = new ArrayList<>();
-        networks.add(getNetwork(networkUuid));
-        otherNetworksUuid.forEach(uuid -> networks.add(getNetwork(uuid)));
-        return networks;
-    }
-
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid, List<UUID> otherNetworksUuid) throws XMLStreamException {
-        List<Network> networks = getNetworkAsList(networkUuid, otherNetworksUuid);
-        Network mergedNetwork = networksListToMergedNetwork(networks);
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
+        Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
         properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
@@ -381,33 +383,33 @@ public class NetworkConversionService {
 
         try {
             writer = XmlUtil.initializeWriter(true, "    ", outputStream);
-            StateVariablesExport.write(mergedNetwork, writer, createContext(mergedNetwork, networks));
+            StateVariablesExport.write(network, writer, createContext(network));
         } finally {
             if (writer != null) {
                 writer.close();
             }
         }
-        return new ExportNetworkInfos(mergedNetwork.getNameOrId(), outputStream.toByteArray());
+        long networkSize = network.getBusView().getBusStream().count();
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
     }
 
-    private static CgmesExportContext createContext(Network mergedNetwork, List<Network> networks) {
+    private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
-        context.setScenarioTime(mergedNetwork.getCaseDate());
-        networks.forEach(network -> {
-            context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
-            context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
-            context.addIidmMappings(network);
-        });
+        context.setScenarioTime(network.getCaseDate());
+        context.getSvModelDescription().addDependencies(network.getExtension(CgmesSvMetadata.class).getDependencies());
+        context.getSshModelDescription().addDependencies(network.getExtension(CgmesSshMetadata.class).getDependencies());
+        context.addIidmMappings(network);
         return context;
     }
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
+        String caseFormat = "CGMES";
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
-            return importCase(caseUuid, null, UUID.randomUUID(), new HashMap<>());
+            return importCase(caseUuid, null, UUID.randomUUID(), caseFormat, new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            var network = networkStoreService.importNetwork(dataSource);
-            var networkUuid = networkStoreService.getNetworkUuid(network);
+            Network network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource));
+            UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }
     }
@@ -466,19 +468,21 @@ public class NetworkConversionService {
         Network network = getNetwork(networkUuid);
 
         // delete all network equipments infos
-        deleteAllEquipmentInfos(networkUuid);
+        deleteAllEquipmentInfosOnInitialVariant(networkUuid);
 
         // recreate all equipments infos
         insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
     }
 
-    public void deleteAllEquipmentInfos(UUID networkUuid) {
-        equipmentInfosService.deleteAll(networkUuid);
+    public void deleteAllEquipmentInfosOnInitialVariant(UUID networkUuid) {
+        equipmentInfosService.deleteAllOnInitialVariant(networkUuid);
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
-        List<EquipmentInfos> infos = new ArrayList<>();
-        equipmentInfosService.findAll(networkUuid).forEach(infos::add);
-        return infos;
+        return equipmentInfosService.findAll(networkUuid);
+    }
+
+    public boolean hasEquipmentInfos(UUID networkUuid) {
+        return equipmentInfosService.count(networkUuid) > 0;
     }
 }

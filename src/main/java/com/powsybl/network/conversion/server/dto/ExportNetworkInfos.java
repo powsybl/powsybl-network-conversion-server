@@ -23,4 +23,6 @@ public class ExportNetworkInfos {
 
     private byte[] networkData;
 
+    private long numberBuses;
+
 }

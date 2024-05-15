@@ -18,7 +18,7 @@ spring:
           group: importGroup
           consumer:
             concurrency: 2
-      output-bindings: publishCaseImportStart;publishCaseImportSucceeded;publishCaseImportFailed
+      output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishCaseImportFailed-out-0
 
 powsybl:
   services:

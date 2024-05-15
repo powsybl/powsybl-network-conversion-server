@@ -13,7 +13,8 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>12</version>
+        <version>15</version>
+        <relativePath/>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
@@ -25,10 +26,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <powsybl-ws-dependencies.version>2.3.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.9.0</powsybl-ws-dependencies.version>
         <testcontainers.version>1.16.2</testcontainers.version>
-        <!-- to remove when powsybl-ws-dependencies is released -->
-        <spring.cloud.stream.version>3.2.2</spring.cloud.stream.version>
     </properties>
 
     <build>
@@ -51,8 +50,8 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>pl.project13.maven</groupId>
-                <artifactId>git-commit-id-plugin</artifactId>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>com.google.cloud.tools</groupId>
@@ -112,10 +111,6 @@
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-mergingview</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.powsybl</groupId>
             <artifactId>powsybl-cgmes-conversion</artifactId>
         </dependency>
         <dependency>
@@ -129,18 +124,13 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream</artifactId>
-            <version>${spring.cloud.stream.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
         <!-- elasticsearch -->
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-elasticsearch</artifactId>
@@ -169,7 +159,7 @@
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
-            <artifactId>powsybl-iidm-xml-converter</artifactId>
+            <artifactId>powsybl-iidm-serde</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -180,12 +170,15 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-binder-rabbit</artifactId>
-            <version>${spring.cloud.stream.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -237,11 +230,8 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-stream</artifactId>
-            <version>${spring.cloud.stream.version}</version>
-            <type>test-jar</type>
+            <artifactId>spring-cloud-stream-test-binder</artifactId>
             <scope>test</scope>
-            <classifier>test-binder</classifier>
         </dependency>
     </dependencies>
 </project>

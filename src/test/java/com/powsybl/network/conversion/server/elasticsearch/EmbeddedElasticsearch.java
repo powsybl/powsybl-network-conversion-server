@@ -9,8 +9,10 @@ package com.powsybl.network.conversion.server.elasticsearch;
 import org.springframework.stereotype.Component;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+
+import java.util.Map;
 
 /**
  * A class to launch an embedded DB elasticsearch
@@ -21,7 +23,7 @@ import javax.annotation.PreDestroy;
 public class EmbeddedElasticsearch {
 
     private static final String ES_DOCKER_IMAGE_NAME = "docker.elastic.co/elasticsearch/elasticsearch";
-    private static final String ES_DOCKER_IMAGE_VERSION = "7.9.3";
+    private static final String ES_DOCKER_IMAGE_VERSION = "8.7.1";
 
     private static ElasticsearchContainer elasticsearchContainer;
 
@@ -32,6 +34,14 @@ public class EmbeddedElasticsearch {
         }
 
         elasticsearchContainer = new ElasticsearchContainer(String.format("%s:%s", ES_DOCKER_IMAGE_NAME, ES_DOCKER_IMAGE_VERSION));
+        Map<String, String> envMap = elasticsearchContainer.getEnvMap();
+        envMap.put("discovery.type", "single-node");
+        envMap.put("LOGSPOUT", "ignore");
+        //Els 8 has security enabled by default
+        envMap.put("xpack.security.enabled", Boolean.FALSE.toString());
+        envMap.put("ingest.geoip.downloader.enabled", Boolean.FALSE.toString());
+        envMap.put("ES_JAVA_OPTS", "-Xms128m -Xmx128m");
+        envMap.put("action.auto_create_index", "false");
         elasticsearchContainer.start();
 
         System.setProperty("spring.data.elasticsearch.embedded", Boolean.toString(true));

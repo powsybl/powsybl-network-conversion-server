@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +31,6 @@ import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -47,9 +48,13 @@ public class NetworkConversionController {
     @Autowired
     private NetworkConversionService networkConversionService;
 
+    @Autowired
+    private NetworkConversionObserver networkConversionObserver;
+
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
+                                                   @Parameter(description = "Case format") @RequestParam(name = "caseFormat") String caseFormat,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid", required = false) UUID reportUuid,
                                                    @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters,
@@ -58,11 +63,11 @@ public class NetworkConversionController {
         LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
         Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
-            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, nonNullImportParameters);
+            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters);
             return ResponseEntity.ok().body(networkInfos);
         }
 
-        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, nonNullImportParameters, receiver);
+        networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters, receiver);
         return ResponseEntity.ok().build();
     }
 
@@ -78,14 +83,10 @@ public class NetworkConversionController {
     public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks,
                                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-
-        List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
-
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportNetwork(networkUuid, variantId, otherNetworksUuid, format, formatParameters);
+        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, format, formatParameters));
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
@@ -108,12 +109,10 @@ public class NetworkConversionController {
     }
 
     @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
-    @Operation(summary = "Export a merged cgmes network from the network-store")
-    public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid,
-                                                @Parameter(description = "Other networks UUID") @RequestParam(name = "networkUuid", required = false) List<String> otherNetworks) throws XMLStreamException {
+    @Operation(summary = "Export a cgmes network from the network-store")
+    public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws XMLStreamException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        List<UUID> otherNetworksUuid = otherNetworks != null ? otherNetworks.stream().map(UUID::fromString).collect(Collectors.toList()) : Collections.emptyList();
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSv(networkUuid, otherNetworksUuid);
+        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport("CGMES", () -> networkConversionService.exportCgmesSv(networkUuid));
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
@@ -131,8 +130,25 @@ public class NetworkConversionController {
     @PostMapping(value = "/networks/{networkUuid}/reindex-all")
     @Operation(summary = "reindex all equipments in network")
     public ResponseEntity<Void> reindexAllEquipments(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
-        LOGGER.debug("reindex all equipments in network");
+        LOGGER.debug("Reindex all equipments in network");
         networkConversionService.reindexAllEquipments(networkUuid);
         return ResponseEntity.ok().build();
+    }
+
+    @RequestMapping(value = "/networks/{networkUuid}/indexed-equipments", method = RequestMethod.HEAD)
+    @Operation(summary = "Check if the given network contains indexed equipments")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "The network is indexed"),
+        @ApiResponse(responseCode = "204", description = "The network isn't indexed"),
+        @ApiResponse(responseCode = "404", description = "The network doesn't exist"),
+    })
+    public ResponseEntity<Void> checkNetworkIndexation(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) {
+        if (!networkConversionService.doesNetworkExist(networkUuid)) {
+            return ResponseEntity.notFound().build();
+        }
+        return networkConversionService.hasEquipmentInfos(networkUuid)
+            ? ResponseEntity.ok().build()
+            : ResponseEntity.noContent().build();
+
     }
 }

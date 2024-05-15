@@ -10,7 +10,6 @@ package com.powsybl.network.conversion.server;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
-import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,21 +55,22 @@ public class NotificationService {
         networkConversionPublisher.send("publishCaseImportFailed-out-0", message);
     }
 
-    public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, Map<String, Object> importParameters, String receiver) {
+    public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
         sendCaseImportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
                 .setHeader(HEADER_REPORT_UUID, reportUuid != null ? reportUuid.toString() : null)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_CASE_FORMAT, caseFormat)
                 .build());
     }
 
-    public void emitCaseImportSucceeded(NetworkInfos networkInfos, CaseInfos caseInfos, String receiver, Map<String, String> importParameters) {
+    public void emitCaseImportSucceeded(NetworkInfos networkInfos, String caseNameStr, String caseFormatStr, String receiver, Map<String, String> importParameters) {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
-                .setHeader(HEADER_CASE_FORMAT, caseInfos.getFormat())
-                .setHeader(HEADER_CASE_NAME, caseInfos.getName())
+                .setHeader(HEADER_CASE_FORMAT, caseFormatStr)
+                .setHeader(HEADER_CASE_NAME, caseNameStr)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .build());

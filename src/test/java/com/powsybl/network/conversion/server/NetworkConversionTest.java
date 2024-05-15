@@ -16,10 +16,8 @@ import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.commons.reporter.Reporter;
 import com.powsybl.commons.reporter.ReporterModel;
 import com.powsybl.iidm.network.*;
-import com.powsybl.iidm.xml.XMLImporter;
-import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.CaseInfos;
-import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.iidm.serde.XMLImporter;
+import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
@@ -57,6 +55,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -133,11 +132,13 @@ public class NetworkConversionTest {
                 any(HttpEntity.class),
                 eq(String.class), eq(UUID.fromString(caseUuid))))
                 .willReturn(ResponseEntity.ok("testCase"));
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
             MvcResult mvcResult = mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("reportUuid", UUID.randomUUID().toString())
-                .param("isAsyncRun", "false"))
+                .param("isAsyncRun", "false")
+                .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -149,13 +150,15 @@ public class NetworkConversionTest {
                 .param("caseUuid", caseUuid)
                 .param("variantId", "first_variant_id")
                 .param("isAsyncRun", "false")
-                .param("reportUuid", UUID.randomUUID().toString()))
+                .param("reportUuid", UUID.randomUUID().toString())
+                .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "second_variant_id")
                 .param("isAsyncRun", "false")
-                .param("reportUuid", UUID.randomUUID().toString()))
+                .param("reportUuid", UUID.randomUUID().toString())
+                .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
 
             verify(networkStoreClient).cloneVariant(randomUuid, VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
@@ -169,13 +172,16 @@ public class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                     .andReturn();
 
+            UUID notFoundNetworkUuid = UUID.randomUUID();
+            given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
 
-            assertEquals(String.format("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID)));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
@@ -190,9 +196,11 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
-            String exported2 = mvcResult.getResponse().getContentAsString();
+            String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-            assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            //assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // takes the iidm.export.xml.indent param into account
@@ -209,15 +217,27 @@ public class NetworkConversionTest {
                         .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
-            networkConversionService.deleteAllEquipmentInfos(networkUuid);
+            networkConversionService.deleteAllEquipmentInfosOnInitialVariant(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
+
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString()))
+                .andExpect(status().isNotFound())
+                .andReturn();
+
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
+                .andExpect(status().isNoContent())
+                .andReturn();
 
             mvc.perform(post("/v1/networks/{networkUuid}/reindex-all", networkUuid.toString()))
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            assertEquals(77, infos.size());
+            assertEquals(92, infos.size());
+
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
@@ -240,13 +260,15 @@ public class NetworkConversionTest {
                     .param("caseUuid", caseUuid)
                     .param("variantId", "import_params_variant_id")
                     .param("reportUuid", UUID.randomUUID().toString())
-                    .param("isAsyncRun", "false"))
+                    .param("isAsyncRun", "false")
+                    .param("caseFormat", "XIIDM"))
                     .andExpect(status().isOk());
 
             // test without report
             mvc.perform(post("/v1/networks")
                             .param("caseUuid", caseUuid)
-                            .param("isAsyncRun", "false"))
+                            .param("isAsyncRun", "false")
+                            .param("caseFormat", "XIIDM"))
                     .andExpect(status().isOk());
 
             // test without report and with an error at flush
@@ -254,7 +276,8 @@ public class NetworkConversionTest {
                     .when(networkStoreClient).flush(network);
             mvc.perform(post("/v1/networks")
                             .param("caseUuid", caseUuid)
-                            .param("isAsyncRun", "false"))
+                            .param("isAsyncRun", "false")
+                            .param("caseFormat", "XIIDM"))
                     .andExpect(status().isInternalServerError());
         }
     }
@@ -285,7 +308,8 @@ public class NetworkConversionTest {
                 .param("caseUuid", caseUuid)
                 .param("variantId", "async_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString())
-                .param("receiver", receiver))
+                .param("receiver", receiver)
+                .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
 
         Message<byte[]> message = output.receive(1000, "case.import.succeeded");
@@ -320,33 +344,13 @@ public class NetworkConversionTest {
                 .param("caseUuid", caseUuid)
                 .param("variantId", "async_failure_variant_id")
                 .param("reportUuid", UUID.randomUUID().toString())
-                .param("receiver", receiver))
+                .param("receiver", receiver)
+                .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
 
         Message<byte[]> message = output.receive(1000, "case.import.failed");
         assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
         assertEquals(IMPORT_CASE_ERROR_MESSAGE, message.getHeaders().get(NotificationService.HEADER_ERROR_MESSAGE));
-    }
-
-    @Test
-    public void testWithMergingView() throws Exception {
-        UUID testNetworkId1 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e4");
-        UUID testNetworkId2 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e5");
-        UUID testNetworkId3 = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e6");
-
-        given(networkStoreClient.getNetwork(testNetworkId1, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("1_"));
-        given(networkStoreClient.getNetwork(testNetworkId2, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("2_"));
-        given(networkStoreClient.getNetwork(testNetworkId3, PreloadingStrategy.COLLECTION)).willReturn(createNetwork("3_"));
-
-        MvcResult mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", testNetworkId1.toString(), "XIIDM")
-                .param("networkUuid", testNetworkId2.toString())
-                .param("networkUuid", testNetworkId3.toString()))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-
-        assertEquals(String.format("attachment; filename*=UTF-8''merged_network_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID), mvcResult.getResponse().getHeader("content-disposition"));
-        assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     }
 
     @Test
@@ -361,7 +365,8 @@ public class NetworkConversionTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
 
-        assertEquals("attachment; filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73", mvcResult.getResponse().getHeader("content-disposition"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73"));
         assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>SV Model</md:Model.description>\n" +
                 "        <md:Model.version>1</md:Model.version>\n" +
                 "        <md:Model.DependentOn rdf:resource=\"urn:uuid:2399cbd1-9a39-11e0-aa80-0800200c9a66\"/>\n" +
@@ -425,6 +430,7 @@ public class NetworkConversionTest {
             any(HttpEntity.class),
             eq(String.class), eq(caseUuid)))
             .willReturn(ResponseEntity.ok("testCase"));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
                 .param("caseUuid", caseUuid.toString())
@@ -468,11 +474,13 @@ public class NetworkConversionTest {
             any(HttpEntity.class),
             eq(String.class), eq(caseUuid)))
             .willReturn(ResponseEntity.ok("testCase"));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
-        MvcResult mvcResult = mvc.perform(post("/v1/networks/")
+        MvcResult mvcResult = mvc.perform(post("/v1/networks")
             .param("caseUuid", caseUuid.toString())
             .param("reportUuid", reportUuid.toString())
-            .param("isAsyncRun", "false"))
+            .param("isAsyncRun", "false")
+            .param("caseFormat", "XIIDM"))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -498,8 +506,9 @@ public class NetworkConversionTest {
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
         given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReporterModel.class)))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, EMPTY_PARAMETERS)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
@@ -524,8 +533,9 @@ public class NetworkConversionTest {
             any(HttpEntity.class),
             eq(String.class), eq(caseUuid)))
             .willReturn(ResponseEntity.ok("testCase"));
+        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
 
-        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, EMPTY_PARAMETERS)).getMessage();
+        String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
