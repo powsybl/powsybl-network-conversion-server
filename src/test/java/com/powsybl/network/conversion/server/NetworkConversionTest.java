@@ -21,7 +21,6 @@ import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
-import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -108,7 +107,7 @@ public class NetworkConversionTest {
     @Test
     public void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
-            byte[] networkByte = IOUtils.toByteArray(inputStream);
+            byte[] networkByte = inputStream.readAllBytes();
 
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
                     .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
