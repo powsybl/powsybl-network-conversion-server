@@ -14,6 +14,7 @@ import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.cgmes.extensions.CgmesMetadataModels;
+import com.powsybl.cgmes.model.CgmesMetadataModel;
 import com.powsybl.cgmes.model.CgmesSubset;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.MemDataSource;
@@ -401,8 +402,14 @@ public class NetworkConversionService {
     private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
         context.setScenarioTime(network.getCaseDate());
-        context.getExportedSVModel().addDependentOn(network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STATE_VARIABLES).get().getId());
-        context.getExportedSSHModel().addDependentOn(network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STEADY_STATE_HYPOTHESIS).get().getId());
+        Optional<CgmesMetadataModel> cgmesMetadataModelOpt = network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STATE_VARIABLES);
+        if (cgmesMetadataModelOpt.isPresent()) {
+            context.getExportedSVModel().addDependentOn(cgmesMetadataModelOpt.get().getId());
+        }
+        cgmesMetadataModelOpt = network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STEADY_STATE_HYPOTHESIS);
+        if (cgmesMetadataModelOpt.isPresent()) {
+            context.getExportedSSHModel().addDependentOn(cgmesMetadataModelOpt.get().getId());
+        }
         context.addIidmMappings(network);
         return context;
     }

@@ -197,7 +197,6 @@ public class NetworkConversionTest {
                 .andReturn();
             String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-            //assertEquals("attachment; filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm", mvcResult.getResponse().getHeader("content-disposition"));
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm"));
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
@@ -366,12 +365,13 @@ public class NetworkConversionTest {
 
         assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
         assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73"));
-        assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>SV Model</md:Model.description>\n" +
-                "        <md:Model.version>1</md:Model.version>\n" +
-                "        <md:Model.DependentOn rdf:resource=\"urn:uuid:c2960b34-0a04-4cd1-9c4d-f3112d85ec6c\"/>\n" +
-                "        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>\n" +
-                "        <md:Model.modelingAuthoritySet>powsybl.org</md:Model.modelingAuthoritySet>\n" +
-                "    </md:FullModel>"));
+        assertTrue(mvcResult.getResponse().getContentAsString().contains("""
+                        <md:Model.description>SV Model</md:Model.description>
+                        <md:Model.version>1</md:Model.version>
+                        <md:Model.DependentOn rdf:resource=\"urn:uuid:c2960b34-0a04-4cd1-9c4d-f3112d85ec6c\"/>
+                        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>
+                        <md:Model.modelingAuthoritySet>powsybl.org</md:Model.modelingAuthoritySet>
+                    </md:FullModel>"""));
     }
 
     @Test
