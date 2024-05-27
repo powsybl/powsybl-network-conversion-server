@@ -78,7 +78,7 @@ public class NetworkConversionService {
 
     // Temporary fix to override default import parameter from Powsybl while merge is not implemented in the network-store
     public static final Map<String, Object> IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE = Map.of("iidm.import.cgmes.cgm-with-subnetworks", false);
-
+    private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
@@ -445,6 +445,7 @@ public class NetworkConversionService {
             equipmentInfosService.addAll(
                 network.getIdentifiables()
                     .stream()
+                    .filter(c -> !EXCLUDED_TYPES_FOR_INDEXING.contains(c.getType()))
                     .map(c -> toEquipmentInfos(c, networkUuid, variantId))
                     .collect(Collectors.toList()));
         } finally {
