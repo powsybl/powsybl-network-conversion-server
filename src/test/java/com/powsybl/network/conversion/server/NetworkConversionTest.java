@@ -230,7 +230,8 @@ public class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            assertEquals(92, infos.size());
+            // exclude switch since it is not indexed
+            assertEquals(91, infos.size());
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
