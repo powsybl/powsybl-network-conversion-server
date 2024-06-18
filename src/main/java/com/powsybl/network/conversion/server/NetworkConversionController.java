@@ -83,10 +83,13 @@ public class NetworkConversionController {
     public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                                @Parameter(description = "Case Uuid") @RequestParam(name = "caseUuid", required = false) UUID caseUuid,
+                                                @Parameter(description = "Node name") @RequestParam(name = "nodeName") String nodeName,
+                                                @Parameter(description = "Study name") @RequestParam(name = "studyName", required = false) String studyName,
                                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
                                                 ) throws IOException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, format, formatParameters));
+        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, caseUuid, nodeName, studyName, format, formatParameters));
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
