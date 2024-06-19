@@ -319,10 +319,12 @@ public class NetworkConversionService {
 
         }
 
-        String fileName = studyName == null ? caseName : studyName + "_" + nodeName;
+        String fileName = studyName == null ? caseName + "_" + nodeName : studyName + "_" + nodeName;
         if (listNames.size() == 1) {
+            fileName += listNames.toArray()[0];
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
         } else {
+            fileName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
         long networkSize = network.getBusView().getBusStream().count();
