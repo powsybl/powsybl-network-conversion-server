@@ -202,6 +202,16 @@ public class NetworkConversionTest {
             // takes the iidm.export.xml.indent param into account
             assertTrue(exported1.length() > exported2.length());
 
+            //with studyName, filename should
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?studyName=" + "studyName" + "&nodeName=Root", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
+                    .andReturn();
+
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.xiidm"));
+            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
             // non existing variantId
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?caseUuid=" + caseUuid + "&nodeName=Root", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
                         .andExpect(status().isNotFound())
