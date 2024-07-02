@@ -287,7 +287,7 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, UUID caseUuid, String nodeName, String studyName,
+    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
@@ -311,24 +311,27 @@ public class NetworkConversionService {
         network.write(format, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
+        String fileOrNetworkName = getFileOrNetworkName(network, variantId, fileName);
         byte[] networkData;
-        String caseName = null;
-        if (studyName == null) {
-            String caseNameWithFormat = getCaseInfos(caseUuid).getName();
-            caseName = caseNameWithFormat.substring(0, caseNameWithFormat.lastIndexOf("."));
 
-        }
-
-        String fileName = studyName == null ? caseName + "_" + nodeName : studyName + "_" + nodeName;
         if (listNames.size() == 1) {
-            fileName += listNames.toArray()[0];
+            fileOrNetworkName += listNames.toArray()[0];
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
         } else {
-            fileName += ".zip";
+            fileOrNetworkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
         }
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(fileName, networkData, networkSize);
+        return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
+    }
+
+    private String getFileOrNetworkName(Network network, String variantId, String fileName) {
+        if (fileName == null) {
+            String networkName = network.getNameOrId();
+            networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
+            return networkName;
+        }
+        return fileName;
     }
 
     ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
