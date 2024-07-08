@@ -383,7 +383,7 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid, String fileName) throws XMLStreamException {
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
         Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
@@ -401,7 +401,7 @@ public class NetworkConversionService {
             }
         }
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(fileName != null ? fileName : network.getNameOrId(), outputStream.toByteArray(), networkSize);
+        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
     }
 
     private static CgmesExportContext createContext(Network network) {
