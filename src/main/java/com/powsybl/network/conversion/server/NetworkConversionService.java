@@ -311,7 +311,7 @@ public class NetworkConversionService {
         network.write(format, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");
-        String fileOrNetworkName = getFileOrNetworkName(network, variantId, fileName);
+        String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         byte[] networkData;
 
         if (listNames.size() == 1) {
@@ -325,13 +325,10 @@ public class NetworkConversionService {
         return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
     }
 
-    private String getFileOrNetworkName(Network network, String variantId, String fileName) {
-        if (fileName == null) {
-            String networkName = network.getNameOrId();
-            networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
-            return networkName;
-        }
-        return fileName;
+    private String getNetworkName(Network network, String variantId) {
+        String networkName = network.getNameOrId();
+        networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
+        return networkName;
     }
 
     ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
@@ -386,7 +383,7 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
+    public ExportNetworkInfos exportCgmesSv(UUID networkUuid, String fileName) throws XMLStreamException {
         Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
@@ -404,7 +401,7 @@ public class NetworkConversionService {
             }
         }
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
+        return new ExportNetworkInfos(fileName != null ? fileName : network.getNameOrId(), outputStream.toByteArray(), networkSize);
     }
 
     private static CgmesExportContext createContext(Network network) {
