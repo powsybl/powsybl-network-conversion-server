@@ -64,6 +64,11 @@
 
     <dependencyManagement>
         <dependencies>
+<<<<<<< HEAD
+=======
+            <!-- overrides of imports -->
+
+>>>>>>> Upgrade to powsybl dependencies 2024.2.0 (#145)
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
