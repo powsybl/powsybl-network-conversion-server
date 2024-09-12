@@ -64,26 +64,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- overrides of imports -->
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-iidm-impl</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-client</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-model</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
@@ -125,9 +105,24 @@
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-case-datasource-client</artifactId>
         </dependency>
+        <!-- overrides of imports -->
+        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-network-store-iidm-impl</artifactId>
+            <version>${powsybl-network-store.version}</version>
+        </dependency>
+        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-network-store-client</artifactId>
+            <version>${powsybl-network-store.version}</version>
+        </dependency>
+        <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-network-store-model</artifactId>
+            <version>${powsybl-network-store.version}</version>
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
