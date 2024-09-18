@@ -64,29 +64,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- overrides of imports -->
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-iidm-impl</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-client</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-model</artifactId>
-                <version>${powsybl-network-store.version}</version>
-            </dependency>
-
->>>>>>> Upgrade to powsybl dependencies 2024.2.0 (#145)
-=======
->>>>>>> main
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
