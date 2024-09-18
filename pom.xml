@@ -64,8 +64,6 @@
 
     <dependencyManagement>
         <dependencies>
-<<<<<<< HEAD
-=======
             <!-- overrides of imports -->
             <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
             <dependency>
@@ -87,6 +85,8 @@
             </dependency>
 
 >>>>>>> Upgrade to powsybl dependencies 2024.2.0 (#145)
+=======
+>>>>>>> main
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
