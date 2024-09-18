@@ -71,8 +71,6 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
-
     // Temporary fix to override default import parameter from Powsybl while merge is not implemented in the network-store
     public static final Map<String, Object> IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE = Map.of("iidm.import.cgmes.cgm-with-subnetworks", false);
     private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
@@ -189,7 +187,7 @@ public class NetworkConversionService {
         ReportNode rootReport = ReportNode.NO_OP;
         ReportNode reporter = ReportNode.NO_OP;
         if (reportUuid != null) {
-            String reporterId = "Root@" + IMPORT_TYPE_REPORT;
+            String reporterId = "Root";
             rootReport = ReportNode.newRootReportNode()
                     .withMessageTemplate(reporterId, reporterId)
                     .build();
