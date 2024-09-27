@@ -71,8 +71,6 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    // Temporary fix to override default import parameter from Powsybl while merge is not implemented in the network-store
-    public static final Map<String, Object> IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE = Map.of("iidm.import.cgmes.cgm-with-subnetworks", false);
     private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
     private RestTemplate caseServerRest;
 
@@ -144,7 +142,7 @@ public class NetworkConversionService {
         importer.getParameters()
                 .stream()
                 .forEach(parameter -> defaultValues.put(parameter.getName(),
-                        parameter.getDefaultValue() != null ? IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(parameter.getName(), parameter.getDefaultValue()).toString() : ""));
+                        parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
         return defaultValues;
     }
 
@@ -167,9 +165,6 @@ public class NetworkConversionService {
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
-            IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.entrySet().stream()
-                    .filter(entry -> allImportParameters.containsKey(entry.getKey()))
-                    .forEach(entry -> changedImportParameters.putIfAbsent(entry.getKey(), entry.getValue()));
 
             try {
                 NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
@@ -359,9 +354,7 @@ public class NetworkConversionService {
         List<ParamMeta> paramsMeta = importer.getParameters()
                 .stream()
                 .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
-                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(),
-                        IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(pp.getName(), pp.getDefaultValue()),
-                        pp.getPossibleValues()))
+                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
