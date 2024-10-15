@@ -24,10 +24,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <log4j2-mock-version>0.0.2</log4j2-mock-version>
         <powsybl-ws-dependencies.version>2.15.0</powsybl-ws-dependencies.version>
-        <testcontainers.version>1.16.2</testcontainers.version>
         <!-- FIXME: powsybl-network-store modules'version is overloaded in the dependencies section.The overloads and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
         <powsybl-network-store.version>1.18.1</powsybl-network-store.version>
     </properties>
@@ -93,18 +90,7 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- project specific dependencies (also overrides imports, but separate for clarity) -->
-            <dependency>
-                <groupId>de.dentrassi.elasticsearch</groupId>
-                <artifactId>log4j2-mock</artifactId>
-                <version>${log4j2-mock-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>elasticsearch</artifactId>
-                <version>${testcontainers.version}</version>
-                <scope>test</scope>
-            </dependency>
+            <!-- project specific dependencies -->
         </dependencies>
     </dependencyManagement>
 
@@ -220,33 +206,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>elasticsearch</artifactId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>de.dentrassi.elasticsearch</groupId>
-            <artifactId>log4j2-mock</artifactId>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>elasticsearch</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -17,25 +17,22 @@ import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-public class EquipmentInfosServiceTests {
+class EquipmentInfosServiceTests {
 
     private static final String TEST_FILE = "testCase.xiidm";
 
@@ -44,16 +41,13 @@ public class EquipmentInfosServiceTests {
     @Autowired
     private EquipmentInfosService equipmentInfosService;
 
-    @Autowired
-    private NetworkConversionService networkConversionService;
-
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
     }
 
     @Test
-    public void testAddDeleteEquipmentInfos() {
+    void testAddDeleteEquipmentInfos() {
         List<EquipmentInfos> infos = List.of(
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
@@ -80,7 +74,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testEquipmentInfos() {
+    void testEquipmentInfos() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
         UUID networkUuid = UUID.randomUUID();
@@ -241,7 +235,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testVoltageLevels() {
+    void testVoltageLevels() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
@@ -265,7 +259,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testSubstations() {
+    void testSubstations() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
@@ -282,7 +276,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testBadEquipmentType() {
+    void testBadEquipmentType() {
         Identifiable<Network> network = new NetworkFactoryImpl().createNetwork("test", "test");
 
         String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevelsInfos(network)).getMessage();
