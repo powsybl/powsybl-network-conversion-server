@@ -10,17 +10,16 @@ import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.iidm.network.extensions.ActivePowerControl;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author Geoffroy Jamgotchian <geoffroy.jamgotchian at rte-france.com>
  */
-public class ImportActivePowerControlTest {
-
+class ImportActivePowerControlTest {
     @Test
-    public void test() {
+    void test() {
         var network = Network.read(new ResourceDataSource("testCaseOldActivePowerControl", new ResourceSet("/", "testCaseOldActivePowerControl.xiidm")));
         assertNotNull(network);
         var g1 = network.getGenerator("BBE1AA1 _generator");
