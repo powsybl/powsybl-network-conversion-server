@@ -167,8 +167,7 @@ public class NetworkConversionService {
                 NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
                 notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
             } catch (Exception e) {
-                LOGGER.error(e.getMessage(), e);
-                notificationService.emitCaseImportFailed(receiver, e.getMessage());
+                throw NetworkConversionException.createFailedCaseImport(e);
             }
         };
     }
