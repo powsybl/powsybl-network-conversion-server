@@ -16,14 +16,15 @@ import com.powsybl.commons.datasource.ResourceSet;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.serde.XMLImporter;
-import com.powsybl.network.conversion.server.dto.*;
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.CaseInfos;
+import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,28 +34,23 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,12 +58,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  * @author Franck Lecuyer <franck.lecuyer at rte-france.com>
  */
-
-@RunWith(SpringRunner.class)
 @AutoConfigureMockMvc
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ContextConfigurationWithTestChannel
-public class NetworkConversionTest {
+class NetworkConversionTest {
 
     private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
 
@@ -97,15 +91,15 @@ public class NetworkConversionTest {
     @Autowired
     private OutputDestination output;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         networkConversionService.setCaseServerRest(caseServerRest);
         networkConversionService.setGeoDataServerRest(geoDataRest);
         networkConversionService.setReportServerRest(reportServerRest);
     }
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
             byte[] networkByte = inputStream.readAllBytes();
 
@@ -188,7 +182,7 @@ public class NetworkConversionTest {
             String exported1 = mvcResult.getResponse().getContentAsString();
 
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id")
-                    .contentType("application/json")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
@@ -290,7 +284,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testAsyncImport() throws Exception {
+    void testAsyncImport() throws Exception {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
                 new ResourceSet("", "testCase.xiidm"));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
@@ -326,7 +320,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testFailedAsyncImport() throws Exception {
+    void testFailedAsyncImport() throws Exception {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
                 new ResourceSet("", "testCase.xiidm"));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
@@ -361,7 +355,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testExportSv() throws Exception {
+    void testExportSv() throws Exception {
         Network network = new CgmesImport()
                 .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
@@ -384,7 +378,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testCgmesCaseDataSource() throws IOException, URISyntaxException {
+    void testCgmesCaseDataSource() throws Exception {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         List<BoundaryInfos> boundaries = new ArrayList<>();
         String eqbdContent = "fake content of eqbd boundary";
@@ -417,7 +411,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testImportCgmesCase() throws Exception {
+    void testImportCgmesCase() throws Exception {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
 
@@ -460,7 +454,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testSendReport() throws Exception {
+    void testSendReport() throws Exception {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
@@ -497,7 +491,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testImportWithError() {
+    void testImportWithError() {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
@@ -521,7 +515,7 @@ public class NetworkConversionTest {
     }
 
     @Test
-    public void testFlushNetworkWithError() {
+    void testFlushNetworkWithError() {
         UUID caseUuid = UUID.fromString("47b85a5c-44ec-4afc-9f7e-29e63368e83d");
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
@@ -547,7 +541,7 @@ public class NetworkConversionTest {
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
     }
 
-    public Network createNetwork(String prefix) {
+    private static Network createNetwork(String prefix) {
         Network network = NetworkFactory.findDefault().createNetwork(prefix + "network", "test");
         Substation p1 = network.newSubstation()
                 .setId(prefix + "P1")

@@ -6,11 +6,10 @@
  */
 package com.powsybl.network.conversion.server.elasticsearch;
 
-import org.springframework.stereotype.Component;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.springframework.stereotype.Component;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.util.Map;
 
@@ -45,7 +44,7 @@ public class EmbeddedElasticsearch {
         elasticsearchContainer.start();
 
         System.setProperty("spring.data.elasticsearch.embedded", Boolean.toString(true));
-        System.setProperty("spring.data.elasticsearch.embedded.port", Integer.toString(elasticsearchContainer.getMappedPort(9200)));
+        System.setProperty("spring.elasticsearch.uris", "localhost:".concat(Integer.toString(elasticsearchContainer.getMappedPort(9200))));
     }
 
     @PreDestroy
