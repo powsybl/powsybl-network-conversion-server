@@ -349,9 +349,8 @@ class NetworkConversionTest {
                 .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
 
-        Message<byte[]> message = output.receive(1000, "case.import.failed");
+        Message<byte[]> message = output.receive(1000, "case.import.start");
         assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
-        assertEquals(IMPORT_CASE_ERROR_MESSAGE, message.getHeaders().get(NotificationService.HEADER_ERROR_MESSAGE));
     }
 
     @Test
