@@ -21,7 +21,8 @@ public final class NetworkConversionException extends RuntimeException {
         UNSUPPORTED_FORMAT(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_EQUIPMENT_TYPE(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_VARIANT_ID(HttpStatus.NOT_FOUND),
-        FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -67,5 +68,9 @@ public final class NetworkConversionException extends RuntimeException {
 
     public static NetworkConversionException createFailedNetworkSaving(UUID networkUuid, Exception cause) {
         return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of network '%s' has failed", networkUuid), cause);
+    }
+
+    public static NetworkConversionException createFailedCaseImport(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_CASE_IMPORT, "Case import failed", cause);
     }
 }
