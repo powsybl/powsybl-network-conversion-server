@@ -66,8 +66,8 @@ public class EquipmentInfos {
     @Field("equipmentType")
     String type;
 
-    @Field(type = FieldType.Nested)
-    Set<String> subType;
+    @Field(type = FieldType.Keyword)
+    Set<String> equipmentSubType;
 
     @Field(type = FieldType.Nested, includeInParent = true)
     Set<VoltageLevelInfos> voltageLevels;
@@ -114,7 +114,7 @@ public class EquipmentInfos {
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
     }
 
-    public static Set<String> getSubTypeEquipment(@NonNull Identifiable<?> identifiable) {
+    public static Set<String> getEquipmentSubType(@NonNull Identifiable<?> identifiable) {
         if (identifiable instanceof HvdcLine) {
             HvdcLine hvdcLine = (HvdcLine) identifiable;
             String hvdcType1 = hvdcLine.getConverterStation1().getHvdcType().toString();

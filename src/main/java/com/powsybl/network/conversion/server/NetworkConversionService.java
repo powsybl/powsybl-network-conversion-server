@@ -70,7 +70,6 @@ public class NetworkConversionService {
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
     private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
-    private static final Set<IdentifiableType> SUB_TYPES_FOR_INDEXING = Set.of(IdentifiableType.HVDC_LINE);
 
     private RestTemplate caseServerRest;
 
@@ -126,7 +125,7 @@ public class NetworkConversionService {
             .id(i.getId())
             .name(i.getNameOrId())
             .type(i.getType().name())
-            .subType(EquipmentInfos.getSubTypeEquipment(i))
+            .equipmentSubType(EquipmentInfos.getEquipmentSubType(i))
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
             .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();
