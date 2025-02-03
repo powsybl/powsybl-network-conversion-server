@@ -15,6 +15,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.elasticsearch.annotations.*;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -67,7 +68,7 @@ public class EquipmentInfos {
     String type;
 
     @Field(type = FieldType.Keyword)
-    Set<String> equipmentSubType;
+    Set<String> equipmentSubTypes;
 
     @Field(type = FieldType.Nested, includeInParent = true)
     Set<VoltageLevelInfos> voltageLevels;
@@ -114,11 +115,10 @@ public class EquipmentInfos {
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
     }
 
-    public static Set<String> getEquipmentSubType(@NonNull Identifiable<?> identifiable) {
-        if (identifiable instanceof HvdcLine) {
-            HvdcLine hvdcLine = (HvdcLine) identifiable;
-            String hvdcType1 = hvdcLine.getConverterStation1().getHvdcType().toString();
-            String hvdcType2 = hvdcLine.getConverterStation2().getHvdcType().toString();
+    public static Set<String> getEquipmentSubTypes(@NonNull Identifiable<?> identifiable) {
+        if (identifiable instanceof HvdcLine hvdcLine) {
+            String hvdcType1 = hvdcLine.getConverterStation1().getHvdcType().name();
+            String hvdcType2 = hvdcLine.getConverterStation2().getHvdcType().name();
 
             // Create a set and add both types
             Set<String> hvdcTypes = new HashSet<>();
@@ -127,7 +127,7 @@ public class EquipmentInfos {
 
             return hvdcTypes;
         }
-        return new HashSet<>();
+        return Collections.emptySet();
     }
 
     public static Set<VoltageLevelInfos> getVoltageLevelsInfos(@NonNull Identifiable<?> identifiable) {

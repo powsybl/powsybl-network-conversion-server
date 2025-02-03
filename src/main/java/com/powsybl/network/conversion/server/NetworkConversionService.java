@@ -125,7 +125,7 @@ public class NetworkConversionService {
             .id(i.getId())
             .name(i.getNameOrId())
             .type(i.getType().name())
-            .equipmentSubType(EquipmentInfos.getEquipmentSubType(i))
+            .equipmentSubTypes(EquipmentInfos.getEquipmentSubTypes(i))
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
             .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();
