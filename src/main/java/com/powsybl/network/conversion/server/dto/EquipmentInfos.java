@@ -15,11 +15,11 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.elasticsearch.annotations.*;
 
-import java.util.*;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.powsybl.iidm.network.IdentifiableType.HVDC_LINE;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
@@ -114,9 +114,9 @@ public class EquipmentInfos {
     public static String getEquipmentType(@NonNull Identifiable<?> identifiable) {
         return identifiable instanceof HvdcLine hvdcLine
                 ? Optional.ofNullable(hvdcLine.getConverterStation1())
-                .map(station -> HVDC_LINE + "_" + station.getHvdcType().name())
+                .map(station -> identifiable.getType().name() + "_" + station.getHvdcType().name())
                 .or(() -> Optional.ofNullable(hvdcLine.getConverterStation2())
-                        .map(station -> HVDC_LINE + "_" + station.getHvdcType().name()))
+                        .map(station -> identifiable.getType().name() + "_" + station.getHvdcType().name()))
                 .orElse(identifiable.getType().name())
                 : identifiable.getType().name();
     }
