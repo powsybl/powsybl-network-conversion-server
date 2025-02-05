@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentType;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -87,7 +88,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA1")
                 .name("BBE1AA1")
                 .type(IdentifiableType.VOLTAGE_LEVEL.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -101,7 +101,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA")
                 .name("BBE1AA")
                 .type(IdentifiableType.SUBSTATION.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(
                         VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(),
                         VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(),
@@ -121,7 +120,6 @@ class EquipmentInfosServiceTests {
                 .id("FRA1AA1_switch")
                 .name("FRA1AA1_switch")
                 .type(IdentifiableType.SWITCH.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build()))
                 .build();
@@ -135,7 +133,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA1 _load")
                 .name("BBE1AA1 _load")
                 .type(IdentifiableType.LOAD.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -149,7 +146,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA1 ")
                 .name("BBE1AA1 ")
                 .type(IdentifiableType.BUS.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -163,7 +159,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA1 _generator")
                 .name("BBE1AA1 _generator")
                 .type(IdentifiableType.GENERATOR.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -176,8 +171,7 @@ class EquipmentInfosServiceTests {
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
                 .id("FRA1AA_BBE1AA_hvdcline")
                 .name("FRA1AA_BBE1AA_hvdcline")
-                .type(IdentifiableType.HVDC_LINE.name())
-                .equipmentSubTypes(Set.of(HvdcConverterStation.HvdcType.VSC.name()))
+                .type(getEquipmentType(hvdcLine))
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()))
                 .substations(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -191,7 +185,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA2  BBE3AA1  2")
                 .name("BBE1AA2  BBE3AA1  2")
                 .type(IdentifiableType.TWO_WINDINGS_TRANSFORMER.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA2").name("BBE1AA2").build(), VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -205,7 +198,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA_w3t")
                 .name("BBE1AA_w3t")
                 .type(IdentifiableType.THREE_WINDINGS_TRANSFORMER.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(), VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(), VoltageLevelInfos.builder().id("BBE1TR3").name("BBE1TR3").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -219,7 +211,6 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA1  BBE2AA1  1")
                 .name("BBE1AA1  BBE2AA1  1")
                 .type(IdentifiableType.LINE.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build(), VoltageLevelInfos.builder().id("BBE2AA1").name("BBE2AA1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build(), SubstationInfos.builder().id("BBE2AA").name("BBE2AA").build()))
                 .build();
@@ -238,7 +229,6 @@ class EquipmentInfosServiceTests {
                 .id("LINE_S1VL1")
                 .name("LINE_S1VL1")
                 .type(IdentifiableType.LINE.name())
-                .equipmentSubTypes(Set.of())
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("S1VL1").name("S1VL1").build()))
                 .substations(Set.of(SubstationInfos.builder().id("S1").name("S1").build()))
                 .build();
