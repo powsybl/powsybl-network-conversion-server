@@ -57,7 +57,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
-import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentType;
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -125,7 +125,7 @@ public class NetworkConversionService {
             .variantId(variantId)
             .id(i.getId())
             .name(i.getNameOrId())
-            .type(getEquipmentType(i))
+            .type(getEquipmentTypeName(i))
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
             .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();

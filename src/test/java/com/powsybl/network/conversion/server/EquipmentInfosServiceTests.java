@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentType;
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -171,7 +171,7 @@ class EquipmentInfosServiceTests {
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
                 .id("FRA1AA_BBE1AA_hvdcline")
                 .name("FRA1AA_BBE1AA_hvdcline")
-                .type(getEquipmentType(hvdcLine))
+                .type(getEquipmentTypeName(hvdcLine))
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()))
                 .substations(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();

@@ -15,7 +15,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.elasticsearch.annotations.*;
 
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -111,13 +110,11 @@ public class EquipmentInfos {
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
     }
 
-    public static String getEquipmentType(@NonNull Identifiable<?> identifiable) {
+    public static String getEquipmentTypeName(@NonNull Identifiable<?> identifiable) {
         return identifiable instanceof HvdcLine hvdcLine
-                ? Optional.ofNullable(hvdcLine.getConverterStation1())
-                .map(station -> identifiable.getType().name() + "_" + station.getHvdcType().name())
-                .or(() -> Optional.ofNullable(hvdcLine.getConverterStation2())
-                        .map(station -> identifiable.getType().name() + "_" + station.getHvdcType().name()))
-                .orElse(identifiable.getType().name())
+                ? String.format("%s_%s",
+                identifiable.getType().name(),
+                hvdcLine.getConverterStation1().getHvdcType().name())
                 : identifiable.getType().name();
     }
 
