@@ -39,3 +39,7 @@ management:
   health:
     solr:
       enabled: false
+
+# maximum concurrent network import/export
+# to avoid out of memory issues
+max-concurrent-import-export: 2
