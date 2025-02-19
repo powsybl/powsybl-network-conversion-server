@@ -210,9 +210,7 @@ public class NetworkConversionService {
 
     public NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         try {
-            return importExportExecutionService.supplyAsync(() -> {
-                return importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters);
-            }).join();
+            return importExportExecutionService.supplyAsync(() -> importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters)).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NetworkConversionException exception) {
                 throw exception;
