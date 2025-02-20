@@ -79,9 +79,10 @@ public final class NetworkConversionException extends RuntimeException {
     public static NetworkConversionException createFailedCaseExport(Exception cause) {
         return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
     }
-  
+
     public static NetworkConversionException createHybridHvdcUnsupported(String hvdcId) {
         Objects.requireNonNull(hvdcId);
         return new NetworkConversionException(Type.UNSUPPORTED_HYBRID_HVDC, String.format("The hybrid Hvdc line %s is unsupported", hvdcId));
-    }  
+    }
+
 }
