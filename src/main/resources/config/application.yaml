@@ -15,7 +15,7 @@ spring:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
           group: importGroup
           consumer:
-            concurrency: 2
+            concurrency: 2 # pay attention to max-concurrent-import-export parameter
             max-attempts: 1
       output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0
       rabbit:
@@ -39,3 +39,9 @@ management:
   health:
     solr:
       enabled: false
+
+# maximum concurrent network import/export
+# to avoid out of memory issues
+# WARNING: pay attention for imports, that spring.cloud.stream.bindings.consumeCaseImportStart-in-0.consumer.concurrency
+# is consistent with this parameter value
+max-concurrent-import-export: 2
