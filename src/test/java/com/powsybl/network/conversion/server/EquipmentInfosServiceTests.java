@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -170,7 +171,7 @@ class EquipmentInfosServiceTests {
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
                 .id("FRA1AA_BBE1AA_hvdcline")
                 .name("FRA1AA_BBE1AA_hvdcline")
-                .type(IdentifiableType.HVDC_LINE.name())
+                .type(getEquipmentTypeName(hvdcLine))
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()))
                 .substations(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -284,5 +285,39 @@ class EquipmentInfosServiceTests {
 
         errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getSubstationsInfos(network)).getMessage();
         assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
+    }
+
+    @Test
+    void testUnsupportedHybridHvdc() {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+
+        assertEquals(String.format("%s_%s", IdentifiableType.HVDC_LINE, HvdcConverterStation.HvdcType.VSC), EquipmentInfos.getEquipmentTypeName(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
+        network.getVoltageLevel("FRA1AA1").newVscConverterStation()
+            .setId("vsc")
+            .setNode(10)
+            .setLossFactor(1.1f)
+            .setVoltageSetpoint(405.0)
+            .setVoltageRegulatorOn(true)
+            .add();
+        network.getVoltageLevel("BBE1AA5").newLccConverterStation()
+            .setId("lcc")
+            .setNode(20)
+            .setLossFactor(1.1f)
+            .setPowerFactor(0.5f)
+            .add();
+        HvdcLine hvdcLine = network.newHvdcLine()
+            .setId("HVDC")
+            .setConverterStationId1("vsc")
+            .setConverterStationId2("lcc")
+            .setR(1)
+            .setNominalV(400)
+            .setConvertersMode(HvdcLine.ConvertersMode.SIDE_1_INVERTER_SIDE_2_RECTIFIER)
+            .setMaxP(300.0)
+            .setActivePowerSetpoint(280)
+            .add();
+
+        String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getEquipmentTypeName(hvdcLine)).getMessage();
+        assertEquals(NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId()).getMessage(), errorMessage);
     }
 }

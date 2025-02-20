@@ -58,6 +58,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -71,6 +72,7 @@ public class NetworkConversionService {
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
     private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
+
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
@@ -127,7 +129,7 @@ public class NetworkConversionService {
             .variantId(variantId)
             .id(i.getId())
             .name(i.getNameOrId())
-            .type(i.getType().name())
+            .type(getEquipmentTypeName(i))
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
             .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();

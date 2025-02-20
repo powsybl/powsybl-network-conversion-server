@@ -31,6 +31,9 @@ public class RestResponseEntityExceptionHandler {
 
     @ExceptionHandler(NetworkConversionException.class)
     protected ResponseEntity<Object> handleException(NetworkConversionException exception) {
+        if (LOGGER.isErrorEnabled()) {
+            LOGGER.error(exception.getMessage(), exception);
+        }
         return ResponseEntity
                 .status(exception.getType().getStatus())
                 .body(exception.getMessage());
