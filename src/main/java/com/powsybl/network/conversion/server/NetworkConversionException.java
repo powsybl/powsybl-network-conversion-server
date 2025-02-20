@@ -23,7 +23,8 @@ public final class NetworkConversionException extends RuntimeException {
         UNKNOWN_EQUIPMENT_TYPE(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_VARIANT_ID(HttpStatus.NOT_FOUND),
         FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -75,8 +76,12 @@ public final class NetworkConversionException extends RuntimeException {
         return new NetworkConversionException(Type.FAILED_CASE_IMPORT, "Case import failed", cause);
     }
 
+    public static NetworkConversionException createFailedCaseExport(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
+    }
+  
     public static NetworkConversionException createHybridHvdcUnsupported(String hvdcId) {
         Objects.requireNonNull(hvdcId);
         return new NetworkConversionException(Type.UNSUPPORTED_HYBRID_HVDC, String.format("The hybrid Hvdc line %s is unsupported", hvdcId));
-    }
+    }  
 }
