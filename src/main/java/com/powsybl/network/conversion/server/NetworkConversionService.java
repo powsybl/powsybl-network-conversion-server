@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +85,7 @@ public class NetworkConversionService {
 
     private final NotificationService notificationService;
 
+    private final ImportExportExecutionService importExportExecutionService;
     private final NetworkConversionObserver networkConversionObserver;
 
     private final ObjectMapper objectMapper;
@@ -95,12 +97,14 @@ public class NetworkConversionService {
                                     EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
                                     NotificationService notificationService,
-                                    NetworkConversionObserver networkConversionObserver) {
+                                    NetworkConversionObserver networkConversionObserver,
+                                    ImportExportExecutionService importExportExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
         this.networkConversionObserver = networkConversionObserver;
+        this.importExportExecutionService = importExportExecutionService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -172,9 +176,8 @@ public class NetworkConversionService {
         };
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+    private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-
         ReportNode rootReport = ReportNode.NO_OP;
         ReportNode reporter = ReportNode.NO_OP;
         if (reportUuid != null) {
@@ -187,7 +190,6 @@ public class NetworkConversionService {
             reporter = rootReport.newReportNode()
                     .withMessageTemplate(subReporterId, subReporterId)
                     .add();
-
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
@@ -204,6 +206,17 @@ public class NetworkConversionService {
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, variantId, rootReport, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
+    }
+
+    public NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+        try {
+            return importExportExecutionService.supplyAsync(() -> importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters)).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NetworkConversionException exception) {
+                throw exception;
+            }
+            throw NetworkConversionException.createFailedCaseImport(e);
+        }
     }
 
     private void saveNetwork(Network network, UUID networkUuid, String variantId, ReportNode reporter, UUID reportUuid) {
@@ -273,7 +286,7 @@ public class NetworkConversionService {
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
+    private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
@@ -309,6 +322,24 @@ public class NetworkConversionService {
         }
         long networkSize = network.getBusView().getBusStream().count();
         return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
+    }
+
+    public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
+        String format, Map<String, Object> formatParameters) {
+        try {
+            return importExportExecutionService.supplyAsync(() -> {
+                try {
+                    return exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters);
+                } catch (IOException e) {
+                    throw NetworkConversionException.createFailedCaseExport(e);
+                }
+            }).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NetworkConversionException exception) {
+                throw exception;
+            }
+            throw NetworkConversionException.createFailedCaseExport(e);
+        }
     }
 
     private String getNetworkName(Network network, String variantId) {

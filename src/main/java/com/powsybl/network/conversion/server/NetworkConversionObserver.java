@@ -9,10 +9,14 @@ package com.powsybl.network.conversion.server;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.NonNull;
+
+import java.util.concurrent.ThreadPoolExecutor;
+
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,6 +34,11 @@ public class NetworkConversionObserver {
 
     private static final String EXPORT_OBSERVATION_NAME = OBSERVATION_PREFIX + "export";
     private static final String NUMBER_BUSES_EXPORTED_METER_NAME = EXPORT_OBSERVATION_NAME + ".buses";
+
+    private static final String TASK_TYPE_TAG_NAME = "type";
+    private static final String TASK_TYPE_TAG_VALUE_CURRENT = "current";
+    private static final String TASK_TYPE_TAG_VALUE_PENDING = "pending";
+    private static final String TASK_POOL_METER_NAME_PREFIX = OBSERVATION_PREFIX + "tasks.pool.";
 
     private final ObservationRegistry observationRegistry;
 
@@ -67,5 +76,16 @@ public class NetworkConversionObserver {
                 .tags(FORMAT_TAG_NAME, format)
                 .register(meterRegistry)
                 .record(numberBuses);
+    }
+
+    public void createThreadPoolMetric(ThreadPoolExecutor threadPoolExecutor) {
+        Gauge.builder(TASK_POOL_METER_NAME_PREFIX + TASK_TYPE_TAG_VALUE_CURRENT, threadPoolExecutor, ThreadPoolExecutor::getActiveCount)
+            .description("The number of active import/export tasks in the thread pool")
+            .tag(TASK_TYPE_TAG_NAME, TASK_TYPE_TAG_VALUE_CURRENT)
+            .register(meterRegistry);
+        Gauge.builder(TASK_POOL_METER_NAME_PREFIX + TASK_TYPE_TAG_VALUE_PENDING, threadPoolExecutor, executor -> executor.getQueue().size())
+            .description("The number of pending import/export tasks in the thread pool")
+            .tag(TASK_TYPE_TAG_NAME, TASK_TYPE_TAG_VALUE_PENDING)
+            .register(meterRegistry);
     }
 }
