@@ -110,6 +110,24 @@ public class EquipmentInfos {
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
     }
 
+    // TODO This function need to transfer to poswybl-ws-commons at the new release
+    public static String getEquipmentTypeName(@NonNull Identifiable<?> identifiable) {
+        return identifiable.getType() == IdentifiableType.HVDC_LINE ? getHvdcTypeName((HvdcLine) identifiable) : identifiable.getType().name();
+    }
+
+    /**
+     * @param hvdcLine The hvdc line to get hvdc type name
+     * @return The hvdc type name string
+     * @throws NetworkConversionException if converter station types don't match
+     */
+    private static String getHvdcTypeName(HvdcLine hvdcLine) {
+        if (hvdcLine.getConverterStation1().getHvdcType() != hvdcLine.getConverterStation2().getHvdcType()) {
+            throw NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId());
+        }
+
+        return String.format("%s_%s", hvdcLine.getType().name(), hvdcLine.getConverterStation1().getHvdcType().name());
+    }
+
     public static Set<VoltageLevelInfos> getVoltageLevelsInfos(@NonNull Identifiable<?> identifiable) {
         return getVoltageLevels(identifiable).stream()
                 .map(vl -> VoltageLevelInfos.builder().id(vl.getId()).name(vl.getNameOrId()).build())
