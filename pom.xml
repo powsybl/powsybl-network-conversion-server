@@ -25,6 +25,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powsybl-ws-dependencies.version>2.20.0</powsybl-ws-dependencies.version>
+        <!-- FIXME: case-datasource-client version is overloaded in the dependencies section.The overloads and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
+        <powsybl-case-datasource-client.version>1.12.0</powsybl-case-datasource-client.version>
     </properties>
 
     <build>
@@ -59,6 +61,13 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- overrides of imports -->
+            <!-- FIXME: case-datasource-client version is overloaded in the dependencies section.The overloads and this property below have to be removed at next powsybl-ws-dependencies.version upgrade -->
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-case-datasource-client</artifactId>
+                <version>${powsybl-case-datasource-client.version}</version>
+            </dependency>
 
             <!-- imports -->
             <dependency>
