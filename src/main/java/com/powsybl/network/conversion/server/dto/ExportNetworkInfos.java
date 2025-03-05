@@ -6,6 +6,8 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
+import java.io.InputStream;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,7 +23,7 @@ public class ExportNetworkInfos {
 
     private String networkName;
 
-    private byte[] networkData;
+    private InputStream networkData;
 
     private long numberBuses;
 
