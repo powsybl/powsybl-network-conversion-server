@@ -25,6 +25,7 @@ import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +44,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -290,6 +294,8 @@ public class NetworkConversionService {
 
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
+        // InputStream inputStream = null;
+
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createFormatUnsupported(format);
         }
@@ -318,12 +324,14 @@ public class NetworkConversionService {
         if (listNames.size() == 1) {
             fileOrNetworkName += listNames.toArray()[0];
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
+            // inputStream = new ByteArrayInputStream(memDataSource.getData(listNames.toArray()[0].toString()));
         } else {
             fileOrNetworkName += ".zip";
             networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
+            // IOUtils.copy(inputStream, createZipFile(listNames.toArray(new String[0]), memDataSource));
         }
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
+        return new ExportNetworkInfos(fileOrNetworkName, new ByteArrayInputStream(networkData), networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -418,7 +426,13 @@ public class NetworkConversionService {
             }
         }
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
+        try {
+            InputStream inputStream = null;
+            IOUtils.copy(inputStream, outputStream);
+            return new ExportNetworkInfos(network.getNameOrId(), inputStream, networkSize);
+        } catch (IOException e) {
+            throw NetworkConversionException.createFailedCaseExport(e);
+        }
     }
 
     private static CgmesExportContext createContext(Network network) {
