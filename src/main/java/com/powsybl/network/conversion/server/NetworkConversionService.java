@@ -71,7 +71,21 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
+    public static final Set<IdentifiableType> TYPES_FOR_INDEXING = Set.of(
+            IdentifiableType.SUBSTATION,
+            IdentifiableType.VOLTAGE_LEVEL,
+            IdentifiableType.HVDC_LINE,
+            IdentifiableType.LINE,
+            IdentifiableType.TIE_LINE,
+            IdentifiableType.TWO_WINDINGS_TRANSFORMER,
+            IdentifiableType.THREE_WINDINGS_TRANSFORMER,
+            IdentifiableType.GENERATOR,
+            IdentifiableType.BATTERY,
+            IdentifiableType.LOAD,
+            IdentifiableType.SHUNT_COMPENSATOR,
+            IdentifiableType.DANGLING_LINE,
+            IdentifiableType.STATIC_VAR_COMPENSATOR,
+            IdentifiableType.HVDC_CONVERTER_STATION);
 
     private RestTemplate caseServerRest;
 
@@ -282,7 +296,7 @@ public class NetworkConversionService {
 
     private Network getNetwork(UUID networkUuid) {
         try {
-            return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.COLLECTION);
+            return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW);
         } catch (PowsyblException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Network '" + networkUuid + "' not found");
         }
@@ -456,15 +470,17 @@ public class NetworkConversionService {
     private void insertEquipmentIndexes(Network network, UUID networkUuid, String variantId) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
-            equipmentInfosService.addAll(
-                network.getIdentifiables()
-                    .stream()
-                    .filter(c -> !EXCLUDED_TYPES_FOR_INDEXING.contains(c.getType()))
-                    .map(c -> toEquipmentInfos(c, networkUuid, variantId))
-                    .collect(Collectors.toList()));
+            equipmentInfosService.addAll(new ArrayList<>(getEquipmentInfos(network, networkUuid, variantId).values()));
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
+    }
+
+    private Map<String, EquipmentInfos> getEquipmentInfos(Network network, UUID networkUuid, String variantId) {
+        return network.getIdentifiables()
+                .stream()
+                .filter(c -> TYPES_FOR_INDEXING.contains(c.getType()))
+                .collect(Collectors.toMap(Identifiable::getId, equipment -> toEquipmentInfos(equipment, networkUuid, variantId)));
     }
 
     private void sendReport(UUID networkUuid, ReportNode reportNode, UUID reportUuid) {
@@ -494,15 +510,69 @@ public class NetworkConversionService {
     public void reindexAllEquipments(UUID networkUuid) {
         Network network = getNetwork(networkUuid);
 
-        // delete all network equipments infos
-        deleteAllEquipmentInfosOnInitialVariant(networkUuid);
+        // delete all network equipments infos. deleting a lot of documents in ElasticSearch is slow, we delete the index instead in maintenance script before reindexing
+        deleteAllEquipmentInfosByNetworkUuid(networkUuid);
 
         // recreate all equipments infos
-        insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        try {
+            // save initial variant infos
+            Map<String, EquipmentInfos> initialVariantEquipmentInfos = getEquipmentInfos(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+            equipmentInfosService.addAll(new ArrayList<>(initialVariantEquipmentInfos.values()));
+
+            // get variant ids without the initial that is already processed and is the reference
+            List<String> variantIds = network.getVariantManager()
+                    .getVariantIds()
+                    .stream()
+                    .filter(variantId -> !variantId.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
+                    .toList();
+
+            for (String variantId : variantIds) {
+                // switch to working variant and change initial variant infos variantId for comparisons
+                network.getVariantManager().setWorkingVariant(variantId);
+                initialVariantEquipmentInfos.values().forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(variantId));
+
+                // get current variant infos
+                Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(network, networkUuid, variantId);
+
+                List<EquipmentInfos> createdEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
+                        .filter(entry -> !initialVariantEquipmentInfos.containsKey(entry.getKey()))
+                        .map(Map.Entry::getValue)
+                        .toList();
+
+                // check if there are changes between current and initial variants infos
+                List<EquipmentInfos> modifiedEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
+                        .filter(entry -> initialVariantEquipmentInfos.containsKey(entry.getKey()))
+                        .map(entry -> {
+                            EquipmentInfos initialEquipmentInfo = initialVariantEquipmentInfos.get(entry.getKey());
+                            EquipmentInfos currentEquipmentInfo = entry.getValue();
+                            return !Objects.equals(initialEquipmentInfo, currentEquipmentInfo) ? currentEquipmentInfo : null;
+                        })
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = initialVariantEquipmentInfos.keySet().stream()
+                        .filter(equipmentInfos -> !currentVariantEquipmentInfos.containsKey(equipmentInfos))
+                        .map(equipmentInfos -> TombstonedEquipmentInfos.builder()
+                                .networkUuid(networkUuid)
+                                .variantId(variantId)
+                                .id(equipmentInfos)
+                                .build())
+                        .collect(Collectors.toList());
+
+                // save all to ElasticSearch
+                equipmentInfosService.addAll(createdEquipmentInfos);
+                equipmentInfosService.addAll(modifiedEquipmentInfos);
+                equipmentInfosService.addAllTombstonedEquipmentInfos(tombstonedEquipmentInfos);
+            }
+        } finally {
+            LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        }
     }
 
-    public void deleteAllEquipmentInfosOnInitialVariant(UUID networkUuid) {
-        equipmentInfosService.deleteAllOnInitialVariant(networkUuid);
+    public void deleteAllEquipmentInfosByNetworkUuid(UUID networkUuid) {
+        equipmentInfosService.deleteAllByNetworkUuid(networkUuid);
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {

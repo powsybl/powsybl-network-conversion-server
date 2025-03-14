@@ -166,7 +166,7 @@ class NetworkConversionTest {
 
             UUID notFoundNetworkUuid = UUID.randomUUID();
             given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
-            given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
+            given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
@@ -217,7 +217,7 @@ class NetworkConversionTest {
                         .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
-            networkConversionService.deleteAllEquipmentInfosOnInitialVariant(networkUuid);
+            networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
@@ -233,8 +233,8 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            // exclude switch since it is not indexed
-            assertEquals(91, infos.size());
+            // exclude switch, bus bar section and bus since it is not indexed
+            assertEquals(74, infos.size());
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -358,7 +358,7 @@ class NetworkConversionTest {
         Network network = new CgmesImport()
                 .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
-        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.COLLECTION)).willReturn(network);
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willReturn(network);
 
         MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export-sv-cgmes", networkUuid))
                 .andExpect(status().isOk())

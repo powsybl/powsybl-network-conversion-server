@@ -9,6 +9,7 @@ package com.powsybl.network.conversion.server.elasticsearch;
 import com.google.common.collect.Lists;
 import com.powsybl.iidm.network.VariantManagerConstants;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -29,14 +30,23 @@ public class EquipmentInfosService {
 
     private final EquipmentInfosRepository equipmentInfosRepository;
 
-    public EquipmentInfosService(EquipmentInfosRepository equipmentInfosRepository) {
+    private final TombstonedEquipmentInfosRepository tombstonedEquipmentInfosRepository;
+
+    public EquipmentInfosService(EquipmentInfosRepository equipmentInfosRepository, TombstonedEquipmentInfosRepository tombstonedEquipmentInfosRepository) {
         this.equipmentInfosRepository = equipmentInfosRepository;
+        this.tombstonedEquipmentInfosRepository = tombstonedEquipmentInfosRepository;
     }
 
     public void addAll(@NonNull final List<EquipmentInfos> equipmentsInfos) {
         Lists.partition(equipmentsInfos, partitionSize)
                 .parallelStream()
                 .forEach(equipmentInfosRepository::saveAll);
+    }
+
+    public void addAllTombstonedEquipmentInfos(@NonNull final List<TombstonedEquipmentInfos> tombstonedEquipmentInfos) {
+        Lists.partition(tombstonedEquipmentInfos, partitionSize)
+                .parallelStream()
+                .forEach(tombstonedEquipmentInfosRepository::saveAll);
     }
 
     public List<EquipmentInfos> findAll(@NonNull UUID networkUuid) {
@@ -49,5 +59,9 @@ public class EquipmentInfosService {
 
     public void deleteAllOnInitialVariant(@NonNull UUID networkUuid) {
         equipmentInfosRepository.deleteAllByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+    }
+
+    public void deleteAllByNetworkUuid(@NonNull UUID networkUuid) {
+        equipmentInfosRepository.deleteAllByNetworkUuid(networkUuid);
     }
 }
