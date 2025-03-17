@@ -477,9 +477,8 @@ public class NetworkConversionService {
     }
 
     private Map<String, EquipmentInfos> getEquipmentInfos(Network network, UUID networkUuid, String variantId) {
-        return network.getIdentifiables()
-                .stream()
-                .filter(c -> TYPES_FOR_INDEXING.contains(c.getType()))
+        return TYPES_FOR_INDEXING.stream()
+                .flatMap(network::getIdentifiableStream)
                 .collect(Collectors.toMap(Identifiable::getId, equipment -> toEquipmentInfos(equipment, networkUuid, variantId)));
     }
 
