@@ -578,6 +578,14 @@ public class NetworkConversionService {
         return equipmentInfosService.findAll(networkUuid);
     }
 
+    public List<EquipmentInfos> getAllEquipmentInfosByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return equipmentInfosService.findAllByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
+    public List<TombstonedEquipmentInfos> getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return equipmentInfosService.findAllTombstonedByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
     public boolean hasEquipmentInfos(UUID networkUuid) {
         return equipmentInfosService.count(networkUuid) > 0;
     }

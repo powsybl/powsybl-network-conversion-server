@@ -9,8 +9,12 @@ package com.powsybl.network.conversion.server.elasticsearch;
 import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
+import java.util.List;
+import java.util.UUID;
+
 /**
  * @author Nicolas Noir <nicolas.noir at rte-france.com>
  */
 public interface TombstonedEquipmentInfosRepository extends ElasticsearchRepository<TombstonedEquipmentInfos, String> {
+    List<TombstonedEquipmentInfos> findAllByNetworkUuidAndVariantId(UUID networkUuid, String variantId);
 }

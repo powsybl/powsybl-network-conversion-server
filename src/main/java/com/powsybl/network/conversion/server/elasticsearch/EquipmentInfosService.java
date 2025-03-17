@@ -53,6 +53,14 @@ public class EquipmentInfosService {
         return equipmentInfosRepository.findAllByNetworkUuid(networkUuid);
     }
 
+    public List<EquipmentInfos> findAllByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return equipmentInfosRepository.findAllByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
+    public List<TombstonedEquipmentInfos> findAllTombstonedByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return tombstonedEquipmentInfosRepository.findAllByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
     public long count(@NonNull UUID networkUuid) {
         return equipmentInfosRepository.countByNetworkUuid(networkUuid);
     }

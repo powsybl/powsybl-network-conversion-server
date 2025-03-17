@@ -19,6 +19,7 @@ import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
@@ -538,6 +539,54 @@ class NetworkConversionTest {
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
+    }
+
+    @Test
+    void testReindexAllVariants() {
+        Network network = createNetwork("test");
+        network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
+        network.getVariantManager().setWorkingVariant("first_variant_id");
+        network.getLoad("testLOAD").remove();
+        network.getVoltageLevel("testVLLOAD").newLoad()
+                .setId("newLoad")
+                .setBus("testNLOAD")
+                .setConnectableBus("testNLOAD")
+                .setP0(600.0)
+                .setQ0(200.0)
+                .add();
+        network.getVariantManager().cloneVariant("first_variant_id", "second_variant_id");
+        network.getVariantManager().setWorkingVariant("second_variant_id");
+        network.getTwoWindingsTransformer("testNGEN_NHV1").setName("test1");
+        network.getGenerator("testGEN").setMaxP(12.36);
+        network.getVariantManager().cloneVariant("second_variant_id", "third_variant_id");
+        network.getVariantManager().setWorkingVariant("third_variant_id");
+        network.getSubstation("testP1").setName("newName");
+        network.getVariantManager().setWorkingVariant(VariantManagerConstants.INITIAL_VARIANT_ID);
+
+        UUID networkUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        given(networkStoreClient.getNetwork(eq(networkUuid), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
+
+        networkConversionService.reindexAllEquipments(networkUuid);
+        // Initial variant has 12 indexed elements (no switches, bbs, bus)
+        List<EquipmentInfos> equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        assertEquals(12, equipmentInfos.size());
+        assertEquals(0, tombstonedEquipmentInfos.size());
+        // Removed 1 load, added 1 load
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
+        assertEquals(1, equipmentInfos.size());
+        assertEquals(1, tombstonedEquipmentInfos.size());
+        // Rename 2WT and change unindexed generator attribute (with additional changes from previous variant)
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
+        assertEquals(2, equipmentInfos.size());
+        assertEquals(1, tombstonedEquipmentInfos.size());
+        // Rename substation changes all equipment infos of equipments contained in the substation
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
+        assertEquals(8, equipmentInfos.size());
+        assertEquals(1, tombstonedEquipmentInfos.size());
     }
 
     private static Network createNetwork(String prefix) {
