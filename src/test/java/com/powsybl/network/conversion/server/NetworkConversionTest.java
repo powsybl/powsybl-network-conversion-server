@@ -564,7 +564,7 @@ class NetworkConversionTest {
         network.getVariantManager().setWorkingVariant(VariantManagerConstants.INITIAL_VARIANT_ID);
 
         UUID networkUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
-        given(networkStoreClient.getNetwork(eq(networkUuid), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willReturn(network);
 
         networkConversionService.reindexAllEquipments(networkUuid);
         // Initial variant has 12 indexed elements (no switches, bbs, bus)
