@@ -19,7 +19,11 @@ import java.util.UUID;
 public interface EquipmentInfosRepository extends ElasticsearchRepository<EquipmentInfos, String> {
     List<EquipmentInfos> findAllByNetworkUuid(@NonNull UUID networkUuid);
 
+    List<EquipmentInfos> findAllByNetworkUuidAndVariantId(UUID networkUuid, String variantId);
+
     long countByNetworkUuid(@NonNull UUID networkUuid);
 
     void deleteAllByNetworkUuidAndVariantId(@NonNull UUID networkUuid, @NonNull String variantId);
+
+    void deleteAllByNetworkUuid(@NonNull UUID networkUuid);
 }
