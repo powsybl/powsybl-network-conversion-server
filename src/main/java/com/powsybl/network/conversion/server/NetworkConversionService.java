@@ -527,15 +527,15 @@ public class NetworkConversionService {
                     .toList();
 
             for (String variantId : variantIds) {
-                // switch to working variant and change initial variant infos variantId for comparisons
+                // switch to working variant
                 // get a new network (and associated cache) to avoid loading all variants in the same cache
                 Network currentNetwork = getNetwork(networkUuid);
                 currentNetwork.getVariantManager().setWorkingVariant(variantId);
-                initialVariantEquipmentInfos.values().forEach(equipmentInfos ->
-                        equipmentInfos.setVariantId(variantId));
 
-                // get current variant infos
+                // get current variant infos and change variantId for comparisons
                 Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(currentNetwork, networkUuid, variantId);
+                currentVariantEquipmentInfos.values().forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(VariantManagerConstants.INITIAL_VARIANT_ID));
 
                 List<EquipmentInfos> createdEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
                         .filter(entry -> !initialVariantEquipmentInfos.containsKey(entry.getKey()))
@@ -559,6 +559,14 @@ public class NetworkConversionService {
                                 .id(equipmentInfos)
                                 .build())
                         .collect(Collectors.toList());
+
+                // set variantId for saved documents after comparison
+                createdEquipmentInfos.forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(variantId));
+                modifiedEquipmentInfos.forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(variantId));
+                tombstonedEquipmentInfos.forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(variantId));
 
                 // save all to ElasticSearch
                 equipmentInfosService.addAll(createdEquipmentInfos);
