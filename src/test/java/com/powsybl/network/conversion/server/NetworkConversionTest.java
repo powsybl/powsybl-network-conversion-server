@@ -45,6 +45,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
+import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -236,6 +237,8 @@ class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             // exclude switch, bus bar section and bus since it is not indexed
             assertEquals(74, infos.size());
+            assertTrue(infos.stream()
+                    .allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -282,6 +285,14 @@ class NetworkConversionTest {
                             .param("caseFormat", "XIIDM"))
                     .andExpect(status().isInternalServerError());
         }
+    }
+
+    private static IdentifiableType getExtendedIdentifiableType(EquipmentInfos equipmentInfos) {
+        String type = equipmentInfos.getType();
+        if (type.equals("HVDC_LINE_VSC") || type.equals("HVDC_LINE_LCC")) {
+            return IdentifiableType.HVDC_LINE;
+        }
+        return IdentifiableType.valueOf(type);
     }
 
     @Test
@@ -571,21 +582,29 @@ class NetworkConversionTest {
         List<EquipmentInfos> equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
         assertEquals(12, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
         assertEquals(0, tombstonedEquipmentInfos.size());
         // Removed 1 load, added 1 load
         equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
         tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
         assertEquals(1, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
         assertEquals(1, tombstonedEquipmentInfos.size());
         // Rename 2WT and change unindexed generator attribute (with additional changes from previous variant)
         equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
         tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
         assertEquals(2, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
         assertEquals(1, tombstonedEquipmentInfos.size());
         // Rename substation changes all equipment infos of equipments contained in the substation
         equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
         tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
         assertEquals(8, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
         assertEquals(1, tombstonedEquipmentInfos.size());
     }
 
