@@ -507,7 +507,7 @@ public class NetworkConversionService {
     }
 
     public void reindexAllEquipments(UUID networkUuid) {
-        Network network = getNetwork(networkUuid);
+        Network initialNetwork = getNetwork(networkUuid);
 
         // delete all network equipments infos. deleting a lot of documents in ElasticSearch is slow, we delete the index instead in maintenance script before reindexing
         deleteAllEquipmentInfosByNetworkUuid(networkUuid);
@@ -516,11 +516,11 @@ public class NetworkConversionService {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
             // save initial variant infos
-            Map<String, EquipmentInfos> initialVariantEquipmentInfos = getEquipmentInfos(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+            Map<String, EquipmentInfos> initialVariantEquipmentInfos = getEquipmentInfos(initialNetwork, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
             equipmentInfosService.addAll(new ArrayList<>(initialVariantEquipmentInfos.values()));
 
             // get variant ids without the initial that is already processed and is the reference
-            List<String> variantIds = network.getVariantManager()
+            List<String> variantIds = initialNetwork.getVariantManager()
                     .getVariantIds()
                     .stream()
                     .filter(variantId -> !variantId.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
@@ -528,12 +528,14 @@ public class NetworkConversionService {
 
             for (String variantId : variantIds) {
                 // switch to working variant and change initial variant infos variantId for comparisons
-                network.getVariantManager().setWorkingVariant(variantId);
+                // get a new network (and associated cache) to avoid loading all variants in the same cache
+                Network currentNetwork = getNetwork(networkUuid);
+                currentNetwork.getVariantManager().setWorkingVariant(variantId);
                 initialVariantEquipmentInfos.values().forEach(equipmentInfos ->
                         equipmentInfos.setVariantId(variantId));
 
                 // get current variant infos
-                Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(network, networkUuid, variantId);
+                Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(currentNetwork, networkUuid, variantId);
 
                 List<EquipmentInfos> createdEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
                         .filter(entry -> !initialVariantEquipmentInfos.containsKey(entry.getKey()))
