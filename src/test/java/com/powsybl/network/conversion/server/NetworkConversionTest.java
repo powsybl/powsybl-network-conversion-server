@@ -32,6 +32,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
 import org.springframework.test.web.servlet.MockMvc;
@@ -386,18 +388,18 @@ class NetworkConversionTest {
         boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
         boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
 
-        byte[] sshContent = Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("20210326T0930Z_1D_BE_SSH_6.xml").toURI()));
+        InputStream sshContent = Files.newInputStream(Paths.get(getClass().getClassLoader().getResource("20210326T0930Z_1D_BE_SSH_6.xml").toURI()));
 
         CgmesCaseDataSourceClient client = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
 
         given(caseServerRest.exchange(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"),
                 eq(HttpMethod.GET),
                 any(HttpEntity.class),
-                eq(byte[].class)))
-                .willReturn(ResponseEntity.ok(sshContent));
+                eq(Resource.class)))
+                .willReturn(ResponseEntity.ok(new InputStreamResource(sshContent)));
 
         InputStream input = client.newInputStream("20210326T0930Z_1D_BE_SSH_6.xml");
-        assertArrayEquals(sshContent, org.apache.commons.io.IOUtils.toByteArray(input));
+        assertArrayEquals(org.apache.commons.io.IOUtils.toByteArray(sshContent), org.apache.commons.io.IOUtils.toByteArray(input));
 
         input = client.newInputStream("20210326T0000Z__ENTSOE_EQBD_101.xml");
         assertArrayEquals(eqbdContent.getBytes(StandardCharsets.UTF_8), org.apache.commons.io.IOUtils.toByteArray(input));
