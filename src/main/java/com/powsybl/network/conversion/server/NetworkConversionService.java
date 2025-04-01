@@ -526,32 +526,40 @@ public class NetworkConversionService {
                     .filter(variantId -> !variantId.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
                     .toList();
 
+            // copy initial variant infos to avoid modifying saved entities
+            Map<String, EquipmentInfos> initialVariantEquipmentInfosCopy = initialVariantEquipmentInfos.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> new EquipmentInfos(entry.getValue())
+                    ));
+
             for (String variantId : variantIds) {
                 // switch to working variant and change initial variant infos variantId for comparisons
                 // get a new network (and associated cache) to avoid loading all variants in the same cache
                 Network currentNetwork = getNetwork(networkUuid);
                 currentNetwork.getVariantManager().setWorkingVariant(variantId);
-                initialVariantEquipmentInfos.values().forEach(equipmentInfos ->
+                initialVariantEquipmentInfosCopy.values().forEach(equipmentInfos ->
                         equipmentInfos.setVariantId(variantId));
 
                 // get current variant infos
                 Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(currentNetwork, networkUuid, variantId);
 
                 List<EquipmentInfos> createdEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
-                        .filter(entry -> !initialVariantEquipmentInfos.containsKey(entry.getKey()))
+                        .filter(entry -> !initialVariantEquipmentInfosCopy.containsKey(entry.getKey()))
                         .map(Map.Entry::getValue)
                         .toList();
 
                 // check if there are changes between current and initial variants infos
                 List<EquipmentInfos> modifiedEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
                         .filter(entry -> {
-                            EquipmentInfos initialEquipmentInfo = initialVariantEquipmentInfos.get(entry.getKey());
+                            EquipmentInfos initialEquipmentInfo = initialVariantEquipmentInfosCopy.get(entry.getKey());
                             return initialEquipmentInfo != null && !Objects.equals(initialEquipmentInfo, entry.getValue());
                         })
                         .map(Map.Entry::getValue)
                         .toList();
 
-                List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = initialVariantEquipmentInfos.keySet().stream()
+                List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = initialVariantEquipmentInfosCopy.keySet().stream()
                         .filter(equipmentInfos -> !currentVariantEquipmentInfos.containsKey(equipmentInfos))
                         .map(equipmentInfos -> TombstonedEquipmentInfos.builder()
                                 .networkUuid(networkUuid)

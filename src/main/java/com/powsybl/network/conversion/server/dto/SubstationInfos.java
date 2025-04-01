@@ -23,4 +23,9 @@ import lombok.experimental.SuperBuilder;
 public class SubstationInfos {
     private String id;
     private String name;
+
+    public SubstationInfos(SubstationInfos other) {
+        this.id = other.id;
+        this.name = other.name;
+    }
 }

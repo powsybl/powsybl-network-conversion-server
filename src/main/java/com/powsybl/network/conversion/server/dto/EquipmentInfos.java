@@ -50,6 +50,18 @@ public class EquipmentInfos extends BasicEquipmentInfos {
     @Field(type = FieldType.Nested, includeInParent = true)
     private Set<SubstationInfos> substations;
 
+    public EquipmentInfos(EquipmentInfos other) {
+        super(other);
+        this.name = other.name;
+        this.type = other.type;
+        this.voltageLevels = other.voltageLevels != null
+                ? other.voltageLevels.stream().map(VoltageLevelInfos::new).collect(Collectors.toSet())
+                : null;
+        this.substations = other.substations != null
+                ? other.substations.stream().map(SubstationInfos::new).collect(Collectors.toSet())
+                : null;
+    }
+
     public static Set<VoltageLevel> getVoltageLevels(@NonNull Identifiable<?> identifiable) {
         if (identifiable instanceof Substation) {
             return ((Substation) identifiable).getVoltageLevelStream().collect(Collectors.toSet());

@@ -51,4 +51,10 @@ public class BasicEquipmentInfos {
     private UUID networkUuid;
 
     private String variantId;
+
+    public BasicEquipmentInfos(BasicEquipmentInfos other) {
+        this.id = other.id;
+        this.networkUuid = other.networkUuid;
+        this.variantId = other.variantId;
+    }
 }

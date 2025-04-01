@@ -22,4 +22,9 @@ public class VoltageLevelInfos {
     String id;
 
     String name;
+
+    public VoltageLevelInfos(VoltageLevelInfos other) {
+        this.id = other.id;
+        this.name = other.name;
+    }
 }
