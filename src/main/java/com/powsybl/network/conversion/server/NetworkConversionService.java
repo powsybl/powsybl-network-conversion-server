@@ -542,13 +542,11 @@ public class NetworkConversionService {
 
                 // check if there are changes between current and initial variants infos
                 List<EquipmentInfos> modifiedEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
-                        .filter(entry -> initialVariantEquipmentInfos.containsKey(entry.getKey()))
-                        .map(entry -> {
+                        .filter(entry -> {
                             EquipmentInfos initialEquipmentInfo = initialVariantEquipmentInfos.get(entry.getKey());
-                            EquipmentInfos currentEquipmentInfo = entry.getValue();
-                            return !Objects.equals(initialEquipmentInfo, currentEquipmentInfo) ? currentEquipmentInfo : null;
+                            return initialEquipmentInfo != null && !Objects.equals(initialEquipmentInfo, entry.getValue());
                         })
-                        .filter(Objects::nonNull)
+                        .map(Map.Entry::getValue)
                         .toList();
 
                 List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = initialVariantEquipmentInfos.keySet().stream()
