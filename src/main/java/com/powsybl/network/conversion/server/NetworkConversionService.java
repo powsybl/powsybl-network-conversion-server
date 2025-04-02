@@ -58,6 +58,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
 /**
@@ -507,14 +508,13 @@ public class NetworkConversionService {
     }
 
     public void reindexAllEquipments(UUID networkUuid) {
-        Network initialNetwork = getNetwork(networkUuid);
-
-        // delete all network equipments infos. deleting a lot of documents in ElasticSearch is slow, we delete the index instead in maintenance script before reindexing
-        deleteAllEquipmentInfosByNetworkUuid(networkUuid);
-
-        // recreate all equipments infos
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
+            Network initialNetwork = getNetwork(networkUuid);
+
+            // delete all network equipments infos. deleting a lot of documents in ElasticSearch is slow, we delete the index instead in maintenance script before reindexing
+            deleteAllEquipmentInfosByNetworkUuid(networkUuid);
+
             // save initial variant infos
             Map<String, EquipmentInfos> initialVariantEquipmentInfos = getEquipmentInfos(initialNetwork, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
             equipmentInfosService.addAll(new ArrayList<>(initialVariantEquipmentInfos.values()));
@@ -565,6 +565,8 @@ public class NetworkConversionService {
                 equipmentInfosService.addAll(modifiedEquipmentInfos);
                 equipmentInfosService.addAllTombstonedEquipmentInfos(tombstonedEquipmentInfos);
             }
+        } catch (Exception e) {
+            throw createFailedNetworkReindex(networkUuid, e);
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }

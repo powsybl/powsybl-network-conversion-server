@@ -608,6 +608,14 @@ class NetworkConversionTest {
         assertEquals(1, tombstonedEquipmentInfos.size());
     }
 
+    @Test
+    void testReindexThrows() {
+        UUID networkUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willThrow(new PowsyblException("Network not found"));
+        NetworkConversionException e = assertThrows(NetworkConversionException.class, () -> networkConversionService.reindexAllEquipments(networkUuid));
+        assertEquals("Reindex of network '" + networkUuid + "' has failed", e.getMessage());
+    }
+
     private static Network createNetwork(String prefix) {
         Network network = NetworkFactory.findDefault().createNetwork(prefix + "network", "test");
         Substation p1 = network.newSubstation()
