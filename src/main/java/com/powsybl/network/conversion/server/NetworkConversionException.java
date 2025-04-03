@@ -24,7 +24,8 @@ public final class NetworkConversionException extends RuntimeException {
         UNKNOWN_VARIANT_ID(HttpStatus.NOT_FOUND),
         FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -85,4 +86,7 @@ public final class NetworkConversionException extends RuntimeException {
         return new NetworkConversionException(Type.UNSUPPORTED_HYBRID_HVDC, String.format("The hybrid Hvdc line %s is unsupported", hvdcId));
     }
 
+    public static NetworkConversionException createFailedNetworkReindex(UUID networkUuid, Exception cause) {
+        return new NetworkConversionException(Type.FAILED_NETWORK_REINDEX, String.format("Reindex of network '%s' has failed", networkUuid), cause);
+    }
 }
