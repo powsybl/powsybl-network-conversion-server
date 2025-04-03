@@ -19,6 +19,7 @@ import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
+import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
@@ -44,6 +45,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
+import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -166,7 +168,7 @@ class NetworkConversionTest {
 
             UUID notFoundNetworkUuid = UUID.randomUUID();
             given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
-            given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.COLLECTION))).willReturn(network);
+            given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
@@ -217,7 +219,7 @@ class NetworkConversionTest {
                         .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
-            networkConversionService.deleteAllEquipmentInfosOnInitialVariant(networkUuid);
+            networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
@@ -233,8 +235,10 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
-            // exclude switch since it is not indexed
-            assertEquals(91, infos.size());
+            // exclude switch, bus bar section and bus since it is not indexed
+            assertEquals(74, infos.size());
+            assertTrue(infos.stream()
+                    .allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -281,6 +285,14 @@ class NetworkConversionTest {
                             .param("caseFormat", "XIIDM"))
                     .andExpect(status().isInternalServerError());
         }
+    }
+
+    private static IdentifiableType getExtendedIdentifiableType(EquipmentInfos equipmentInfos) {
+        String type = equipmentInfos.getType();
+        if (type.equals("HVDC_LINE_VSC") || type.equals("HVDC_LINE_LCC")) {
+            return IdentifiableType.HVDC_LINE;
+        }
+        return IdentifiableType.valueOf(type);
     }
 
     @Test
@@ -358,7 +370,7 @@ class NetworkConversionTest {
         Network network = new CgmesImport()
                 .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
-        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.COLLECTION)).willReturn(network);
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willReturn(network);
 
         MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export-sv-cgmes", networkUuid))
                 .andExpect(status().isOk())
@@ -538,6 +550,70 @@ class NetworkConversionTest {
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
+    }
+
+    @Test
+    void testReindexAllVariants() {
+        Network network = createNetwork("test");
+        network.getVariantManager().cloneVariant(VariantManagerConstants.INITIAL_VARIANT_ID, "first_variant_id");
+        network.getVariantManager().setWorkingVariant("first_variant_id");
+        network.getLoad("testLOAD").remove();
+        network.getVoltageLevel("testVLLOAD").newLoad()
+                .setId("newLoad")
+                .setBus("testNLOAD")
+                .setConnectableBus("testNLOAD")
+                .setP0(600.0)
+                .setQ0(200.0)
+                .add();
+        network.getVariantManager().cloneVariant("first_variant_id", "second_variant_id");
+        network.getVariantManager().setWorkingVariant("second_variant_id");
+        network.getTwoWindingsTransformer("testNGEN_NHV1").setName("test1");
+        network.getGenerator("testGEN").setMaxP(12.36);
+        network.getVariantManager().cloneVariant("second_variant_id", "third_variant_id");
+        network.getVariantManager().setWorkingVariant("third_variant_id");
+        network.getSubstation("testP1").setName("newName");
+        network.getVariantManager().setWorkingVariant(VariantManagerConstants.INITIAL_VARIANT_ID);
+
+        UUID networkUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willReturn(network);
+
+        networkConversionService.reindexAllEquipments(networkUuid);
+        // Initial variant has 12 indexed elements (no switches, bbs, bus)
+        List<EquipmentInfos> equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        assertEquals(12, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
+        assertEquals(0, tombstonedEquipmentInfos.size());
+        // Removed 1 load, added 1 load
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "first_variant_id");
+        assertEquals(1, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
+        assertEquals(1, tombstonedEquipmentInfos.size());
+        // Rename 2WT and change unindexed generator attribute (with additional changes from previous variant)
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "second_variant_id");
+        assertEquals(2, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
+        assertEquals(1, tombstonedEquipmentInfos.size());
+        // Rename substation changes all equipment infos of equipments contained in the substation
+        equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
+        tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, "third_variant_id");
+        assertEquals(8, equipmentInfos.size());
+        assertTrue(equipmentInfos.stream()
+                .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));
+        assertEquals(1, tombstonedEquipmentInfos.size());
+    }
+
+    @Test
+    void testReindexThrows() {
+        UUID networkUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
+        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willThrow(new PowsyblException("Network not found"));
+        NetworkConversionException e = assertThrows(NetworkConversionException.class, () -> networkConversionService.reindexAllEquipments(networkUuid));
+        assertEquals("Reindex of network '" + networkUuid + "' has failed", e.getMessage());
     }
 
     private static Network createNetwork(String prefix) {
