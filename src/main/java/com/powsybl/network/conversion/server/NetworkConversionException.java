@@ -54,7 +54,7 @@ public final class NetworkConversionException extends RuntimeException {
         return type;
     }
 
-    public static NetworkConversionException createFormatUnsupported(String format) {
+    public static NetworkConversionException createUnsupportedFormat(String format) {
         Objects.requireNonNull(format);
         return new NetworkConversionException(Type.UNSUPPORTED_FORMAT, "The format: " + format + " is unsupported");
     }

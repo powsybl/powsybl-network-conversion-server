@@ -284,6 +284,13 @@ class NetworkConversionTest {
                             .param("isAsyncRun", "false")
                             .param("caseFormat", "XIIDM"))
                     .andExpect(status().isInternalServerError());
+
+            mvcResult = mvc.perform(post("/v1/cases/{caseUuid}/import-convert/{format}", caseUuid)
+                    .param("fileName"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("{\"formatName\":\"XIIDM\",\"parameters\":"));
         }
     }
 

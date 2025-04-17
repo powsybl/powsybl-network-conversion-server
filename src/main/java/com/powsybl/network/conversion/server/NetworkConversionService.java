@@ -13,6 +13,7 @@ import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
+import com.powsybl.commons.datasource.DataSourceUtil;
 import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
@@ -306,7 +307,7 @@ public class NetworkConversionService {
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
         if (!Exporter.getFormats().contains(format)) {
-            throw NetworkConversionException.createFormatUnsupported(format);
+            throw NetworkConversionException.createUnsupportedFormat(format);
         }
         MemDataSource memDataSource = new MemDataSource();
         Properties exportProperties = null;
@@ -335,7 +336,7 @@ public class NetworkConversionService {
             networkData = memDataSource.getData(listNames.toArray()[0].toString());
         } else {
             fileOrNetworkName += ".zip";
-            networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
+            networkData = createZipFile(listNames, memDataSource).toByteArray();
         }
         long networkSize = network.getBusView().getBusStream().count();
         return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
@@ -359,23 +360,55 @@ public class NetworkConversionService {
         }
     }
 
+    public Optional<ExportCaseInfos> exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) throws IOException {
+        if (!Exporter.getFormats().contains(format)) {
+            throw NetworkConversionException.createUnsupportedFormat(format);
+        }
+        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
+        Network network = Network.read(dataSource);
+        if (network != null) {
+            var memDataSource = new MemDataSource();
+            Properties exportProperties = null;
+            if (formatParameters != null) {
+                exportProperties = new Properties();
+                exportProperties.putAll(formatParameters);
+            }
+
+            network.write(format, exportProperties, memDataSource);
+
+            var listNames = memDataSource.listNames(".*");
+            String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
+            byte[] networkData;
+            if (listNames.size() == 1) {
+                String extension = listNames.iterator().next();
+                fileOrNetworkName += extension;
+                networkData = memDataSource.getData(extension);
+            } else {
+                fileOrNetworkName += ".zip";
+                networkData = createZipFile(listNames, memDataSource).toByteArray();
+            }
+            return Optional.of(new ExportCaseInfos(fileOrNetworkName, networkData));
+        } else {
+            return Optional.empty();
+        }
+    }
+
     private String getNetworkName(Network network, String variantId) {
         String networkName = network.getNameOrId();
         networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
         return networkName;
     }
 
-    ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
-            for (String listName : listNames) {
-                ZipEntry entry = new ZipEntry(listName);
-                zos.putNextEntry(entry);
-                zos.write(dataSource.getData(listName));
-                zos.closeEntry();
+    ByteArrayOutputStream createZipFile(Set<String> names, MemDataSource dataSource) throws IOException {
+        try (var outputStream = new ByteArrayOutputStream();
+             var zipOutputStream = new ZipOutputStream(outputStream)) {
+            for (String name : names) {
+                zipOutputStream.putNextEntry(new ZipEntry(name));
+                zipOutputStream.write(dataSource.getData(name));
+                zipOutputStream.closeEntry();
             }
+            return outputStream;
         }
-        return baos;
     }
 
     Map<String, ImportExportFormatMeta> getAvailableFormat() {
