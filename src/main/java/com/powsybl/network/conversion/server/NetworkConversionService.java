@@ -307,8 +307,6 @@ public class NetworkConversionService {
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
-        MemDataSource memDataSource = new MemDataSource();
-
         Network network = getNetwork(networkUuid);
         if (variantId != null) {
             if (network.getVariantManager().getVariantIds().contains(variantId)) {
@@ -319,7 +317,7 @@ public class NetworkConversionService {
         }
 
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
-        ExportCaseInfos exportCaseInfos = exportNetworkInfos(network, format, memDataSource, fileOrNetworkName, exportProperties);
+        ExportCaseInfos exportCaseInfos = exportNetworkInfos(network, format, fileOrNetworkName, exportProperties);
         long networkSize = network.getBusView().getBusStream().count();
         return new ExportNetworkInfos(exportCaseInfos.networkName(), exportCaseInfos.networkData(), networkSize);
     }
@@ -364,9 +362,8 @@ public class NetworkConversionService {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         Network network = Network.read(dataSource);
         if (network != null) {
-            var memDataSource = new MemDataSource();
             String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-            return Optional.of(exportNetworkInfos(network, format, memDataSource, fileOrNetworkName, exportProperties));
+            return Optional.of(exportNetworkInfos(network, format, fileOrNetworkName, exportProperties));
         } else {
             return Optional.empty();
         }
@@ -604,7 +601,8 @@ public class NetworkConversionService {
         return equipmentInfosService.count(networkUuid) > 0;
     }
 
-    private ExportCaseInfos exportNetworkInfos(Network network, String format, MemDataSource memDataSource, String fileOrNetworkName, Properties exportProperties) throws IOException {
+    private ExportCaseInfos exportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties) throws IOException {
+        MemDataSource memDataSource = new MemDataSource();
         network.write(format, exportProperties, memDataSource);
 
         Set<String> listNames = memDataSource.listNames(".*");

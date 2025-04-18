@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
+import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -40,7 +41,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.WebUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -183,6 +187,14 @@ class NetworkConversionTest {
             assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
             assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains(String.format("filename=\"testCase.biidm\"")));
             assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
+
+            // fail because network not found
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isInternalServerError())
+                .andReturn();
 
             assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
                     mvcResult.getResponse().getContentAsString());
@@ -662,6 +674,15 @@ class NetworkConversionTest {
         given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willThrow(new PowsyblException("Network not found"));
         NetworkConversionException e = assertThrows(NetworkConversionException.class, () -> networkConversionService.reindexAllEquipments(networkUuid));
         assertEquals("Reindex of network '" + networkUuid + "' has failed", e.getMessage());
+    }
+
+    @Test
+    void testcreateZipFile() throws IOException {
+        Network network = createNetwork("test");
+        MemDataSource memDataSource = new MemDataSource();
+        network.write("XIIDM", new Properties(), memDataSource);
+        ByteArrayOutputStream byteArrayOutputStream = networkConversionService.createZipFile(Collections.singleton(".xiidm"), memDataSource);
+        assertNotNull(byteArrayOutputStream);
     }
 
     private static Network createNetwork(String prefix) {
