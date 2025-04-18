@@ -173,7 +173,7 @@ class NetworkConversionTest {
                 .andReturn();
 
             assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains(String.format("filename=\"testCase.xiidm\"")));
+            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.xiidm\""));
             assertTrue(mvcResult1.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // convert to biidm
@@ -184,7 +184,7 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains(String.format("filename=\"testCase.biidm\"")));
+            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
             assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
 
             // fail because network not found

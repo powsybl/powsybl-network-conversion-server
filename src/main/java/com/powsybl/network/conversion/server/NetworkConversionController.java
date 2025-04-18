@@ -103,7 +103,7 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Export format")@PathVariable("format") String format,
                                                 @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-    ) throws IOException {
+    ) {
         LOGGER.debug("Converting network {}...", networkUuid);
         return networkConversionService.exportCase(networkUuid, format, fileName, formatParameters).map(networkInfos -> {
             var headers = new HttpHeaders();
