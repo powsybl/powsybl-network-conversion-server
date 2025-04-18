@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
+import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -33,12 +34,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -136,6 +141,60 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
+            // test convert format
+            Set<String> listNames = new HashSet<>();
+            listNames.add("testCase.xiidm");
+            String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
+                .queryParam("regex", "(?i)^.*\\.XML$")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path),
+                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+                .willReturn(ResponseEntity.ok(listNames));
+            mockCaseExist("txt", caseUuid, false);
+            mockCaseExist("uct", caseUuid, false);
+            mockCaseExist("UCT", caseUuid, false);
+            mockCaseExist("mat", caseUuid, false);
+            mockCaseExist("biidm", caseUuid, false);
+            mockCaseExist("bin", caseUuid, false);
+            mockCaseExist("jiidm", caseUuid, false);
+            mockCaseExist("json", caseUuid, false);
+            mockCaseExist("xiidm", caseUuid, true);
+            mockCaseExist("iidm", caseUuid, true);
+            mockCaseExist("xml", caseUuid, true);
+            mockCaseExist("csv", "_mapping", caseUuid, false);
+
+            // convert to iidm
+            MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.xiidm\""));
+            assertTrue(mvcResult1.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
+            // convert to biidm
+            MvcResult mvcResult2 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
+            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
+            assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
+
+            // fail because network not found
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isInternalServerError())
+                .andReturn();
+
             assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
                     mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
@@ -209,14 +268,14 @@ class NetworkConversionTest {
             assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // non existing variantId
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
-                        .andExpect(status().isNotFound())
-                        .andReturn();
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
+                .andExpect(status().isNotFound())
+                .andReturn();
 
             // non existing format
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
-                        .andExpect(status().isInternalServerError())
-                        .andReturn();
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
+                .andExpect(status().isInternalServerError())
+                .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
@@ -616,6 +675,15 @@ class NetworkConversionTest {
         assertEquals("Reindex of network '" + networkUuid + "' has failed", e.getMessage());
     }
 
+    @Test
+    void testcreateZipFile() throws IOException {
+        Network network = createNetwork("test");
+        MemDataSource memDataSource = new MemDataSource();
+        network.write("XIIDM", new Properties(), memDataSource);
+        ByteArrayOutputStream byteArrayOutputStream = networkConversionService.createZipFile(Collections.singleton(".xiidm"), memDataSource);
+        assertNotNull(byteArrayOutputStream);
+    }
+
     private static Network createNetwork(String prefix) {
         Network network = NetworkFactory.findDefault().createNetwork(prefix + "network", "test");
         Substation p1 = network.newSubstation()
@@ -777,5 +845,19 @@ class NetworkConversionTest {
                 .setMaxQ(9999.99)
                 .add();
         return network;
+    }
+
+    private void mockCaseExist(String ext, String caseUuid, boolean returnValue) {
+        mockCaseExist(ext, null, caseUuid, returnValue);
+    }
+
+    private void mockCaseExist(String ext, String suffix, String caseUuid, boolean returnValue) {
+        String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists")
+            .queryParam("suffix", suffix)
+            .queryParam("ext", ext)
+            .buildAndExpand(caseUuid)
+            .toUriString();
+        given(caseServerRest.exchange(eq(path), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
+            .willReturn(ResponseEntity.ok(returnValue));
     }
 }
