@@ -306,15 +306,8 @@ public class NetworkConversionService {
 
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) throws IOException {
-        if (!Exporter.getFormats().contains(format)) {
-            throw NetworkConversionException.createUnsupportedFormat(format);
-        }
+        Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         MemDataSource memDataSource = new MemDataSource();
-        Properties exportProperties = null;
-        if (formatParameters != null) {
-            exportProperties = new Properties();
-            exportProperties.putAll(formatParameters);
-        }
 
         Network network = getNetwork(networkUuid);
         if (variantId != null) {
@@ -325,21 +318,10 @@ public class NetworkConversionService {
             }
         }
 
-        network.write(format, exportProperties, memDataSource);
-
-        Set<String> listNames = memDataSource.listNames(".*");
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
-        byte[] networkData;
-
-        if (listNames.size() == 1) {
-            fileOrNetworkName += listNames.toArray()[0];
-            networkData = memDataSource.getData(listNames.toArray()[0].toString());
-        } else {
-            fileOrNetworkName += ".zip";
-            networkData = createZipFile(listNames, memDataSource).toByteArray();
-        }
+        ExportCaseInfos exportCaseInfos = exportNetworkInfos(network, format, memDataSource, fileOrNetworkName, exportProperties);
         long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(fileOrNetworkName, networkData, networkSize);
+        return new ExportNetworkInfos(exportCaseInfos.networkName(), exportCaseInfos.networkData(), networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -360,34 +342,31 @@ public class NetworkConversionService {
         }
     }
 
-    public Optional<ExportCaseInfos> exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) throws IOException {
-        if (!Exporter.getFormats().contains(format)) {
-            throw NetworkConversionException.createUnsupportedFormat(format);
+    public Optional<ExportCaseInfos> exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+        try {
+            return importExportExecutionService.supplyAsync(() -> {
+                try {
+                    return exportCaseExec(caseUuid, format, fileName, formatParameters);
+                } catch (IOException e) {
+                    throw NetworkConversionException.createFailedCaseExport(e);
+                }
+            }).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NetworkConversionException exception) {
+                throw exception;
+            }
+            throw NetworkConversionException.createFailedCaseExport(e);
         }
+    }
+
+    public Optional<ExportCaseInfos> exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) throws IOException {
+        Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         Network network = Network.read(dataSource);
         if (network != null) {
             var memDataSource = new MemDataSource();
-            Properties exportProperties = null;
-            if (formatParameters != null) {
-                exportProperties = new Properties();
-                exportProperties.putAll(formatParameters);
-            }
-
-            network.write(format, exportProperties, memDataSource);
-
-            var listNames = memDataSource.listNames(".*");
             String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-            byte[] networkData;
-            if (listNames.size() == 1) {
-                String extension = listNames.iterator().next();
-                fileOrNetworkName += extension;
-                networkData = memDataSource.getData(extension);
-            } else {
-                fileOrNetworkName += ".zip";
-                networkData = createZipFile(listNames, memDataSource).toByteArray();
-            }
-            return Optional.of(new ExportCaseInfos(fileOrNetworkName, networkData));
+            return Optional.of(exportNetworkInfos(network, format, memDataSource, fileOrNetworkName, exportProperties));
         } else {
             return Optional.empty();
         }
@@ -623,5 +602,34 @@ public class NetworkConversionService {
 
     public boolean hasEquipmentInfos(UUID networkUuid) {
         return equipmentInfosService.count(networkUuid) > 0;
+    }
+
+    private ExportCaseInfos exportNetworkInfos(Network network, String format, MemDataSource memDataSource, String fileOrNetworkName, Properties exportProperties) throws IOException {
+        network.write(format, exportProperties, memDataSource);
+
+        Set<String> listNames = memDataSource.listNames(".*");
+        byte[] networkData;
+        String finalFileOrNetworkName = fileOrNetworkName;
+        if (listNames.size() == 1) {
+            String extension = listNames.iterator().next();
+            finalFileOrNetworkName += extension;
+            networkData = memDataSource.getData(extension);
+        } else {
+            finalFileOrNetworkName += ".zip";
+            networkData = createZipFile(listNames, memDataSource).toByteArray();
+        }
+        return new ExportCaseInfos(finalFileOrNetworkName, networkData);
+    }
+
+    private Properties initializePropertiesAndCheckFormat(String format, Map<String, Object> formatParameters) {
+        if (!Exporter.getFormats().contains(format)) {
+            throw NetworkConversionException.createUnsupportedFormat(format);
+        }
+        Properties exportProperties = null;
+        if (formatParameters != null) {
+            exportProperties = new Properties();
+            exportProperties.putAll(formatParameters);
+        }
+        return exportProperties;
     }
 }
