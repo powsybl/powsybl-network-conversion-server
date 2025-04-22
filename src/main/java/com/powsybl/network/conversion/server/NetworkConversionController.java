@@ -109,13 +109,13 @@ public class NetworkConversionController {
             var headers = new HttpHeaders();
             headers.setContentDisposition(
                 ContentDisposition.builder("attachment")
-                    .filename(networkInfos.networkName())
+                    .filename(networkInfos.getNetworkName())
                     .build()
             );
             return ResponseEntity.ok()
                 .headers(headers)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(networkInfos.networkData());
+                .body(networkInfos.getNetworkData());
         }).orElse(ResponseEntity.noContent().build());
     }
 
