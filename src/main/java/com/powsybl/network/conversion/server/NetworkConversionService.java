@@ -362,12 +362,8 @@ public class NetworkConversionService {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
             new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
-        if (network != null) {
-            String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-            return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, 0));
-        } else {
-            return Optional.empty();
-        }
+        String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
+        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, 0));
     }
 
     private String getNetworkName(Network network, String variantId) {

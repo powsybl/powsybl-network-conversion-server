@@ -682,12 +682,14 @@ class NetworkConversionTest {
             assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
 
             // fail because network not found
-            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
+            MvcResult fail = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
+            assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), fail.getResponse().getStatus());
+            assertEquals("Case export failed", fail.getResponse().getContentAsString());
         }
     }
 
