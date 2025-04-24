@@ -85,7 +85,7 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                 @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-                                                ) throws IOException {
+                                                ) {
         LOGGER.debug("Exporting network {}...", networkUuid);
         ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters));
         HttpHeaders header = new HttpHeaders();
