@@ -219,12 +219,6 @@ class NetworkConversionTest {
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
-            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
-                    .param("fileName", "testCase")
-                    .contentType(MediaType.APPLICATION_JSON_VALUE)
-                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isInternalServerError())
-                .andReturn();
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
@@ -681,7 +675,7 @@ class NetworkConversionTest {
             assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
             assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
 
-            // fail because network not found
+            // fail because case not found
             MvcResult fail = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -690,6 +684,14 @@ class NetworkConversionTest {
                 .andReturn();
             assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), fail.getResponse().getStatus());
             assertEquals("Case export failed", fail.getResponse().getContentAsString());
+
+            // fail because network format does not exist
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isInternalServerError())
+                .andReturn();
         }
     }
 
