@@ -319,7 +319,7 @@ public class NetworkConversionService {
 
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
-        return exportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -364,7 +364,7 @@ public class NetworkConversionService {
             new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         if (network != null) {
             String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-            return Optional.of(exportNetworkInfos(network, format, fileOrNetworkName, exportProperties, 0));
+            return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, 0));
         } else {
             return Optional.empty();
         }
@@ -602,7 +602,7 @@ public class NetworkConversionService {
         return equipmentInfosService.count(networkUuid) > 0;
     }
 
-    private ExportNetworkInfos exportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties, long networkSize) throws IOException {
+    private ExportNetworkInfos getExportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties, long networkSize) throws IOException {
         MemDataSource memDataSource = new MemDataSource();
         network.write(format, exportProperties, memDataSource);
 
