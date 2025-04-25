@@ -50,6 +50,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
@@ -701,30 +702,57 @@ class NetworkConversionTest {
     }
 
     @Test
-    void testCreateZipFile() throws IOException {
-        Network network = createNetwork("test");
-        MemDataSource memDataSource = new MemDataSource();
-        network.write("XIIDM", new Properties(), memDataSource);
-        ByteArrayOutputStream byteArrayOutputStream = networkConversionService.createZipFile(Collections.singleton(".xiidm"), memDataSource);
-        assertNotNull(byteArrayOutputStream);
+    void testConvertToCgmes() throws Exception {
+        try (InputStream inputStream = getClass().getResourceAsStream("/fourSubstations_first_variant_id.xiidm")) {
+            assertNotNull(inputStream);
+            byte[] networkByte = inputStream.readAllBytes();
+            String caseUuid = UUID.randomUUID().toString();
 
-        // read zip
-        byte[] bytes = byteArrayOutputStream.toByteArray();
-        ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes));
-        String content = null;
-        while (zis.getNextEntry() != null) {
-            content = new String(zis.readAllBytes());
+            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+                .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+
+            // test convert format
+            Set<String> listNames = new HashSet<>();
+            listNames.add("fourSubstations_first_variant_id.xiidm");
+            String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
+                .queryParam("regex", "(?i)^.*\\.XML$")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path),
+                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+                .willReturn(ResponseEntity.ok(listNames));
+            mockCaseExist("txt", caseUuid, false);
+            mockCaseExist("uct", caseUuid, false);
+            mockCaseExist("UCT", caseUuid, false);
+            mockCaseExist("mat", caseUuid, false);
+            mockCaseExist("biidm", caseUuid, false);
+            mockCaseExist("bin", caseUuid, false);
+            mockCaseExist("jiidm", caseUuid, false);
+            mockCaseExist("json", caseUuid, false);
+            mockCaseExist("xiidm", caseUuid, true);
+            mockCaseExist("iidm", caseUuid, true);
+            mockCaseExist("xml", caseUuid, true);
+            mockCaseExist("csv", "_mapping", caseUuid, false);
+
+            // convert to cgmes
+            MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
+                    .param("fileName", "testCase")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+            byte[] bytes = mvcResult3.getResponse().getContentAsByteArray();
+            ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes));
+            List<String> filenames = new ArrayList<>();
+            ZipEntry entry = zis.getNextEntry();
+            while (entry != null) {
+                filenames.add(entry.getName());
+                entry = zis.getNextEntry();
+            }
+            zis.close();
+            assertTrue(filenames.containsAll(List.of("fourSubstations_EQ.xml", "fourSubstations_SV.xml",
+                "fourSubstations_SSH.xml", "fourSubstations_TP.xml")));
         }
-        zis.close();
-
-        // read original network
-        byte[] refByte = memDataSource.getData(".xiidm");
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        stream.write(refByte);
-        String refString = stream.toString();
-
-        // assert
-        assertEquals(refString, content);
     }
 
     private static Network createNetwork(String prefix) {
