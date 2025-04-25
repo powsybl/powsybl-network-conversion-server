@@ -372,7 +372,7 @@ public class NetworkConversionService {
         return networkName;
     }
 
-    ByteArrayOutputStream createZipFile(Set<String> names, MemDataSource dataSource) throws IOException {
+    private ByteArrayOutputStream createZipFile(Set<String> names, MemDataSource dataSource) throws IOException {
         try (var outputStream = new ByteArrayOutputStream();
              var zipOutputStream = new ZipOutputStream(outputStream)) {
             for (String name : names) {
