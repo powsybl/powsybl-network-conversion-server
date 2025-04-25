@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
+import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -41,11 +42,15 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.zip.ZipInputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
 import static org.junit.jupiter.api.Assertions.*;
@@ -693,6 +698,33 @@ class NetworkConversionTest {
                 .andExpect(status().isInternalServerError())
                 .andReturn();
         }
+    }
+
+    @Test
+    void testCreateZipFile() throws IOException {
+        Network network = createNetwork("test");
+        MemDataSource memDataSource = new MemDataSource();
+        network.write("XIIDM", new Properties(), memDataSource);
+        ByteArrayOutputStream byteArrayOutputStream = networkConversionService.createZipFile(Collections.singleton(".xiidm"), memDataSource);
+        assertNotNull(byteArrayOutputStream);
+
+        // read zip
+        byte[] bytes = byteArrayOutputStream.toByteArray();
+        ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes));
+        String content = null;
+        while (zis.getNextEntry() != null) {
+            content = new String(zis.readAllBytes());
+        }
+        zis.close();
+
+        // read original network
+        byte[] refByte = memDataSource.getData(".xiidm");
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        stream.write(refByte);
+        String refString = stream.toString();
+
+        // assert
+        assertEquals(refString, content);
     }
 
     private static Network createNetwork(String prefix) {
