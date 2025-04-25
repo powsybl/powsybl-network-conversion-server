@@ -740,7 +740,7 @@ class NetworkConversionTest {
                 .andReturn();
             byte[] bytes = mvcResult3.getResponse().getContentAsByteArray();
             List<String> filenames = new ArrayList<>();
-            try(ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
                     filenames.add(entry.getName());
