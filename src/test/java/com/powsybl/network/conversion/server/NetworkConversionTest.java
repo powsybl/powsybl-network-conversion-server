@@ -739,14 +739,13 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             byte[] bytes = mvcResult3.getResponse().getContentAsByteArray();
-            ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes));
             List<String> filenames = new ArrayList<>();
-            ZipEntry entry = zis.getNextEntry();
-            while (entry != null) {
-                filenames.add(entry.getName());
-                entry = zis.getNextEntry();
+            try(ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+                ZipEntry entry;
+                while ((entry = zis.getNextEntry()) != null) {
+                    filenames.add(entry.getName());
+                }
             }
-            zis.close();
             assertTrue(filenames.containsAll(List.of("fourSubstations_EQ.xml", "fourSubstations_SV.xml",
                 "fourSubstations_SSH.xml", "fourSubstations_TP.xml")));
         }
