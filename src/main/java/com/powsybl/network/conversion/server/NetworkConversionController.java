@@ -7,8 +7,8 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
+import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,7 +28,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.xml.stream.XMLStreamException;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -85,12 +84,38 @@ public class NetworkConversionController {
                                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                 @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-                                                ) throws IOException {
+                                                ) {
         LOGGER.debug("Exporting network {}...", networkUuid);
         ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters));
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
+    }
+
+    @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
+    @Operation(summary = "Export a network from case server in asked format",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Parameters for chosen format",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
+        )
+    )
+    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+                                                @Parameter(description = "Export format")@PathVariable("format") String format,
+                                                @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
+    ) {
+        LOGGER.debug("Converting network {}...", caseUuid);
+        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters).map(networkInfos -> {
+            var headers = new HttpHeaders();
+            headers.setContentDisposition(
+                ContentDisposition.builder("attachment")
+                    .filename(networkInfos.getNetworkName())
+                    .build()
+            );
+            return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(networkInfos.getNetworkData());
+        }).orElse(ResponseEntity.noContent().build());
     }
 
     @GetMapping(value = "/export/formats")
