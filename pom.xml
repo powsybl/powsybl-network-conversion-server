@@ -25,6 +25,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powsybl-ws-dependencies.version>2.20.0</powsybl-ws-dependencies.version>
+        <sonar.organization>powsybl-ci-github</sonar.organization>
+        <sonar.projectKey>com.powsybl:powsybl-network-conversion-server</sonar.projectKey>
     </properties>
 
     <build>
