@@ -34,6 +34,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
 import org.springframework.test.web.servlet.MockMvc;
@@ -410,8 +412,8 @@ class NetworkConversionTest {
         given(caseServerRest.exchange(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"),
                 eq(HttpMethod.GET),
                 any(HttpEntity.class),
-                eq(byte[].class)))
-                .willReturn(ResponseEntity.ok(sshContent));
+                eq(Resource.class)))
+                .willReturn(ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(sshContent))));
 
         InputStream input = client.newInputStream("20210326T0930Z_1D_BE_SSH_6.xml");
         assertArrayEquals(sshContent, org.apache.commons.io.IOUtils.toByteArray(input));
@@ -480,7 +482,7 @@ class NetworkConversionTest {
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willAnswer((Answer<Network>) invocationOnMock -> {
             var reportNode = invocationOnMock.getArgument(1, ReportNode.class);
             reportNode.newReportNode()
-                    .withMessageTemplate("test", "test")
+                    .withMessageTemplate("test")
                     .add();
             return network;
         });
@@ -630,18 +632,23 @@ class NetworkConversionTest {
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
 
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
-                .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
-            Set<String> listNames = new HashSet<>();
-            listNames.add("testCase.xiidm");
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
-                .queryParam("regex", "(?i)^.*\\.XML$")
+                .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
                 .buildAndExpand(caseUuid)
                 .toUriString();
             given(caseServerRest.exchange(eq(path),
                 eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
-                .willReturn(ResponseEntity.ok(listNames));
+                .willReturn(ResponseEntity.ok(Collections.emptySet()));
+
+            String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
+                .willReturn(ResponseEntity.ok(true));
+
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
             mockCaseExist("UCT", caseUuid, false);
@@ -704,20 +711,24 @@ class NetworkConversionTest {
             assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
-
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
-                .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+                    .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
-            Set<String> listNames = new HashSet<>();
-            listNames.add("fourSubstations_first_variant_id.xiidm");
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
-                .queryParam("regex", "(?i)^.*\\.XML$")
+                .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
                 .buildAndExpand(caseUuid)
                 .toUriString();
             given(caseServerRest.exchange(eq(path),
                 eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
-                .willReturn(ResponseEntity.ok(listNames));
+                .willReturn(ResponseEntity.ok(Collections.emptySet()));
+
+            String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=fourSubstations_first_variant_id.xiidm")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
+                .willReturn(ResponseEntity.ok(true));
+
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
             mockCaseExist("UCT", caseUuid, false);

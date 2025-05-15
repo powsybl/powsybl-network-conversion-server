@@ -202,12 +202,15 @@ public class NetworkConversionService {
         if (reportUuid != null) {
             String reporterId = "Root";
             rootReport = ReportNode.newRootReportNode()
-                    .withMessageTemplate(reporterId, reporterId)
+                    .withAllResourceBundlesFromClasspath()
+                    .withMessageTemplate("network.conversion.server.reporterId")
+                    .withUntypedValue("reporterId", reporterId)
                     .build();
 
             String subReporterId = "Import Case : " + dataSource.getBaseName();
             reporter = rootReport.newReportNode()
-                    .withMessageTemplate(subReporterId, subReporterId)
+                    .withMessageTemplate("network.conversion.server.subReporterId")
+                    .withUntypedValue("subReporterId", subReporterId)
                     .add();
         }
 
