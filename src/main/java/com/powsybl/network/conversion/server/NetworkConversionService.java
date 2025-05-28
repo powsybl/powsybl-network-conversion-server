@@ -79,7 +79,6 @@ public class NetworkConversionService {
             IdentifiableType.VOLTAGE_LEVEL,
             IdentifiableType.HVDC_LINE,
             IdentifiableType.LINE,
-            IdentifiableType.TIE_LINE,
             IdentifiableType.TWO_WINDINGS_TRANSFORMER,
             IdentifiableType.THREE_WINDINGS_TRANSFORMER,
             IdentifiableType.GENERATOR,
