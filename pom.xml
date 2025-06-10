@@ -170,7 +170,8 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-iidm-serde</artifactId>
-            <scope>runtime</scope>
+<!-- FIXME: uncomment next line on powsybl upgrade 6.7.2 or 6.8.0-->
+<!--            <scope>runtime</scope>-->
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
