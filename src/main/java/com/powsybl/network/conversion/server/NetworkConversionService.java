@@ -185,12 +185,8 @@ public class NetworkConversionService {
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
-            try {
-                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
-            } catch (Exception e) {
-                throw NetworkConversionException.createFailedCaseImport(e);
-            }
+            NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+            notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
     }
 
@@ -233,10 +229,7 @@ public class NetworkConversionService {
         try {
             return importExportExecutionService.supplyAsync(() -> importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters)).join();
         } catch (CompletionException e) {
-            if (e.getCause() instanceof NetworkConversionException exception) {
-                throw exception;
-            }
-            throw NetworkConversionException.createFailedCaseImport(e);
+            throw NetworkConversionException.createFailedCaseImport(e.getCause());
         }
     }
 
