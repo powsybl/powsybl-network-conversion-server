@@ -45,6 +45,11 @@ public final class NetworkConversionException extends RuntimeException {
         this.type = Objects.requireNonNull(type);
     }
 
+    private NetworkConversionException(Type type, Throwable cause) {
+        super(cause);
+        this.type = type;
+    }
+
     private NetworkConversionException(Type type, String msg, Exception cause) {
         super(msg, cause);
         this.type = type;
@@ -73,8 +78,8 @@ public final class NetworkConversionException extends RuntimeException {
         return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of network '%s' has failed", networkUuid), cause);
     }
 
-    public static NetworkConversionException createFailedCaseImport(Exception cause) {
-        return new NetworkConversionException(Type.FAILED_CASE_IMPORT, "Case import failed", cause);
+    public static NetworkConversionException createFailedCaseImport(Throwable cause) {
+        return new NetworkConversionException(Type.FAILED_CASE_IMPORT, cause);
     }
 
     public static NetworkConversionException createFailedCaseExport(Exception cause) {
