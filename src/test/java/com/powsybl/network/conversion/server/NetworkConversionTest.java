@@ -671,7 +671,7 @@ class NetworkConversionTest {
                 .andReturn();
 
             assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.xiidm\""));
+            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''testCase.xiidm"));
             assertTrue(mvcResult1.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // convert to biidm
@@ -682,7 +682,7 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
+            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''testCase.biidm"));
             assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
 
             // fail because case not found
@@ -757,8 +757,8 @@ class NetworkConversionTest {
                     filenames.add(entry.getName());
                 }
             }
-            assertTrue(filenames.containsAll(List.of("fourSubstations_EQ.xml", "fourSubstations_SV.xml",
-                "fourSubstations_SSH.xml", "fourSubstations_TP.xml")));
+            assertTrue(filenames.containsAll(List.of("testCasetestCase_EQ.xml", "testCasetestCase_SV.xml",
+                "testCasetestCase_SSH.xml", "testCasetestCase_TP.xml")));
         }
     }
 

@@ -25,7 +25,11 @@ public final class NetworkConversionException extends RuntimeException {
         FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CREATE_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_DELETE_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CREATE_TMP_DIRECTORY(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_DELETE_TMP_DIRECTORY(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -84,6 +88,22 @@ public final class NetworkConversionException extends RuntimeException {
 
     public static NetworkConversionException createFailedCaseExport(Exception cause) {
         return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
+    }
+
+    public static NetworkConversionException failedToCreateTmpFile(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_CREATE_TMP_FILE, "Failed to create temp file", cause);
+    }
+
+    public static NetworkConversionException failedToDeleteTmpFile(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_DELETE_TMP_FILE, "Failed to delete temp file", cause);
+    }
+
+    public static NetworkConversionException failedToCreateTmpDirectory(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_CREATE_TMP_DIRECTORY, "Failed to create temp directory", cause);
+    }
+
+    public static NetworkConversionException failedToDeleteTmpDirectory(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_DELETE_TMP_DIRECTORY, "Failed to delete temp directory", cause);
     }
 
     public static NetworkConversionException createHybridHvdcUnsupported(String hvdcId) {
