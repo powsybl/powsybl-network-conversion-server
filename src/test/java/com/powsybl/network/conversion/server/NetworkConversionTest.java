@@ -26,6 +26,7 @@ import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -44,10 +45,13 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -57,8 +61,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -962,5 +965,41 @@ class NetworkConversionTest {
             .toUriString();
         given(caseServerRest.exchange(eq(path), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
             .willReturn(ResponseEntity.ok(returnValue));
+    }
+
+    @Test
+    void testTempDirectoryCreationFailure() {
+        // Mock Files.createTempDirectory to throw IOException
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+            filesMock.when(() -> Files.createTempDirectory(anyString(), any(FileAttribute.class)))
+                    .thenThrow(new IOException("Cannot create temp directory"));
+
+            NetworkStreamingService service = new NetworkStreamingService();
+
+            assertThrows(NetworkConversionException.class, () -> {
+                service.withTempDirectory(tempDir -> {
+                    fail("Should not reach this point");
+                    return null;
+                });
+            });
+        }
+    }
+
+    @Test
+    void testTempDirectoryDeletionFailure() {
+        NetworkStreamingService service = new NetworkStreamingService();
+
+        // Mock Files.walk to throw IOException during cleanup
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+            Path mockTempDir = mock(Path.class);
+            filesMock.when(() -> Files.createTempDirectory(anyString(), any(FileAttribute.class)))
+                    .thenReturn(mockTempDir);
+            filesMock.when(() -> Files.walk(mockTempDir))
+                    .thenThrow(new IOException("Cannot walk directory"));
+
+            assertThrows(NetworkConversionException.class, () -> {
+                service.withTempDirectory(tempDir -> "success");
+            });
+        }
     }
 }
