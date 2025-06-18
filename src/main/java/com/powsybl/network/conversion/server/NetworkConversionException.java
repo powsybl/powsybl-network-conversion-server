@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 import java.util.Objects;
@@ -15,6 +16,7 @@ import java.util.UUID;
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
+@Getter
 public final class NetworkConversionException extends RuntimeException {
 
     public enum Type {
@@ -26,8 +28,7 @@ public final class NetworkConversionException extends RuntimeException {
         FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_CREATE_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_DELETE_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_COPY_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CREATE_TMP_DIRECTORY(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_DELETE_TMP_DIRECTORY(HttpStatus.INTERNAL_SERVER_ERROR);
 
@@ -59,10 +60,6 @@ public final class NetworkConversionException extends RuntimeException {
         this.type = type;
     }
 
-    public Type getType() {
-        return type;
-    }
-
     public static NetworkConversionException createUnsupportedFormat(String format) {
         Objects.requireNonNull(format);
         return new NetworkConversionException(Type.UNSUPPORTED_FORMAT, "The format: " + format + " is unsupported");
@@ -90,12 +87,8 @@ public final class NetworkConversionException extends RuntimeException {
         return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
     }
 
-    public static NetworkConversionException failedToCreateTmpFile(Exception cause) {
-        return new NetworkConversionException(Type.FAILED_CREATE_TMP_FILE, "Failed to create temp file", cause);
-    }
-
-    public static NetworkConversionException failedToDeleteTmpFile(Exception cause) {
-        return new NetworkConversionException(Type.FAILED_DELETE_TMP_FILE, "Failed to delete temp file", cause);
+    public static NetworkConversionException failedToStreamNetworkToFile(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_COPY_TMP_FILE, "Failed to stream network to file", cause);
     }
 
     public static NetworkConversionException failedToCreateTmpDirectory(Exception cause) {

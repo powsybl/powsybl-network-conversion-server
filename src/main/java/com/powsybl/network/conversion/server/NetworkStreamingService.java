@@ -1,59 +1,67 @@
+/**
+ * Copyright (c) 2025, RTE (http://www.rte-france.com)
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.commons.datasource.DirectoryDataSource;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
-import com.powsybl.network.conversion.server.dto.TempFileManager;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Comparator;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+/**
+ * @author Rehili Ghazwa <ghazwa.rehili at rte-france.com>
+ */
 
 @Service
 public class NetworkStreamingService {
 
-    @Autowired
-    private TempFileManager tempFileManager;
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkStreamingService.class);
 
-    public ExportNetworkInfos getExportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties, long networkSize) throws IOException {
-        return tempFileManager.withTempDirectory("network-export-", tempDir -> {
+    public ExportNetworkInfos getExportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties, long networkSize) {
+        return withTempDirectory("network-export-", tempDir -> {
             try {
                 DirectoryDataSource directoryDataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
-
                 network.write(format, exportProperties, directoryDataSource);
-
                 Set<String> listNames = directoryDataSource.listNames(".*");
-
                 if (listNames.isEmpty()) {
                     throw new IOException("No files were created during export");
                 }
-
                 Path finalFile;
-                String finalFileOrNetworkName = fileOrNetworkName;
-
                 if (listNames.size() == 1) {
                     String extension = listNames.iterator().next();
                     Path sourceFile = tempDir.resolve(extension);
                     finalFile = copyToTempFile(sourceFile, extension);
                 } else {
-                    finalFile = createStreamedZipFile(tempDir, listNames, finalFileOrNetworkName);
+                    finalFile = createStreamedZipFile(tempDir, listNames, fileOrNetworkName);
                 }
-
                 long fileSize = Files.size(finalFile);
-                return new ExportNetworkInfos(finalFileOrNetworkName + "." + format.toLowerCase(), finalFile, networkSize, fileSize);
+                return new ExportNetworkInfos(fileOrNetworkName + "." + format.toLowerCase(), finalFile, networkSize, fileSize);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to export network to file", e);
+                throw NetworkConversionException.failedToStreamNetworkToFile(e);
             }
         });
     }
 
     public Path streamNetworkToFile(Network network, String format, Properties exportProperties, String fileName) {
-        return tempFileManager.withTempDirectory("network-export-", tempDir -> {
+        return withTempDirectory("network-export-", tempDir -> {
             try {
                 DirectoryDataSource directoryDataSource = new DirectoryDataSource(tempDir, fileName);
                 network.write(format, exportProperties, directoryDataSource);
@@ -78,7 +86,7 @@ public class NetworkStreamingService {
                     return createStreamedZipFile(tempDir, createdFiles, fileName);
                 }
             } catch (IOException e) {
-                throw new RuntimeException("Failed to stream network to file", e);
+                throw NetworkConversionException.failedToStreamNetworkToFile(e);
             }
         });
     }
@@ -107,5 +115,40 @@ public class NetworkStreamingService {
             }
         }
         return zipFile;
+    }
+
+    public <T> T withTempDirectory(String prefix, Function<Path, T> function) {
+        Path tempDir = null;
+        try {
+            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
+            tempDir = Files.createTempDirectory(prefix, attr);
+            LOGGER.info("Created temp directory: {}", tempDir);
+            return function.apply(tempDir);
+        } catch (IOException e) {
+            throw NetworkConversionException.failedToCreateTmpDirectory(e);
+        } finally {
+            if (tempDir != null) {
+                deleteTempDirectory(tempDir);
+            }
+        }
+    }
+
+    private void deleteTempDirectory(Path directory) {
+        try (Stream<Path> paths = Files.walk(directory)) {
+            paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            boolean deleted = Files.deleteIfExists(path);
+                            if (!deleted && Files.exists(path)) {
+                                LOGGER.warn("Failed to delete: {}", path);
+                            }
+                        } catch (IOException e) {
+                            LOGGER.error("Error deleting path: {}", path, e);
+                        }
+                    });
+            LOGGER.info("Deleted temp directory: {}", directory);
+        } catch (IOException e) {
+            throw NetworkConversionException.failedToDeleteTmpDirectory(e);
+        }
     }
 }

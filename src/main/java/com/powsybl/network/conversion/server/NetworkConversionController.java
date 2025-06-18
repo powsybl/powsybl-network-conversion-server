@@ -51,9 +51,6 @@ public class NetworkConversionController {
     @Autowired
     private NetworkConversionObserver networkConversionObserver;
 
-    @Autowired
-    private TempFileManager tempFileManager;
-
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
     public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
