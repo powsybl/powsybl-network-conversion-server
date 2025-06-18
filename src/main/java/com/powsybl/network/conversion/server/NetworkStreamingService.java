@@ -105,16 +105,16 @@ public class NetworkStreamingService {
                 Files.newOutputStream(zipFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
 
             for (String fileName : fileNames) {
-                addFileToZip(sourceDir, fileName, baseFileName, zos);
+                addFileToZip(sourceDir, fileName, zos);
             }
         }
         return zipFile;
     }
 
-    private void addFileToZip(Path sourceDir, String fileName, String baseFileName, ZipOutputStream zos) throws IOException {
+    private void addFileToZip(Path sourceDir, String fileName, ZipOutputStream zos) throws IOException {
         Path sourceFile = sourceDir.resolve(fileName);
         if (Files.exists(sourceFile)) {
-            ZipEntry entry = new ZipEntry(baseFileName + fileName);
+            ZipEntry entry = new ZipEntry(fileName);
             zos.putNextEntry(entry);
             Files.copy(sourceFile, zos);
             zos.closeEntry();
