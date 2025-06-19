@@ -29,19 +29,15 @@ public class ExportNetworkInfos {
 
     private long numberBuses;
 
-    private long fileSize;
-
-    public ExportNetworkInfos(String networkName, Path tempFilePath, long numberBuses, long fileSize) {
+    public ExportNetworkInfos(String networkName, Path tempFilePath, long numberBuses) {
         this.networkName = networkName;
         this.tempFilePath = tempFilePath;
         this.numberBuses = numberBuses;
-        this.fileSize = fileSize;
     }
 
     public ExportNetworkInfos(String networkName, byte[] networkData, long numberBuses) {
         this.networkName = networkName;
         this.networkData = networkData;
         this.numberBuses = numberBuses;
-        this.fileSize = networkData != null ? networkData.length : 0;
     }
 }

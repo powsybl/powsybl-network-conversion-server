@@ -6,7 +6,10 @@
  */
 package com.powsybl.network.conversion.server;
 
-import com.powsybl.network.conversion.server.dto.*;
+import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
+import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
+import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -132,7 +135,6 @@ public class NetworkConversionController {
                         .filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8)
                         .build()
         );
-        headers.setContentLength(exportNetworkInfos.getFileSize());
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         return headers;
     }
@@ -157,9 +159,7 @@ public class NetworkConversionController {
     @Operation(summary = "Export a cgmes network from the network-store")
     public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws XMLStreamException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
-                "CGMES",
-                () -> networkConversionService.exportCgmesSv(networkUuid));
+        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport("CGMES", () -> networkConversionService.exportCgmesSv(networkUuid));
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());

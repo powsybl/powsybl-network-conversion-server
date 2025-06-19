@@ -14,6 +14,7 @@ import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.DataSourceUtil;
+import com.powsybl.commons.datasource.DirectoryDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.commons.report.ReportNodeDeserializer;
@@ -46,8 +47,10 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -56,6 +59,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
@@ -104,7 +109,6 @@ public class NetworkConversionService {
 
     private final ImportExportExecutionService importExportExecutionService;
     private final NetworkConversionObserver networkConversionObserver;
-    private final NetworkStreamingService networkStreamingService;
 
     private final ObjectMapper objectMapper;
 
@@ -116,15 +120,13 @@ public class NetworkConversionService {
                                     NetworkConversionExecutionService networkConversionExecutionService,
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
-                                    ImportExportExecutionService importExportExecutionService,
-                                    NetworkStreamingService networkStreamingService) {
+                                    ImportExportExecutionService importExportExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
         this.networkConversionObserver = networkConversionObserver;
         this.importExportExecutionService = importExportExecutionService;
-        this.networkStreamingService = networkStreamingService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -317,15 +319,7 @@ public class NetworkConversionService {
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
 
-        Path tempFile = networkStreamingService.streamNetworkToFile(network, format, exportProperties, fileOrNetworkName);
-        long fileSize = Files.size(tempFile);
-
-        return new ExportNetworkInfos(
-                tempFile.getFileName().toString(),
-                tempFile,
-                networkSize,
-                fileSize
-        );
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -370,7 +364,7 @@ public class NetworkConversionService {
             new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
         long networkSize = network.getBusView().getBusStream().count();
-        return Optional.of(networkStreamingService.getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize));
+        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize));
     }
 
     private String getNetworkName(Network network, String variantId) {
@@ -603,5 +597,42 @@ public class NetworkConversionService {
             exportProperties.putAll(formatParameters);
         }
         return exportProperties;
+    }
+
+    private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
+                                                    String fileOrNetworkName, Properties exportProperties,
+                                                    long networkSize) throws IOException {
+        Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        try {
+            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
+            network.write(format, exportProperties, dataSource);
+
+            Set<String> fileNames = dataSource.listNames(".*");
+            if (fileNames.isEmpty()) {
+                throw new IOException("No files were created during export");
+            }
+
+            if (fileNames.size() == 1) {
+                Path fileDir = tempDir.resolve(fileNames.iterator().next());
+                return new ExportNetworkInfos(fileDir.getFileName().toString(), fileDir, networkSize);
+            }
+
+            Path zipFile = tempDir.resolve(fileOrNetworkName + ".zip");
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+                for (String fileName : fileNames) {
+                    Path sourceFile = tempDir.resolve(fileName);
+                    if (Files.exists(sourceFile)) {
+                        zos.putNextEntry(new ZipEntry(fileName));
+                        try (InputStream is = Files.newInputStream(sourceFile)) {
+                            is.transferTo(zos);
+                        }
+                        zos.closeEntry();
+                    }
+                }
+            }
+            return new ExportNetworkInfos(zipFile.getFileName().toString(), zipFile, networkSize);
+        } catch (IOException e) {
+            throw NetworkConversionException.failedToStreamNetworkToFile(e);
+        }
     }
 }
