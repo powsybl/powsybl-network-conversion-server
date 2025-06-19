@@ -22,10 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import javax.xml.stream.XMLStreamException;
@@ -124,7 +121,8 @@ public class NetworkConversionController {
                     .body(resource);
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to create input stream for export", e);
+            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
