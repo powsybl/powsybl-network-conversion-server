@@ -30,7 +30,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -122,7 +126,26 @@ public class NetworkConversionController {
 
         } catch (IOException e) {
             LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS)
+                    .execute(() -> cleanupTempFiles(exportNetworkInfos.getTempFilePath()));
+        }
+    }
+
+    private void cleanupTempFiles(Path tempFilePath) {
+        try (Stream<Path> pathStream = Files.walk(tempFilePath)) {
+            pathStream.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            LOGGER.error(e.getMessage(), e);
+                        }
+                    });
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
