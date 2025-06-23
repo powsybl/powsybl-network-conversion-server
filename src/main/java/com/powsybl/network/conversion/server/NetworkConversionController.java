@@ -22,17 +22,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.*;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.xml.stream.XMLStreamException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -94,7 +92,7 @@ public class NetworkConversionController {
                 () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
         );
 
-        return createExportResponse(exportNetworkInfos);
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -108,53 +106,11 @@ public class NetworkConversionController {
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Converting network {}...", caseUuid);
-        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters)
-                .map(this::createExportResponse)
-                .orElse(ResponseEntity.noContent().build());
-    }
-
-    private ResponseEntity<InputStreamResource> createExportResponse(ExportNetworkInfos exportNetworkInfos) {
-        try {
-            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
-            InputStreamResource resource = new InputStreamResource(inputStream);
-
-            return ResponseEntity.ok()
-                    .headers(buildExportHeaders(exportNetworkInfos))
-                    .body(resource);
-
-        } catch (IOException e) {
-            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } finally {
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+        Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
+        if (exportNetworkInfos.isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
-    }
-
-    private void cleanupTempFiles(Path tempFilePath) {
-        try (Stream<Path> pathStream = Files.walk(tempFilePath)) {
-            pathStream.sorted(Comparator.reverseOrder())
-                    .forEach(path -> {
-                        try {
-                            Files.deleteIfExists(path);
-                        } catch (IOException e) {
-                            LOGGER.error(e.getMessage(), e);
-                        }
-                    });
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
-    }
-
-    private HttpHeaders buildExportHeaders(ExportNetworkInfos exportNetworkInfos) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentDisposition(
-                ContentDisposition.builder("attachment")
-                        .filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8)
-                        .build()
-        );
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        return headers;
+        return networkConversionService.createConvertNetworkResponse(exportNetworkInfos.get());
     }
 
     @GetMapping(value = "/export/formats")

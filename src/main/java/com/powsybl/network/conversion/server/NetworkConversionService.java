@@ -27,6 +27,7 @@ import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
@@ -48,6 +50,7 @@ import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -639,5 +642,67 @@ public class NetworkConversionService {
             }
         }
         return zipFile;
+    }
+
+    public ResponseEntity<InputStreamResource> createConvertNetworkResponse(ExportNetworkInfos exportNetworkInfos) {
+        try {
+            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
+            InputStreamResource resource = new InputStreamResource(inputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentDisposition(
+                    ContentDisposition.builder("attachment")
+                            .filename(exportNetworkInfos.getNetworkName())
+                            .build()
+            );
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
+
+        } catch (IOException e) {
+            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+        }
+    }
+
+    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos) {
+        try {
+            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
+            InputStreamResource resource = new InputStreamResource(inputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentDisposition(
+                    ContentDisposition.builder("attachment")
+                            .filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8)
+                            .build()
+            );
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
+
+        } catch (IOException e) {
+            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+        }
+    }
+
+    private void cleanupTempFiles(Path tempFilePath) {
+        try {
+            if (Files.exists(tempFilePath)) {
+                FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
+            }
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 }
