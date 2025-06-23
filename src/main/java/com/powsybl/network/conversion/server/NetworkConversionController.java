@@ -32,8 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -129,8 +127,7 @@ public class NetworkConversionController {
             cleanupTempFiles(exportNetworkInfos.getTempFilePath());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         } finally {
-            CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS)
-                    .execute(() -> cleanupTempFiles(exportNetworkInfos.getTempFilePath()));
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
         }
     }
 

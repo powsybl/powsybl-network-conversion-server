@@ -617,22 +617,27 @@ public class NetworkConversionService {
                 return new ExportNetworkInfos(fileDir.getFileName().toString(), fileDir, networkSize);
             }
 
-            Path zipFile = tempDir.resolve(fileOrNetworkName + ".zip");
-            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
-                for (String fileName : fileNames) {
-                    Path sourceFile = tempDir.resolve(fileName);
-                    if (Files.exists(sourceFile)) {
-                        zos.putNextEntry(new ZipEntry(fileName));
-                        try (InputStream is = Files.newInputStream(sourceFile)) {
-                            is.transferTo(zos);
-                        }
-                        zos.closeEntry();
-                    }
-                }
-            }
+            Path zipFile = createZipFile(tempDir, fileOrNetworkName, fileNames);
             return new ExportNetworkInfos(zipFile.getFileName().toString(), zipFile, networkSize);
         } catch (IOException e) {
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
+    }
+
+    private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
+        Path zipFile = tempDir.resolve(fileOrNetworkName + ".zip");
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+            for (String fileName : fileNames) {
+                Path sourceFile = tempDir.resolve(fileName);
+                if (Files.exists(sourceFile)) {
+                    zos.putNextEntry(new ZipEntry(fileName));
+                    try (InputStream is = Files.newInputStream(sourceFile)) {
+                        is.transferTo(zos);
+                    }
+                    zos.closeEntry();
+                }
+            }
+        }
+        return zipFile;
     }
 }
