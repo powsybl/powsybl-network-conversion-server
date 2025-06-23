@@ -632,13 +632,11 @@ public class NetworkConversionService {
         try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
             for (String fileName : fileNames) {
                 Path sourceFile = tempDir.resolve(fileName);
-                if (Files.exists(sourceFile)) {
-                    zos.putNextEntry(new ZipEntry(fileName));
-                    try (InputStream is = Files.newInputStream(sourceFile)) {
-                        is.transferTo(zos);
-                    }
-                    zos.closeEntry();
+                zos.putNextEntry(new ZipEntry(fileName));
+                try (InputStream is = Files.newInputStream(sourceFile)) {
+                    is.transferTo(zos);
                 }
+                zos.closeEntry();
             }
         }
         return zipFile;
