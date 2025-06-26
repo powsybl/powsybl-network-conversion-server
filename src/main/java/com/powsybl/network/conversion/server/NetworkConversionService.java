@@ -50,10 +50,9 @@ import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -605,7 +604,7 @@ public class NetworkConversionService {
     private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
                                                     String fileOrNetworkName, Properties exportProperties,
                                                     long networkSize) throws IOException {
-        Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        Path tempDir = Files.createTempDirectory("export_");
         try {
             DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
             network.write(format, exportProperties, dataSource);
@@ -615,13 +614,13 @@ public class NetworkConversionService {
                 throw new IOException("No files were created during export");
             }
 
+            Path filePath;
             if (fileNames.size() == 1) {
-                Path fileDir = tempDir.resolve(fileNames.iterator().next());
-                return new ExportNetworkInfos(fileDir.getFileName().toString(), fileDir, networkSize);
+                filePath = tempDir.resolve(fileNames.iterator().next());
+            } else {
+                filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
             }
-
-            Path zipFile = createZipFile(tempDir, fileOrNetworkName, fileNames);
-            return new ExportNetworkInfos(zipFile.getFileName().toString(), zipFile, networkSize);
+            return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
@@ -642,43 +641,19 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    public ResponseEntity<InputStreamResource> createConvertNetworkResponse(ExportNetworkInfos exportNetworkInfos) {
+    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos, Charset filenameCharset) {
         try {
             InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
             InputStreamResource resource = new InputStreamResource(inputStream);
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentDisposition(
-                    ContentDisposition.builder("attachment")
-                            .filename(exportNetworkInfos.getNetworkName())
-                            .build()
-            );
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(resource);
-
-        } catch (IOException e) {
-            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } finally {
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
-        }
-    }
-
-    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos) {
-        try {
-            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
-            InputStreamResource resource = new InputStreamResource(inputStream);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentDisposition(
-                    ContentDisposition.builder("attachment")
-                            .filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8)
-                            .build()
-            );
+            ContentDisposition.Builder builder = ContentDisposition.builder("attachment");
+            if (filenameCharset != null) {
+                builder.filename(exportNetworkInfos.getNetworkName(), filenameCharset);
+            } else {
+                builder.filename(exportNetworkInfos.getNetworkName());
+            }
+            headers.setContentDisposition(builder.build());
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
             return ResponseEntity.ok()

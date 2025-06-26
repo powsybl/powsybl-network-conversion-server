@@ -92,7 +92,7 @@ public class NetworkConversionController {
                 () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
         );
 
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos);
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -110,7 +110,7 @@ public class NetworkConversionController {
         if (exportNetworkInfos.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return networkConversionService.createConvertNetworkResponse(exportNetworkInfos.get());
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
     }
 
     @GetMapping(value = "/export/formats")
