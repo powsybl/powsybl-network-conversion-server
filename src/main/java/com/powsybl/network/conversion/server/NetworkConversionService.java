@@ -53,6 +53,7 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -604,7 +605,7 @@ public class NetworkConversionService {
     private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
                                                     String fileOrNetworkName, Properties exportProperties,
                                                     long networkSize) throws IOException {
-        Path tempDir = Files.createTempDirectory("export_");
+        Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         try {
             DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
             network.write(format, exportProperties, dataSource);
