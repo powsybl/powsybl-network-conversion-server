@@ -757,8 +757,7 @@ class NetworkConversionTest {
                     filenames.add(entry.getName());
                 }
             }
-            assertTrue(filenames.containsAll(List.of("fourSubstations_EQ.xml", "fourSubstations_SV.xml",
-                "fourSubstations_SSH.xml", "fourSubstations_TP.xml")));
+            assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
         }
     }
 

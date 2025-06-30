@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 import java.util.Objects;
@@ -15,6 +16,7 @@ import java.util.UUID;
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
+@Getter
 public final class NetworkConversionException extends RuntimeException {
 
     public enum Type {
@@ -25,7 +27,8 @@ public final class NetworkConversionException extends RuntimeException {
         FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_COPY_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -55,10 +58,6 @@ public final class NetworkConversionException extends RuntimeException {
         this.type = type;
     }
 
-    public Type getType() {
-        return type;
-    }
-
     public static NetworkConversionException createUnsupportedFormat(String format) {
         Objects.requireNonNull(format);
         return new NetworkConversionException(Type.UNSUPPORTED_FORMAT, "The format: " + format + " is unsupported");
@@ -84,6 +83,10 @@ public final class NetworkConversionException extends RuntimeException {
 
     public static NetworkConversionException createFailedCaseExport(Exception cause) {
         return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
+    }
+
+    public static NetworkConversionException failedToStreamNetworkToFile(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_COPY_TMP_FILE, "Failed to stream network to file", cause);
     }
 
     public static NetworkConversionException createHybridHvdcUnsupported(String hvdcId) {

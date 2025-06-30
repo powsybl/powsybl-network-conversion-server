@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -79,17 +80,19 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
-                                                @Parameter(description = "Export format")@PathVariable("format") String format,
-                                                @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                                @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-                                                ) {
+    public ResponseEntity<InputStreamResource> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
+                                                             @Parameter(description = "Export format")@PathVariable("format") String format,
+                                                             @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                                             @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                                             @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
+                                                             ) {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(format, () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters));
-        HttpHeaders header = new HttpHeaders();
-        header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
-        return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
+        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
+                format,
+                () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+        );
+
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -98,24 +101,16 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<byte[]> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
-                                                @Parameter(description = "Export format")@PathVariable("format") String format,
-                                                @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-    ) {
+    public ResponseEntity<InputStreamResource> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+                                              @Parameter(description = "Export format")@PathVariable("format") String format,
+                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Converting network {}...", caseUuid);
-        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters).map(networkInfos -> {
-            var headers = new HttpHeaders();
-            headers.setContentDisposition(
-                ContentDisposition.builder("attachment")
-                    .filename(networkInfos.getNetworkName())
-                    .build()
-            );
-            return ResponseEntity.ok()
-                .headers(headers)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(networkInfos.getNetworkData());
-        }).orElse(ResponseEntity.noContent().build());
+        Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
+        if (exportNetworkInfos.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
     }
 
     @GetMapping(value = "/export/formats")

@@ -14,7 +14,7 @@ import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.DataSourceUtil;
-import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.datasource.DirectoryDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.commons.report.ReportNodeDeserializer;
@@ -27,6 +27,7 @@ import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
@@ -47,6 +49,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -314,6 +321,7 @@ public class NetworkConversionService {
 
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
+
         return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
     }
 
@@ -358,25 +366,14 @@ public class NetworkConversionService {
         Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
             new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, 0));
+        long networkSize = network.getBusView().getBusStream().count();
+        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize));
     }
 
     private String getNetworkName(Network network, String variantId) {
         String networkName = network.getNameOrId();
         networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
         return networkName;
-    }
-
-    private ByteArrayOutputStream createZipFile(Set<String> names, MemDataSource dataSource) throws IOException {
-        try (var outputStream = new ByteArrayOutputStream();
-             var zipOutputStream = new ZipOutputStream(outputStream)) {
-            for (String name : names) {
-                zipOutputStream.putNextEntry(new ZipEntry(name));
-                zipOutputStream.write(dataSource.getData(name));
-                zipOutputStream.closeEntry();
-            }
-            return outputStream;
-        }
     }
 
     Map<String, ImportExportFormatMeta> getAvailableFormat() {
@@ -593,24 +590,6 @@ public class NetworkConversionService {
         return equipmentInfosService.count(networkUuid) > 0;
     }
 
-    private ExportNetworkInfos getExportNetworkInfos(Network network, String format, String fileOrNetworkName, Properties exportProperties, long networkSize) throws IOException {
-        MemDataSource memDataSource = new MemDataSource();
-        network.write(format, exportProperties, memDataSource);
-
-        Set<String> listNames = memDataSource.listNames(".*");
-        byte[] networkData;
-        String finalFileOrNetworkName = fileOrNetworkName;
-        if (listNames.size() == 1) {
-            String extension = listNames.iterator().next();
-            finalFileOrNetworkName += extension;
-            networkData = memDataSource.getData(extension);
-        } else {
-            finalFileOrNetworkName += ".zip";
-            networkData = createZipFile(listNames, memDataSource).toByteArray();
-        }
-        return new ExportNetworkInfos(finalFileOrNetworkName, networkData, networkSize);
-    }
-
     private Properties initializePropertiesAndCheckFormat(String format, Map<String, Object> formatParameters) {
         if (!Exporter.getFormats().contains(format)) {
             throw NetworkConversionException.createUnsupportedFormat(format);
@@ -621,5 +600,83 @@ public class NetworkConversionService {
             exportProperties.putAll(formatParameters);
         }
         return exportProperties;
+    }
+
+    private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
+                                                    String fileOrNetworkName, Properties exportProperties,
+                                                    long networkSize) throws IOException {
+        Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        try {
+            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
+            network.write(format, exportProperties, dataSource);
+
+            Set<String> fileNames = dataSource.listNames(".*");
+            if (fileNames.isEmpty()) {
+                throw new IOException("No files were created during export");
+            }
+
+            Path filePath;
+            if (fileNames.size() == 1) {
+                filePath = tempDir.resolve(fileNames.iterator().next());
+            } else {
+                filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
+            }
+            return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
+        } catch (IOException e) {
+            throw NetworkConversionException.failedToStreamNetworkToFile(e);
+        }
+    }
+
+    private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
+        Path zipFile = tempDir.resolve(fileOrNetworkName + ".zip");
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+            for (String fileName : fileNames) {
+                Path sourceFile = tempDir.resolve(fileName);
+                zos.putNextEntry(new ZipEntry(fileName));
+                try (InputStream is = Files.newInputStream(sourceFile)) {
+                    is.transferTo(zos);
+                }
+                zos.closeEntry();
+            }
+        }
+        return zipFile;
+    }
+
+    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos, Charset filenameCharset) {
+        try {
+            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
+            InputStreamResource resource = new InputStreamResource(inputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            ContentDisposition.Builder builder = ContentDisposition.builder("attachment");
+            if (filenameCharset != null) {
+                builder.filename(exportNetworkInfos.getNetworkName(), filenameCharset);
+            } else {
+                builder.filename(exportNetworkInfos.getNetworkName());
+            }
+            headers.setContentDisposition(builder.build());
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
+
+        } catch (IOException e) {
+            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+        }
+    }
+
+    private void cleanupTempFiles(Path tempFilePath) {
+        try {
+            if (Files.exists(tempFilePath)) {
+                FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
+            }
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 }
