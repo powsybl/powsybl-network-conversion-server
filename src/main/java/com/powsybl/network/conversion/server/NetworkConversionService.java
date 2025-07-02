@@ -607,7 +607,8 @@ public class NetworkConversionService {
                                                     long networkSize) throws IOException {
         Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         try {
-            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
+            String finalFileOrNetworkName = fileOrNetworkName.replace('/', '_');
+            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, finalFileOrNetworkName);
             network.write(format, exportProperties, dataSource);
 
             Set<String> fileNames = dataSource.listNames(".*");
