@@ -624,6 +624,7 @@ public class NetworkConversionService {
             }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
+            cleanupTempFiles(tempDir);
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
     }
@@ -664,7 +665,6 @@ public class NetworkConversionService {
 
         } catch (IOException e) {
             LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         } finally {
             cleanupTempFiles(exportNetworkInfos.getTempFilePath());
