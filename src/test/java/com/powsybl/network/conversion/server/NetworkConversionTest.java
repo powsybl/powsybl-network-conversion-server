@@ -702,6 +702,19 @@ class NetworkConversionTest {
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
+
+            // export case with an absolut path as fileName
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                            .param("fileName", "/tmp/testCase")
+                            .contentType(MediaType.APPLICATION_JSON_VALUE)
+                            .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            // check that no temporary export directory is still present after conversions
+            assertFalse(Files.list(Paths.get("/tmp"))
+                    .anyMatch(path3 -> Files.isDirectory(path3) &&
+                            path3.getFileName().toString().startsWith("export_")));
         }
     }
 
