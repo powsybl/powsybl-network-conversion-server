@@ -607,7 +607,8 @@ public class NetworkConversionService {
                                                     long networkSize) throws IOException {
         Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         try {
-            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, fileOrNetworkName);
+            String finalFileOrNetworkName = fileOrNetworkName.replace('/', '_');
+            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, finalFileOrNetworkName);
             network.write(format, exportProperties, dataSource);
 
             Set<String> fileNames = dataSource.listNames(".*");
@@ -623,6 +624,7 @@ public class NetworkConversionService {
             }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
+            cleanupTempFiles(tempDir);
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
     }
@@ -663,7 +665,6 @@ public class NetworkConversionService {
 
         } catch (IOException e) {
             LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         } finally {
             cleanupTempFiles(exportNetworkInfos.getTempFilePath());
