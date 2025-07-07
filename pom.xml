@@ -25,8 +25,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powsybl-ws-dependencies.version>2.22.1</powsybl-ws-dependencies.version>
-        <!-- TODO network-store.version remove when migration powsybl -->
-        <network-store-client.version>1.27.2</network-store-client.version>
     </properties>
 
     <build>
@@ -62,24 +60,7 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-client</artifactId>
-                <version>${network-store-client.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-iidm-impl</artifactId>
-                <version>${network-store-client.version}</version>
-            </dependency>
-            <!-- FIXME: to be removed at next powsybl-ws-dependencies upgrade  -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-network-store-model</artifactId>
-                <version>${network-store-client.version}</version>
-            </dependency>
+
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
