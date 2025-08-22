@@ -616,12 +616,7 @@ public class NetworkConversionService {
                 throw new IOException("No files were created during export");
             }
 
-            Path filePath;
-            if (fileNames.size() == 1) {
-                filePath = tempDir.resolve(fileNames.iterator().next());
-            } else {
-                filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
-            }
+            Path filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
             cleanupTempFiles(tempDir);
