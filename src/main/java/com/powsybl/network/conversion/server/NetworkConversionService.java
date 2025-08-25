@@ -322,7 +322,7 @@ public class NetworkConversionService {
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
 
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -367,7 +367,7 @@ public class NetworkConversionService {
             new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
         long networkSize = network.getBusView().getBusStream().count();
-        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize));
+        return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true));
     }
 
     private String getNetworkName(Network network, String variantId) {
@@ -603,8 +603,8 @@ public class NetworkConversionService {
     }
 
     private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
-                                                    String fileOrNetworkName, Properties exportProperties,
-                                                    long networkSize) throws IOException {
+                                                     String fileOrNetworkName, Properties exportProperties,
+                                                     long networkSize, boolean withNotZipFileName) throws IOException {
         Path tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         try {
             String finalFileOrNetworkName = fileOrNetworkName.replace('/', '_');
@@ -617,7 +617,7 @@ public class NetworkConversionService {
             }
 
             Path filePath;
-            if (fileNames.size() == 1) {
+            if (fileNames.size() == 1 && withNotZipFileName) {
                 filePath = tempDir.resolve(fileNames.iterator().next());
             } else {
                 filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
