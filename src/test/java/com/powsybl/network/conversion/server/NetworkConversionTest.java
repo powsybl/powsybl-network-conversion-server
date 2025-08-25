@@ -183,6 +183,17 @@ class NetworkConversionTest {
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.zip", VariantManagerConstants.INITIAL_VARIANT_ID)));
 
+            byte[] zipBytes = mvcResult.getResponse().getContentAsByteArray();
+            assertNotNull(zipBytes);
+            assertTrue(zipBytes.length > 0);
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+                while ((zis.getNextEntry()) != null) {
+                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
+                    assertTrue(content.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+                    assertTrue(content.contains("id=\"20140116_0830_2D4_UX1_pst\""));
+                }
+            }
+
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
