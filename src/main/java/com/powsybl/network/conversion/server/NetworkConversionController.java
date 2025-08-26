@@ -84,15 +84,21 @@ public class NetworkConversionController {
                                                              @Parameter(description = "Export format")@PathVariable("format") String format,
                                                              @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                             @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-                                                             ) {
-        LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
-                format,
-                () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
-        );
+                                                             @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters,
+                                                             @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
+                                                             @Parameter(description = "Is export running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
 
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8);
+        LOGGER.debug("Exporting network {}...", networkUuid, isAsyncRun ? "asynchronously" : "synchronously");
+        if (!isAsyncRun) {
+            ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
+                    format,
+                    () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+            );
+
+            return networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8);
+        }
+        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, formatParameters, receiver);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -104,13 +110,19 @@ public class NetworkConversionController {
     public ResponseEntity<InputStreamResource> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format")@PathVariable("format") String format,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
-        LOGGER.debug("Converting network {}...", caseUuid);
-        Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
-        if (exportNetworkInfos.isEmpty()) {
-            return ResponseEntity.notFound().build();
+                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters,
+                                              @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
+                                              @Parameter(description = "Is convert running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
+        LOGGER.debug("Converting network {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
+        if (!isAsyncRun) {
+            Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
+            if (exportNetworkInfos.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
         }
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
+        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, receiver);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping(value = "/export/formats")

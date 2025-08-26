@@ -10,6 +10,7 @@ package com.powsybl.network.conversion.server;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
+import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,10 +32,14 @@ public class NotificationService {
     public static final String HEADER_REPORT_UUID = "reportUuid";
     public static final String HEADER_NETWORK_ID = "networkId";
     public static final String HEADER_NETWORK_UUID = "networkUuid";
+    public static final String HEADER_NETWORK_NAME = "networkName";
     public static final String HEADER_RECEIVER = "receiver";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
+    public static final String HEADER_EXPORT_PARAMETERS = "importParameters";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
+    public static final String HEADER_NETWORK_FORMAT = "format";
     public static final String HEADER_CASE_NAME = "caseName";
+    public static final String HEADER_FILE_NAME = "fileName";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -47,6 +52,14 @@ public class NotificationService {
     private void sendCaseImportSucceededMessage(Message<String> message) {
         MESSAGE_OUTPUT_LOGGER.debug("Sending import succeeded message : {}", message);
         networkConversionPublisher.send("publishCaseImportSucceeded-out-0", message);
+    }
+
+    private void sendNetworkExportStartMessage(Message<UUID> message) {
+        networkConversionPublisher.send("publishNetworkExportStart-out-0", message);
+    }
+
+    private void sendNetworkExportSucceededMessage(Message<String> message) {
+        networkConversionPublisher.send("publishNetworkExportSucceeded-out-0", message);
     }
 
     public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
@@ -67,6 +80,45 @@ public class NotificationService {
                 .setHeader(HEADER_CASE_NAME, caseNameStr)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
+                .build());
+    }
+
+    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
+                .setHeader(HEADER_VARIANT_ID, variantId)
+                .setHeader(HEADER_NETWORK_FORMAT, format)
+                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_FILE_NAME, fileName)
+                .build());
+    }
+
+    public void emitNetworkExportSucceeded(ExportNetworkInfos networkInfos, String formatStr, String receiver, Map<String, Object> formatParameters) {
+        sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
+                .setHeader(HEADER_NETWORK_NAME, networkInfos.getNetworkName())
+                .setHeader(HEADER_FILE_NAME, networkInfos.getTempFilePath())
+                .setHeader(HEADER_NETWORK_FORMAT, formatStr)
+                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .build());
+    }
+
+    public void emitCaseExportStart(UUID networkUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
+                .setHeader(HEADER_NETWORK_FORMAT, format)
+                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_FILE_NAME, fileName)
+                .build());
+    }
+
+    public void emitCaseExportSucceeded(ExportNetworkInfos networkInfos, String formatStr, String receiver, Map<String, Object> formatParameters) {
+        sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
+                .setHeader(HEADER_NETWORK_NAME, networkInfos.getNetworkName())
+                .setHeader(HEADER_FILE_NAME, networkInfos.getTempFilePath())
+                .setHeader(HEADER_NETWORK_FORMAT, formatStr)
+                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }
 }
