@@ -176,7 +176,8 @@ class NetworkConversionTest {
             UUID notFoundNetworkUuid = UUID.randomUUID();
             given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
+                    .param("isAsyncRun", "false"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
@@ -194,13 +195,15 @@ class NetworkConversionTest {
                 }
             }
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
+                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
             String exported1 = mvcResult.getResponse().getContentAsString();
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id")
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
+                            .param("variantId", "second_variant_id").param("isAsyncRun", "false")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isOk())
@@ -215,7 +218,8 @@ class NetworkConversionTest {
             assertTrue(exported1.length() > exported2.length());
 
             //with fileName
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + "studyName_Root", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
+            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + "studyName_Root", UUID.randomUUID().toString(), "XIIDM")
+                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
@@ -224,12 +228,14 @@ class NetworkConversionTest {
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.zip"));
 
             // non existing variantId
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
+                            .param("variantId", "unknown_variant_id").param("isAsyncRun", "false"))
                 .andExpect(status().isNotFound())
                 .andReturn();
 
             // non existing format
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG")
+                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
 
@@ -672,6 +678,7 @@ class NetworkConversionTest {
 
             // convert to iidm
             MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -684,6 +691,7 @@ class NetworkConversionTest {
 
             // convert to biidm
             MvcResult mvcResult2 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
+                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -695,6 +703,7 @@ class NetworkConversionTest {
 
             // fail because case not found
             MvcResult fail = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
+                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -705,6 +714,7 @@ class NetworkConversionTest {
 
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
+                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -713,6 +723,7 @@ class NetworkConversionTest {
 
             // export case with an absolut path as fileName
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                            .param("isAsyncRun", "false")
                             .param("fileName", "/tmp/testCase")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -765,6 +776,7 @@ class NetworkConversionTest {
 
             // convert to cgmes
             MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
+                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
