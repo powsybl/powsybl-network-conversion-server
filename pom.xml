@@ -24,7 +24,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <gridsuite-dependencies.version>2.24.0</gridsuite-dependencies.version>
+        <powsybl-ws-dependencies.version>2.24.0</powsybl-ws-dependencies.version>
     </properties>
 
     <build>
