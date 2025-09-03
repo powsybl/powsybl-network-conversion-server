@@ -162,6 +162,14 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, formatParameters, receiver);
+    }
+
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        notificationService.emitCaseExportStart(caseUuid, fileName, format, formatParameters, receiver);
+    }
+
     Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
@@ -194,6 +202,55 @@ public class NetworkConversionService {
 
             NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
             notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
+        };
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeNetworkExportStart() {
+        return message -> {
+            UUID networkUuid = message.getPayload();
+            String format = message.getHeaders().get(NotificationService.HEADER_NETWORK_FORMAT, String.class);
+            String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
+            String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+
+            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+            Map<String, Object> formatParameters = new HashMap<>();
+            if (rawParameters != null) {
+                rawParameters.forEach((key, value) -> formatParameters.put(key, value.toString()));
+            }
+            LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
+            ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
+                    format,
+                    () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+            );
+            notificationService.emitNetworkExportSucceeded(exportNetworkInfos, format, receiver, formatParameters);
+        };
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseExportStart() {
+        return message -> {
+            UUID caseUuid = message.getPayload();
+            String format = message.getHeaders().get(NotificationService.HEADER_NETWORK_FORMAT, String.class);
+            String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+
+            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+            Map<String, Object> formatParameters = new HashMap<>();
+            if (rawParameters != null) {
+                rawParameters.forEach((key, value) -> formatParameters.put(key, value.toString()));
+            }
+            LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
+            ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
+                    format,
+                    () -> {
+                        Optional<ExportNetworkInfos> result = exportCase(caseUuid, format, fileName, formatParameters);
+                        return result.orElseThrow(() ->
+                                new ResponseStatusException(HttpStatus.NOT_FOUND));
+                    }
+            );
+            notificationService.emitCaseExportSucceeded(exportNetworkInfos, format, receiver, formatParameters);
         };
     }
 
