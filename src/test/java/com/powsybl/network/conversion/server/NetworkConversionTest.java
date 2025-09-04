@@ -670,6 +670,8 @@ class NetworkConversionTest {
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
 
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+
             // convert to iidm
             MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
@@ -762,6 +764,8 @@ class NetworkConversionTest {
             mockCaseExist("iidm", caseUuid, true);
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
+
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
             // convert to cgmes
             MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
