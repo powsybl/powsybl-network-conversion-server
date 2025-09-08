@@ -65,6 +65,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
@@ -363,8 +364,16 @@ public class NetworkConversionService {
     public Optional<ExportNetworkInfos> exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) throws IOException {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
+
+        // build import properties to import all available extensions
+        // TODO : Check at next powsybl upgrade if this code is still required. To be removed if not useful anymore
+        Properties importProperties = new Properties();
+        ImportExportFormatMeta caseImportParameters = getCaseImportParameters(caseUuid);
+        Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
+        paramExtensions.ifPresent(paramMeta -> importProperties.put(paramMeta.getName(), paramMeta.getPossibleValues()));
+
         Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
-            new Properties(), NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
+            importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
         long networkSize = network.getBusView().getBusStream().count();
         return Optional.of(getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true));
