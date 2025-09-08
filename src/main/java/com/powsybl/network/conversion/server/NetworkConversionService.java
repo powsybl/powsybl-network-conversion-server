@@ -365,7 +365,8 @@ public class NetworkConversionService {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
 
-        // build import properties to import all possible extensions
+        // build import properties to import all available extensions
+        // TODO : Check at next powsybl upgrade if this code is still required. To be removed if not useful anymore
         Properties importProperties = new Properties();
         ImportExportFormatMeta caseImportParameters = getCaseImportParameters(caseUuid);
         Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
