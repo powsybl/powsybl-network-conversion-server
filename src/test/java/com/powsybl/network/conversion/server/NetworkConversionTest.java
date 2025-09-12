@@ -158,7 +158,6 @@ class NetworkConversionTest {
                 .param("reportUuid", UUID.randomUUID().toString())
                 .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
-
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "second_variant_id")
@@ -244,7 +243,7 @@ class NetworkConversionTest {
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
-            mvc.perform(asyncDispatch(mvcResult))
+            mvcResult = mvc.perform(asyncDispatch(mvcResult))
                 .andExpect(status().isNotFound())
                 .andReturn();
 
@@ -252,7 +251,7 @@ class NetworkConversionTest {
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
                 .andExpect(request().asyncStarted())
                 .andReturn();
-            mvc.perform(asyncDispatch(mvcResult))
+            mvcResult = mvc.perform(asyncDispatch(mvcResult))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
 
@@ -323,8 +322,8 @@ class NetworkConversionTest {
                             .param("caseFormat", "XIIDM"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
-            mvc.perform(asyncDispatch(mvcResult))
-                    .andExpect(status().isInternalServerError());
+            mvcResult = mvc.perform(asyncDispatch(mvcResult))
+                    .andExpect(status().isInternalServerError()).andReturn();
         }
     }
 
@@ -490,7 +489,7 @@ class NetworkConversionTest {
                 .content(new ObjectMapper().writeValueAsString(boundaries)))
                 .andExpect(request().asyncStarted())
                 .andReturn();
-        mvc.perform(asyncDispatch(mvcResult))
+        mvcResult = mvc.perform(asyncDispatch(mvcResult))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -543,7 +542,7 @@ class NetworkConversionTest {
             .param("caseFormat", "XIIDM"))
             .andExpect(request().asyncStarted())
             .andReturn();
-        mvc.perform(asyncDispatch(mvcResult))
+        mvcResult = mvc.perform(asyncDispatch(mvcResult))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -714,7 +713,7 @@ class NetworkConversionTest {
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
-            mvc.perform(asyncDispatch(mvcResult1))
+            mvcResult1 = mvc.perform(asyncDispatch(mvcResult1))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -756,7 +755,7 @@ class NetworkConversionTest {
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
-            mvc.perform(asyncDispatch(fail))
+            fail = mvc.perform(asyncDispatch(fail))
                 .andExpect(status().isInternalServerError())
                 .andReturn();
 
@@ -767,7 +766,7 @@ class NetworkConversionTest {
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
-            mvc.perform(asyncDispatch(mvcResult))
+            mvcResult = mvc.perform(asyncDispatch(mvcResult))
                     .andExpect(status().isOk())
                     .andReturn();
 
