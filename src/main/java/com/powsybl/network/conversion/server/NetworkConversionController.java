@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.xml.stream.XMLStreamException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -53,7 +54,7 @@ public class NetworkConversionController {
 
     @PostMapping(value = "/networks")
     @Operation(summary = "Get a case file from its name and import it into the store")
-    public ResponseEntity<NetworkInfos> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
+    public CompletableFuture<ResponseEntity<NetworkInfos>> importCase(@Parameter(description = "Case UUID") @RequestParam("caseUuid") UUID caseUuid,
                                                    @Parameter(description = "Case format") @RequestParam(name = "caseFormat") String caseFormat,
                                                    @Parameter(description = "Variant ID") @RequestParam(name = "variantId", required = false) String variantId,
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid", required = false) UUID reportUuid,
@@ -63,12 +64,13 @@ public class NetworkConversionController {
         LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? "asynchronously" : "synchronously");
         Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
-            NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters);
-            return ResponseEntity.ok().body(networkInfos);
+            return networkConversionService.importCase(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters)
+                    .thenApply(networkInfos ->
+                        ResponseEntity.ok().body(networkInfos));
         }
 
         networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters, receiver);
-        return ResponseEntity.ok().build();
+        return CompletableFuture.completedFuture(ResponseEntity.ok().build());
     }
 
     // Swagger RequestBody interferes badly with Spring RequestBody where required is false.
@@ -80,19 +82,14 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<InputStreamResource> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
+    public CompletableFuture<ResponseEntity<InputStreamResource>> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                                              @Parameter(description = "Export format")@PathVariable("format") String format,
                                                              @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                             @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
-                                                             ) {
+                                                             @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
-                format,
-                () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
-        );
-
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8);
+        return networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+                .thenApply(exportNetworkInfos -> networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8));
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -101,16 +98,18 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<InputStreamResource> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+    public CompletableFuture<ResponseEntity<InputStreamResource>> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format")@PathVariable("format") String format,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Converting network {}...", caseUuid);
-        Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
-        if (exportNetworkInfos.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
+        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters)
+                .thenApply(exportNetworkInfos -> {
+                    if (exportNetworkInfos.isEmpty()) {
+                        return ResponseEntity.notFound().build();
+                    }
+                    return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
+                });
     }
 
     @GetMapping(value = "/export/formats")
@@ -141,11 +140,11 @@ public class NetworkConversionController {
 
     @PostMapping(value = "/networks/cgmes")
     @Operation(summary = "Import a cgmes case into the store, using provided boundaries")
-    public ResponseEntity<NetworkInfos> importCgmesCase(@RequestParam("caseUuid") UUID caseUuid,
+    public CompletableFuture<ResponseEntity<NetworkInfos>> importCgmesCase(@RequestParam("caseUuid") UUID caseUuid,
                                                         @RequestBody(required = false) List<BoundaryInfos> boundaries) {
         LOGGER.debug("Importing cgmes case {}...", caseUuid);
-        var networkInfos = networkConversionService.importCgmesCase(caseUuid, boundaries);
-        return ResponseEntity.ok().body(networkInfos);
+        return networkConversionService.importCgmesCase(caseUuid, boundaries)
+                .thenApply(networkInfos -> ResponseEntity.ok().body(networkInfos));
     }
 
     @PostMapping(value = "/networks/{networkUuid}/reindex-all")

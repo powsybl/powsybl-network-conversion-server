@@ -193,7 +193,8 @@ public class NetworkConversionService {
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
-            NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+            NetworkInfos networkInfos;
+            networkInfos = importCaseBlocking(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
             notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
     }
@@ -233,7 +234,17 @@ public class NetworkConversionService {
         return new NetworkInfos(networkUuid, network.getId());
     }
 
-    public NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+    public CompletableFuture<NetworkInfos> importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+        return importExportExecutionService.supplyAsync(() -> {
+            try {
+                return importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters);
+            } catch (Exception e) {
+                throw NetworkConversionException.createFailedCaseImport(e);
+            }
+        });
+    }
+
+    public NetworkInfos importCaseBlocking(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         try {
             return importExportExecutionService.supplyAsync(() -> importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters)).join();
         } catch (CompletionException e) {
@@ -326,39 +337,35 @@ public class NetworkConversionService {
         return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
     }
 
-    public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
+    public CompletableFuture<ExportNetworkInfos> exportNetwork(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) {
-        try {
-            return importExportExecutionService.supplyAsync(() -> {
-                try {
-                    return exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters);
-                } catch (IOException e) {
-                    throw NetworkConversionException.createFailedCaseExport(e);
+        return importExportExecutionService.supplyAsync(() ->
+            networkConversionObserver.observeExport(
+                format,
+                () -> {
+                    try {
+                        return exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters);
+                    } catch (Exception e) {
+                        if (e instanceof NetworkConversionException exception) {
+                            throw exception;
+                        }
+                        throw NetworkConversionException.createFailedCaseExport(e);
+                    }
                 }
-            }).join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NetworkConversionException exception) {
-                throw exception;
-            }
-            throw NetworkConversionException.createFailedCaseExport(e);
-        }
+        ));
     }
 
-    public Optional<ExportNetworkInfos> exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
-        try {
-            return importExportExecutionService.supplyAsync(() -> {
-                try {
-                    return exportCaseExec(caseUuid, format, fileName, formatParameters);
-                } catch (IOException e) {
-                    throw NetworkConversionException.createFailedCaseExport(e);
+    public CompletableFuture<Optional<ExportNetworkInfos>> exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+        return importExportExecutionService.supplyAsync(() -> {
+            try {
+                return exportCaseExec(caseUuid, format, fileName, formatParameters);
+            } catch (Exception e) {
+                if (e instanceof NetworkConversionException exception) {
+                    throw exception;
                 }
-            }).join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NetworkConversionException exception) {
-                throw exception;
+                throw NetworkConversionException.createFailedCaseExport(e);
             }
-            throw NetworkConversionException.createFailedCaseExport(e);
-        }
+        });
     }
 
     public Optional<ExportNetworkInfos> exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) throws IOException {
@@ -450,7 +457,7 @@ public class NetworkConversionService {
         return context;
     }
 
-    NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
+    CompletableFuture<NetworkInfos> importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         String caseFormat = "CGMES";
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
             return importCase(caseUuid, null, UUID.randomUUID(), caseFormat, new HashMap<>());
@@ -458,7 +465,8 @@ public class NetworkConversionService {
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
             Network network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource));
             UUID networkUuid = networkStoreService.getNetworkUuid(network);
-            return new NetworkInfos(networkUuid, network.getId());
+            // TODO this should be in the conversion executor
+            return CompletableFuture.completedFuture(new NetworkInfos(networkUuid, network.getId()));
         }
     }
 
