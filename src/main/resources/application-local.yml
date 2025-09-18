@@ -2,6 +2,15 @@ server:
   port: 5003
 
 spring:
+  cloud:
+    aws:
+      endpoint: http://localhost:19000
+      region:
+        static: test
+      bucket: ws-bucket
+      credentials:
+        access-key: s3username
+        secret-key: s3password
   rabbitmq:
     addresses: localhost
   elasticsearch:

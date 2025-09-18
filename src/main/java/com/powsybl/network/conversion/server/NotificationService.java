@@ -40,6 +40,13 @@ public class NotificationService {
     public static final String HEADER_NETWORK_FORMAT = "format";
     public static final String HEADER_CASE_NAME = "caseName";
     public static final String HEADER_FILE_NAME = "fileName";
+    public static final String HEADER_STUDY_UUID = "studyUuid";
+    public static final String HEADER_NODE_UUID = "nodeUuid";
+    private static final String HEADER_USER_ID = "userId";
+    private static final String HEADER_ROOT_NETWORK_UUID = "rootNetworkUuid";
+    private static final String HEADER_FORMAT = "format";
+    private static final String HEADER_EXPORT_UUID = "exportUuid";
+    private static final String HEADER_ERROR = "error";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -55,11 +62,23 @@ public class NotificationService {
     }
 
     private void sendNetworkExportStartMessage(Message<UUID> message) {
+        MESSAGE_OUTPUT_LOGGER.debug("Sending export network start message : {}", message);
         networkConversionPublisher.send("publishNetworkExportStart-out-0", message);
     }
 
     private void sendNetworkExportSucceededMessage(Message<String> message) {
+        MESSAGE_OUTPUT_LOGGER.debug("Sending export network succeeded message : {}", message);
         networkConversionPublisher.send("publishNetworkExportSucceeded-out-0", message);
+    }
+
+    private void sendCaseExportStartMessage(Message<UUID> message) {
+        MESSAGE_OUTPUT_LOGGER.debug("Sending export case start message : {}", message);
+        networkConversionPublisher.send("publishCaseExportStart-out-0", message);
+    }
+
+    private void sendCaseExportSucceededMessage(Message<String> message) {
+        MESSAGE_OUTPUT_LOGGER.debug("Sending export case succeeded message : {}", message);
+        networkConversionPublisher.send("publishCaseExportSucceeded-out-0", message);
     }
 
     public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
@@ -86,25 +105,30 @@ public class NotificationService {
     public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
         sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
-                .setHeader(HEADER_NETWORK_FORMAT, format)
-                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
-                .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_FILE_NAME, fileName)
-                .build());
-    }
-
-    public void emitNetworkExportSucceeded(ExportNetworkInfos networkInfos, String formatStr, String receiver, Map<String, Object> formatParameters) {
-        sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
-                .setHeader(HEADER_NETWORK_NAME, networkInfos.getNetworkName())
-                .setHeader(HEADER_FILE_NAME, networkInfos.getTempFilePath())
-                .setHeader(HEADER_NETWORK_FORMAT, formatStr)
+                .setHeader(HEADER_NETWORK_FORMAT, format)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }
 
-    public void emitCaseExportStart(UUID networkUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
-        sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
+    public void emitNetworkExportSucceeded(UUID networkUuid, UUID studyUuid, UUID nodeUuid, UUID rootNetworkUuid, String fileName,
+                                           String format, String userId, UUID exportUuid, String error) {
+        sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
+                .setHeader(HEADER_NETWORK_UUID, networkUuid)
+                .setHeader(HEADER_STUDY_UUID, studyUuid)
+                .setHeader(HEADER_NODE_UUID, nodeUuid)
+                .setHeader(HEADER_ROOT_NETWORK_UUID, rootNetworkUuid)
+                .setHeader(HEADER_FILE_NAME, fileName)
+                .setHeader(HEADER_FORMAT, format)
+                .setHeader(HEADER_USER_ID, userId)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_ERROR, error)
+                .build());
+    }
+
+    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_NETWORK_FORMAT, format)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .setHeader(HEADER_RECEIVER, receiver)
@@ -113,7 +137,7 @@ public class NotificationService {
     }
 
     public void emitCaseExportSucceeded(ExportNetworkInfos networkInfos, String formatStr, String receiver, Map<String, Object> formatParameters) {
-        sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
+        sendCaseExportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_NAME, networkInfos.getNetworkName())
                 .setHeader(HEADER_FILE_NAME, networkInfos.getTempFilePath())
                 .setHeader(HEADER_NETWORK_FORMAT, formatStr)
