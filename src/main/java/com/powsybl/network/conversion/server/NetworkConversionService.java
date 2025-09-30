@@ -639,7 +639,9 @@ public class NetworkConversionService {
             }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
-            cleanupTempFiles(tempDir);
+            if (tempDir != null) {
+                cleanupTempFiles(tempDir);
+            }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
     }
