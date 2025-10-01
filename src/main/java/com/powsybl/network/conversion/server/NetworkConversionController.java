@@ -103,11 +103,8 @@ public class NetworkConversionController {
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Converting network {}...", caseUuid);
-        Optional<ExportNetworkInfos> exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
-        if (exportNetworkInfos.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCase(caseUuid, format, fileName, formatParameters);
+        return networkConversionService.createExportNetworkResponse(exportNetworkInfos, null);
     }
 
     @GetMapping(value = "/export/formats")
