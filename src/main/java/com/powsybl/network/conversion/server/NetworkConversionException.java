@@ -6,6 +6,7 @@
  */
 package com.powsybl.network.conversion.server;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 import java.util.Objects;
@@ -15,13 +16,19 @@ import java.util.UUID;
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
+@Getter
 public final class NetworkConversionException extends RuntimeException {
 
     public enum Type {
+        UNSUPPORTED_HYBRID_HVDC(HttpStatus.INTERNAL_SERVER_ERROR),
         UNSUPPORTED_FORMAT(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_EQUIPMENT_TYPE(HttpStatus.INTERNAL_SERVER_ERROR),
         UNKNOWN_VARIANT_ID(HttpStatus.NOT_FOUND),
-        FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_NETWORK_SAVING(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_COPY_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -41,16 +48,17 @@ public final class NetworkConversionException extends RuntimeException {
         this.type = Objects.requireNonNull(type);
     }
 
+    private NetworkConversionException(Type type, Throwable cause) {
+        super(cause);
+        this.type = type;
+    }
+
     private NetworkConversionException(Type type, String msg, Exception cause) {
         super(msg, cause);
         this.type = type;
     }
 
-    public Type getType() {
-        return type;
-    }
-
-    public static NetworkConversionException createFormatUnsupported(String format) {
+    public static NetworkConversionException createUnsupportedFormat(String format) {
         Objects.requireNonNull(format);
         return new NetworkConversionException(Type.UNSUPPORTED_FORMAT, "The format: " + format + " is unsupported");
     }
@@ -67,5 +75,26 @@ public final class NetworkConversionException extends RuntimeException {
 
     public static NetworkConversionException createFailedNetworkSaving(UUID networkUuid, Exception cause) {
         return new NetworkConversionException(Type.FAILED_NETWORK_SAVING, String.format("The save of network '%s' has failed", networkUuid), cause);
+    }
+
+    public static NetworkConversionException createFailedCaseImport(Throwable cause) {
+        return new NetworkConversionException(Type.FAILED_CASE_IMPORT, cause);
+    }
+
+    public static NetworkConversionException createFailedCaseExport(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_CASE_EXPORT, "Case export failed", cause);
+    }
+
+    public static NetworkConversionException failedToStreamNetworkToFile(Exception cause) {
+        return new NetworkConversionException(Type.FAILED_COPY_TMP_FILE, "Failed to stream network to file", cause);
+    }
+
+    public static NetworkConversionException createHybridHvdcUnsupported(String hvdcId) {
+        Objects.requireNonNull(hvdcId);
+        return new NetworkConversionException(Type.UNSUPPORTED_HYBRID_HVDC, String.format("The hybrid Hvdc line %s is unsupported", hvdcId));
+    }
+
+    public static NetworkConversionException createFailedNetworkReindex(UUID networkUuid, Exception cause) {
+        return new NetworkConversionException(Type.FAILED_NETWORK_REINDEX, String.format("Reindex of network '%s' has failed", networkUuid), cause);
     }
 }

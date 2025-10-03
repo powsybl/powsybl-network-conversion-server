@@ -32,7 +32,6 @@ public class NotificationService {
     public static final String HEADER_NETWORK_ID = "networkId";
     public static final String HEADER_NETWORK_UUID = "networkUuid";
     public static final String HEADER_RECEIVER = "receiver";
-    public static final String HEADER_ERROR_MESSAGE = "errorMessage";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
     public static final String HEADER_CASE_NAME = "caseName";
@@ -48,11 +47,6 @@ public class NotificationService {
     private void sendCaseImportSucceededMessage(Message<String> message) {
         MESSAGE_OUTPUT_LOGGER.debug("Sending import succeeded message : {}", message);
         networkConversionPublisher.send("publishCaseImportSucceeded-out-0", message);
-    }
-
-    private void sendCaseImportFailedMessage(Message<String> message) {
-        MESSAGE_OUTPUT_LOGGER.debug("Sending import failed message : {}", message);
-        networkConversionPublisher.send("publishCaseImportFailed-out-0", message);
     }
 
     public void emitCaseImportStart(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
@@ -73,13 +67,6 @@ public class NotificationService {
                 .setHeader(HEADER_CASE_NAME, caseNameStr)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
-                .build());
-    }
-
-    public void emitCaseImportFailed(String receiver, String errorMessage) {
-        sendCaseImportFailedMessage(MessageBuilder.withPayload("")
-                .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_ERROR_MESSAGE, errorMessage)
                 .build());
     }
 }

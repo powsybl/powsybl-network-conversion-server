@@ -17,25 +17,23 @@ import com.powsybl.network.conversion.server.dto.VoltageLevelInfos;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
  */
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-public class EquipmentInfosServiceTests {
+class EquipmentInfosServiceTests {
 
     private static final String TEST_FILE = "testCase.xiidm";
 
@@ -44,16 +42,13 @@ public class EquipmentInfosServiceTests {
     @Autowired
     private EquipmentInfosService equipmentInfosService;
 
-    @Autowired
-    private NetworkConversionService networkConversionService;
-
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         equipmentInfosService.deleteAllOnInitialVariant(NETWORK_UUID);
     }
 
     @Test
-    public void testAddDeleteEquipmentInfos() {
+    void testAddDeleteEquipmentInfos() {
         List<EquipmentInfos> infos = List.of(
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
             EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
@@ -80,7 +75,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testEquipmentInfos() {
+    void testEquipmentInfos() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
         UUID networkUuid = UUID.randomUUID();
@@ -176,7 +171,7 @@ public class EquipmentInfosServiceTests {
                 .variantId(VariantManagerConstants.INITIAL_VARIANT_ID)
                 .id("FRA1AA_BBE1AA_hvdcline")
                 .name("FRA1AA_BBE1AA_hvdcline")
-                .type(IdentifiableType.HVDC_LINE.name())
+                .type(getEquipmentTypeName(hvdcLine))
                 .voltageLevels(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()))
                 .substations(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
@@ -241,7 +236,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testVoltageLevels() {
+    void testVoltageLevels() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
@@ -265,7 +260,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testSubstations() {
+    void testSubstations() {
         ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
         Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
@@ -282,7 +277,7 @@ public class EquipmentInfosServiceTests {
     }
 
     @Test
-    public void testBadEquipmentType() {
+    void testBadEquipmentType() {
         Identifiable<Network> network = new NetworkFactoryImpl().createNetwork("test", "test");
 
         String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getVoltageLevelsInfos(network)).getMessage();
@@ -290,5 +285,39 @@ public class EquipmentInfosServiceTests {
 
         errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getSubstationsInfos(network)).getMessage();
         assertTrue(errorMessage.contains(String.format("The equipment type : %s is unknown", NetworkImpl.class.getSimpleName())));
+    }
+
+    @Test
+    void testUnsupportedHybridHvdc() {
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", TEST_FILE));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+
+        assertEquals(String.format("%s_%s", IdentifiableType.HVDC_LINE, HvdcConverterStation.HvdcType.VSC), EquipmentInfos.getEquipmentTypeName(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
+        network.getVoltageLevel("FRA1AA1").newVscConverterStation()
+            .setId("vsc")
+            .setNode(10)
+            .setLossFactor(1.1f)
+            .setVoltageSetpoint(405.0)
+            .setVoltageRegulatorOn(true)
+            .add();
+        network.getVoltageLevel("BBE1AA5").newLccConverterStation()
+            .setId("lcc")
+            .setNode(20)
+            .setLossFactor(1.1f)
+            .setPowerFactor(0.5f)
+            .add();
+        HvdcLine hvdcLine = network.newHvdcLine()
+            .setId("HVDC")
+            .setConverterStationId1("vsc")
+            .setConverterStationId2("lcc")
+            .setR(1)
+            .setNominalV(400)
+            .setConvertersMode(HvdcLine.ConvertersMode.SIDE_1_INVERTER_SIDE_2_RECTIFIER)
+            .setMaxP(300.0)
+            .setActivePowerSetpoint(280)
+            .add();
+
+        String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getEquipmentTypeName(hvdcLine)).getMessage();
+        assertEquals(NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId()).getMessage(), errorMessage);
     }
 }

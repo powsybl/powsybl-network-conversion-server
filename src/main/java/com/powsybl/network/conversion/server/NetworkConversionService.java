@@ -4,7 +4,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-
 package com.powsybl.network.conversion.server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -13,30 +12,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.cgmes.conversion.export.CgmesExportContext;
 import com.powsybl.cgmes.conversion.export.StateVariablesExport;
-import com.powsybl.cgmes.extensions.CgmesMetadataModels;
-import com.powsybl.cgmes.model.CgmesMetadataModel;
-import com.powsybl.cgmes.model.CgmesSubset;
 import com.powsybl.commons.PowsyblException;
-import com.powsybl.commons.datasource.MemDataSource;
+import com.powsybl.commons.datasource.DataSourceUtil;
+import com.powsybl.commons.datasource.DirectoryDataSource;
 import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.commons.report.ReportNodeDeserializer;
 import com.powsybl.commons.report.ReportNodeJsonModule;
 import com.powsybl.commons.xml.XmlUtil;
+import com.powsybl.computation.local.LocalComputationManager;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
@@ -50,8 +49,14 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,8 +65,11 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
+import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -74,11 +82,21 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    private static final String IMPORT_TYPE_REPORT = "ImportNetwork";
+    public static final Set<IdentifiableType> TYPES_FOR_INDEXING = Set.of(
+            IdentifiableType.SUBSTATION,
+            IdentifiableType.VOLTAGE_LEVEL,
+            IdentifiableType.HVDC_LINE,
+            IdentifiableType.LINE,
+            IdentifiableType.TWO_WINDINGS_TRANSFORMER,
+            IdentifiableType.THREE_WINDINGS_TRANSFORMER,
+            IdentifiableType.GENERATOR,
+            IdentifiableType.BATTERY,
+            IdentifiableType.LOAD,
+            IdentifiableType.SHUNT_COMPENSATOR,
+            IdentifiableType.DANGLING_LINE,
+            IdentifiableType.STATIC_VAR_COMPENSATOR,
+            IdentifiableType.HVDC_CONVERTER_STATION);
 
-    // Temporary fix to override default import parameter from Powsybl while merge is not implemented in the network-store
-    public static final Map<String, Object> IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE = Map.of("iidm.import.cgmes.cgm-with-subnetworks", false);
-    private static final Set<IdentifiableType> EXCLUDED_TYPES_FOR_INDEXING = Set.of(IdentifiableType.SWITCH);
     private RestTemplate caseServerRest;
 
     private RestTemplate geoDataServerRest;
@@ -93,11 +111,11 @@ public class NetworkConversionService {
 
     private final NotificationService notificationService;
 
+    private final ImportExportExecutionService importExportExecutionService;
     private final NetworkConversionObserver networkConversionObserver;
 
     private final ObjectMapper objectMapper;
 
-    @Autowired
     public NetworkConversionService(@Value("${powsybl.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
@@ -105,12 +123,14 @@ public class NetworkConversionService {
                                     EquipmentInfosService equipmentInfosService,
                                     NetworkConversionExecutionService networkConversionExecutionService,
                                     NotificationService notificationService,
-                                    NetworkConversionObserver networkConversionObserver) {
+                                    NetworkConversionObserver networkConversionObserver,
+                                    ImportExportExecutionService importExportExecutionService) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
         this.networkConversionObserver = networkConversionObserver;
+        this.importExportExecutionService = importExportExecutionService;
 
         RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
@@ -133,7 +153,7 @@ public class NetworkConversionService {
             .variantId(variantId)
             .id(i.getId())
             .name(i.getNameOrId())
-            .type(i.getType().name())
+            .type(getEquipmentTypeName(i))
             .voltageLevels(EquipmentInfos.getVoltageLevelsInfos(i))
             .substations(EquipmentInfos.getSubstationsInfos(i))
             .build();
@@ -149,7 +169,7 @@ public class NetworkConversionService {
         importer.getParameters()
                 .stream()
                 .forEach(parameter -> defaultValues.put(parameter.getName(),
-                        parameter.getDefaultValue() != null ? IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(parameter.getName(), parameter.getDefaultValue()).toString() : ""));
+                        parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
         return defaultValues;
     }
 
@@ -172,52 +192,58 @@ public class NetworkConversionService {
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
-            IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.entrySet().stream()
-                    .filter(entry -> allImportParameters.containsKey(entry.getKey()))
-                    .forEach(entry -> changedImportParameters.putIfAbsent(entry.getKey(), entry.getValue()));
 
-            try {
-                NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
-                notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
-            } catch (Exception e) {
-                LOGGER.error(e.getMessage(), e);
-                notificationService.emitCaseImportFailed(receiver, e.getMessage());
-            }
+            NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+            notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
     }
 
-    NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+    private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-
         ReportNode rootReport = ReportNode.NO_OP;
         ReportNode reporter = ReportNode.NO_OP;
         if (reportUuid != null) {
-            String reporterId = "Root@" + IMPORT_TYPE_REPORT;
+            String reporterId = "Root";
             rootReport = ReportNode.newRootReportNode()
-                    .withMessageTemplate(reporterId, reporterId)
+                    .withAllResourceBundlesFromClasspath()
+                    .withMessageTemplate("network.conversion.server.reporterId")
+                    .withUntypedValue("reporterId", reporterId)
                     .build();
 
             String subReporterId = "Import Case : " + dataSource.getBaseName();
             reporter = rootReport.newReportNode()
-                    .withMessageTemplate(subReporterId, subReporterId)
+                    .withMessageTemplate("network.conversion.server.subReporterId")
+                    .withUntypedValue("subReporterId", subReporterId)
                     .add();
-
         }
 
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        Network network;
         ReportNode finalReporter = reporter;
-        if (!importParameters.isEmpty()) {
-            Properties importProperties = new Properties();
-            importProperties.putAll(importParameters);
-            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false));
-        } else {
-            network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource, finalReporter, false));
-        }
+        Network network = networkConversionObserver.observeImportProcessing(caseFormat, () -> {
+            if (!importParameters.isEmpty()) {
+                Properties importProperties = new Properties();
+                importProperties.putAll(importParameters);
+                return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
+            } else {
+                return networkStoreService.importNetwork(dataSource, finalReporter, false);
+            }
+        });
         UUID networkUuid = networkStoreService.getNetworkUuid(network);
         LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         saveNetwork(network, networkUuid, variantId, rootReport, reportUuid);
         return new NetworkInfos(networkUuid, network.getId());
+    }
+
+    public NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
+        try {
+            return networkConversionObserver.observeImportTotal(caseFormat, () ->
+                    importExportExecutionService.supplyAsync(() ->
+                            importCaseExec(caseUuid, variantId, reportUuid, caseFormat, importParameters)
+                    ).join()
+            );
+        } catch (CompletionException e) {
+            throw NetworkConversionException.createFailedCaseImport(e.getCause());
+        }
     }
 
     private void saveNetwork(Network network, UUID networkUuid, String variantId, ReportNode reporter, UUID reportUuid) {
@@ -281,62 +307,83 @@ public class NetworkConversionService {
 
     private Network getNetwork(UUID networkUuid) {
         try {
-            return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.COLLECTION);
+            return networkStoreService.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW);
         } catch (PowsyblException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Network '" + networkUuid + "' not found");
         }
     }
 
-    ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId,
-        String format, Map<String, Object> formatParameters) throws IOException {
-        if (!Exporter.getFormats().contains(format)) {
-            throw NetworkConversionException.createFormatUnsupported(format);
-        }
-        MemDataSource memDataSource = new MemDataSource();
-        Properties exportProperties = null;
-        if (formatParameters != null) {
-            exportProperties = new Properties();
-            exportProperties.putAll(formatParameters);
-        }
-
-        Network network = getNetwork(networkUuid);
-        if (variantId != null) {
-            if (network.getVariantManager().getVariantIds().contains(variantId)) {
-                network.getVariantManager().setWorkingVariant(variantId);
-            } else {
-                throw NetworkConversionException.createVariantIdUnknown(variantId);
+    private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
+        String format, Map<String, Object> formatParameters) {
+        Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
+        return networkConversionObserver.observeExportProcessing(format, () -> {
+            Network network = getNetwork(networkUuid);
+            if (variantId != null) {
+                if (network.getVariantManager().getVariantIds().contains(variantId)) {
+                    network.getVariantManager().setWorkingVariant(variantId);
+                } else {
+                    throw NetworkConversionException.createVariantIdUnknown(variantId);
+                }
             }
-        }
-
-        network.write(format, exportProperties, memDataSource);
-
-        Set<String> listNames = memDataSource.listNames(".*");
-        String networkName;
-        byte[] networkData;
-        networkName = network.getNameOrId();
-        networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
-        if (listNames.size() == 1) {
-            networkName += listNames.toArray()[0];
-            networkData = memDataSource.getData(listNames.toArray()[0].toString());
-        } else {
-            networkName += ".zip";
-            networkData = createZipFile(listNames.toArray(new String[0]), memDataSource).toByteArray();
-        }
-        long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(networkName, networkData, networkSize);
+            String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
+            long networkSize = network.getBusView().getBusStream().count();
+            return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
+        });
     }
 
-    ByteArrayOutputStream createZipFile(String[] listNames, MemDataSource dataSource) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
-            for (String listName : listNames) {
-                ZipEntry entry = new ZipEntry(listName);
-                zos.putNextEntry(entry);
-                zos.write(dataSource.getData(listName));
-                zos.closeEntry();
+    public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
+        String format, Map<String, Object> formatParameters) {
+        try {
+            return networkConversionObserver.observeExportTotal(format, () ->
+                    importExportExecutionService.supplyAsync(() ->
+                        exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)).join()
+            );
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NetworkConversionException exception) {
+                throw exception;
             }
+            throw NetworkConversionException.createFailedCaseExport(e);
         }
-        return baos;
+    }
+
+    public ExportNetworkInfos exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+        try {
+            return networkConversionObserver.observeExportTotal(format, () ->
+                    importExportExecutionService.supplyAsync(() ->
+                        exportCaseExec(caseUuid, format, fileName, formatParameters)).join()
+            );
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NetworkConversionException exception) {
+                throw exception;
+            }
+            throw NetworkConversionException.createFailedCaseExport(e);
+        }
+    }
+
+    public ExportNetworkInfos exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+        Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
+        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
+
+        // build import properties to import all available extensions
+        // TODO : Check at next powsybl upgrade if this code is still required. To be removed if not useful anymore
+        Properties importProperties = new Properties();
+        ImportExportFormatMeta caseImportParameters = getCaseImportParameters(caseUuid);
+        Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
+        paramExtensions.ifPresent(paramMeta -> importProperties.put(paramMeta.getName(), paramMeta.getPossibleValues()));
+
+        return networkConversionObserver.observeExportProcessing(format, () -> {
+            Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
+                    importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
+            String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
+            long networkSize = network.getBusView().getBusStream().count();
+            return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
+        });
+    }
+
+    private String getNetworkName(Network network, String variantId) {
+        String networkName = network.getNameOrId();
+        networkName += "_" + (variantId == null ? VariantManagerConstants.INITIAL_VARIANT_ID : variantId);
+        return networkName;
     }
 
     Map<String, ImportExportFormatMeta> getAvailableFormat() {
@@ -359,9 +406,7 @@ public class NetworkConversionService {
         List<ParamMeta> paramsMeta = importer.getParameters()
                 .stream()
                 .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
-                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(),
-                        IMPORT_PARAMETERS_DEFAULT_VALUE_OVERRIDE.getOrDefault(pp.getName(), pp.getDefaultValue()),
-                        pp.getPossibleValues()))
+                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
                 .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
     }
@@ -379,6 +424,10 @@ public class NetworkConversionService {
     }
 
     public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
+        return networkConversionObserver.observeExportTotal("CGMES", () -> exportCgmesSvExec(networkUuid));
+    }
+
+    public ExportNetworkInfos exportCgmesSvExec(UUID networkUuid) throws XMLStreamException {
         Network network = getNetwork(networkUuid);
 
         Properties properties = new Properties();
@@ -402,14 +451,6 @@ public class NetworkConversionService {
     private static CgmesExportContext createContext(Network network) {
         CgmesExportContext context = new CgmesExportContext();
         context.setScenarioTime(network.getCaseDate());
-        Optional<CgmesMetadataModel> cgmesMetadataModelOpt = network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STATE_VARIABLES);
-        if (cgmesMetadataModelOpt.isPresent()) {
-            context.getExportedSVModel().addDependentOn(cgmesMetadataModelOpt.get().getId());
-        }
-        cgmesMetadataModelOpt = network.getExtension(CgmesMetadataModels.class).getModelForSubset(CgmesSubset.STEADY_STATE_HYPOTHESIS);
-        if (cgmesMetadataModelOpt.isPresent()) {
-            context.getExportedSSHModel().addDependentOn(cgmesMetadataModelOpt.get().getId());
-        }
         context.addIidmMappings(network);
         return context;
     }
@@ -420,7 +461,7 @@ public class NetworkConversionService {
             return importCase(caseUuid, null, UUID.randomUUID(), caseFormat, new HashMap<>());
         } else {  // import using the given boundaries
             CaseDataSourceClient dataSource = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
-            Network network = networkConversionObserver.observeImport(caseFormat, () -> networkStoreService.importNetwork(dataSource));
+            Network network = networkConversionObserver.observeImportTotal(caseFormat, () -> networkStoreService.importNetwork(dataSource));
             UUID networkUuid = networkStoreService.getNetworkUuid(network);
             return new NetworkInfos(networkUuid, network.getId());
         }
@@ -442,15 +483,16 @@ public class NetworkConversionService {
     private void insertEquipmentIndexes(Network network, UUID networkUuid, String variantId) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
         try {
-            equipmentInfosService.addAll(
-                network.getIdentifiables()
-                    .stream()
-                    .filter(c -> !EXCLUDED_TYPES_FOR_INDEXING.contains(c.getType()))
-                    .map(c -> toEquipmentInfos(c, networkUuid, variantId))
-                    .collect(Collectors.toList()));
+            equipmentInfosService.addAll(new ArrayList<>(getEquipmentInfos(network, networkUuid, variantId).values()));
         } finally {
             LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
         }
+    }
+
+    private Map<String, EquipmentInfos> getEquipmentInfos(Network network, UUID networkUuid, String variantId) {
+        return TYPES_FOR_INDEXING.stream()
+                .flatMap(network::getIdentifiableStream)
+                .collect(Collectors.toMap(Identifiable::getId, equipment -> toEquipmentInfos(equipment, networkUuid, variantId)));
     }
 
     private void sendReport(UUID networkUuid, ReportNode reportNode, UUID reportUuid) {
@@ -478,24 +520,181 @@ public class NetworkConversionService {
     }
 
     public void reindexAllEquipments(UUID networkUuid) {
-        Network network = getNetwork(networkUuid);
+        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+        try {
+            Network initialNetwork = getNetwork(networkUuid);
 
-        // delete all network equipments infos
-        deleteAllEquipmentInfosOnInitialVariant(networkUuid);
+            // delete all network equipments infos. deleting a lot of documents in ElasticSearch is slow, we delete the index instead in maintenance script before reindexing
+            deleteAllEquipmentInfosByNetworkUuid(networkUuid);
 
-        // recreate all equipments infos
-        insertEquipmentIndexes(network, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+            // save initial variant infos
+            Map<String, EquipmentInfos> initialVariantEquipmentInfos = getEquipmentInfos(initialNetwork, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+            equipmentInfosService.addAll(new ArrayList<>(initialVariantEquipmentInfos.values()));
+
+            // get variant ids without the initial that is already processed and is the reference
+            List<String> variantIds = initialNetwork.getVariantManager()
+                    .getVariantIds()
+                    .stream()
+                    .filter(variantId -> !variantId.equals(VariantManagerConstants.INITIAL_VARIANT_ID))
+                    .toList();
+
+            for (String variantId : variantIds) {
+                // switch to working variant and change initial variant infos variantId for comparisons
+                // get a new network (and associated cache) to avoid loading all variants in the same cache
+                Network currentNetwork = getNetwork(networkUuid);
+                currentNetwork.getVariantManager().setWorkingVariant(variantId);
+                initialVariantEquipmentInfos.values().forEach(equipmentInfos ->
+                        equipmentInfos.setVariantId(variantId));
+
+                // get current variant infos
+                Map<String, EquipmentInfos> currentVariantEquipmentInfos = getEquipmentInfos(currentNetwork, networkUuid, variantId);
+
+                List<EquipmentInfos> createdEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
+                        .filter(entry -> !initialVariantEquipmentInfos.containsKey(entry.getKey()))
+                        .map(Map.Entry::getValue)
+                        .toList();
+
+                // check if there are changes between current and initial variants infos
+                List<EquipmentInfos> modifiedEquipmentInfos = currentVariantEquipmentInfos.entrySet().stream()
+                        .filter(entry -> {
+                            EquipmentInfos initialEquipmentInfo = initialVariantEquipmentInfos.get(entry.getKey());
+                            return initialEquipmentInfo != null && !Objects.equals(initialEquipmentInfo, entry.getValue());
+                        })
+                        .map(Map.Entry::getValue)
+                        .toList();
+
+                List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = initialVariantEquipmentInfos.keySet().stream()
+                        .filter(equipmentInfos -> !currentVariantEquipmentInfos.containsKey(equipmentInfos))
+                        .map(equipmentInfos -> TombstonedEquipmentInfos.builder()
+                                .networkUuid(networkUuid)
+                                .variantId(variantId)
+                                .id(equipmentInfos)
+                                .build())
+                        .collect(Collectors.toList());
+
+                // save all to ElasticSearch
+                equipmentInfosService.addAll(createdEquipmentInfos);
+                equipmentInfosService.addAll(modifiedEquipmentInfos);
+                equipmentInfosService.addAllTombstonedEquipmentInfos(tombstonedEquipmentInfos);
+            }
+        } catch (Exception e) {
+            throw createFailedNetworkReindex(networkUuid, e);
+        } finally {
+            LOGGER.trace("Indexation network '{}' in parallel : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+        }
     }
 
-    public void deleteAllEquipmentInfosOnInitialVariant(UUID networkUuid) {
-        equipmentInfosService.deleteAllOnInitialVariant(networkUuid);
+    public void deleteAllEquipmentInfosByNetworkUuid(UUID networkUuid) {
+        equipmentInfosService.deleteAllByNetworkUuid(networkUuid);
     }
 
     public List<EquipmentInfos> getAllEquipmentInfos(UUID networkUuid) {
         return equipmentInfosService.findAll(networkUuid);
     }
 
+    public List<EquipmentInfos> getAllEquipmentInfosByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return equipmentInfosService.findAllByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
+    public List<TombstonedEquipmentInfos> getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(UUID networkUuid, String variantId) {
+        return equipmentInfosService.findAllTombstonedByNetworkUuidAndVariantId(networkUuid, variantId);
+    }
+
     public boolean hasEquipmentInfos(UUID networkUuid) {
         return equipmentInfosService.count(networkUuid) > 0;
+    }
+
+    private Properties initializePropertiesAndCheckFormat(String format, Map<String, Object> formatParameters) {
+        if (!Exporter.getFormats().contains(format)) {
+            throw NetworkConversionException.createUnsupportedFormat(format);
+        }
+        Properties exportProperties = null;
+        if (formatParameters != null) {
+            exportProperties = new Properties();
+            exportProperties.putAll(formatParameters);
+        }
+        return exportProperties;
+    }
+
+    private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
+                                                     String fileOrNetworkName, Properties exportProperties,
+                                                     long networkSize, boolean withNotZipFileName) {
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            String finalFileOrNetworkName = fileOrNetworkName.replace('/', '_');
+            DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, finalFileOrNetworkName);
+            network.write(format, exportProperties, dataSource);
+
+            Set<String> fileNames = dataSource.listNames(".*");
+            if (fileNames.isEmpty()) {
+                throw new IOException("No files were created during export");
+            }
+
+            Path filePath;
+            if (fileNames.size() == 1 && withNotZipFileName) {
+                filePath = tempDir.resolve(fileNames.iterator().next());
+            } else {
+                filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
+            }
+            return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
+        } catch (IOException e) {
+            if (tempDir != null) {
+                cleanupTempFiles(tempDir);
+            }
+            throw NetworkConversionException.failedToStreamNetworkToFile(e);
+        }
+    }
+
+    private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
+        Path zipFile = tempDir.resolve(fileOrNetworkName + ".zip");
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+            for (String fileName : fileNames) {
+                Path sourceFile = tempDir.resolve(fileName);
+                zos.putNextEntry(new ZipEntry(fileName));
+                try (InputStream is = Files.newInputStream(sourceFile)) {
+                    is.transferTo(zos);
+                }
+                zos.closeEntry();
+            }
+        }
+        return zipFile;
+    }
+
+    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos, Charset filenameCharset) {
+        try {
+            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
+            InputStreamResource resource = new InputStreamResource(inputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            ContentDisposition.Builder builder = ContentDisposition.builder("attachment");
+            if (filenameCharset != null) {
+                builder.filename(exportNetworkInfos.getNetworkName(), filenameCharset);
+            } else {
+                builder.filename(exportNetworkInfos.getNetworkName());
+            }
+            headers.setContentDisposition(builder.build());
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
+
+        } catch (IOException e) {
+            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
+        }
+    }
+
+    private void cleanupTempFiles(Path tempFilePath) {
+        try {
+            if (Files.exists(tempFilePath)) {
+                FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
+            }
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 }

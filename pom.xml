@@ -9,25 +9,22 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>15</version>
+        <version>22</version>
         <relativePath/>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
     <name>Network conversion server</name>
     <packaging>jar</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>2.25.0-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <log4j2-mock-version>0.0.2</log4j2-mock-version>
-        <powsybl-ws-dependencies.version>2.11.0</powsybl-ws-dependencies.version>
-        <testcontainers.version>1.16.2</testcontainers.version>
+        <powsybl-ws-dependencies.version>2.24.0</powsybl-ws-dependencies.version>
     </properties>
 
     <build>
@@ -63,7 +60,6 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
-
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
@@ -73,18 +69,7 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- project specific dependencies (also overrides imports, but separate for clarity) -->
-            <dependency>
-                <groupId>de.dentrassi.elasticsearch</groupId>
-                <artifactId>log4j2-mock</artifactId>
-                <version>${log4j2-mock-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>elasticsearch</artifactId>
-                <version>${testcontainers.version}</version>
-                <scope>test</scope>
-            </dependency>
+            <!-- project specific dependencies -->
         </dependencies>
     </dependencyManagement>
 
@@ -199,33 +184,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>elasticsearch</artifactId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>de.dentrassi.elasticsearch</groupId>
-            <artifactId>log4j2-mock</artifactId>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>elasticsearch</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

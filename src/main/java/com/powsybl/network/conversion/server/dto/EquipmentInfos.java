@@ -10,70 +10,45 @@ import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.NetworkConversionException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.springframework.data.annotation.AccessType;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.elasticsearch.annotations.*;
+import org.springframework.lang.NonNull;
 
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * @author Slimane Amar <slimane.amar at rte-france.com>
+ * @author Nicolas Noir <nicolas.noir at rte-france.com>
  */
 @SuperBuilder
 @NoArgsConstructor
 @Getter
-@ToString
-@EqualsAndHashCode
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = true)
 @Document(indexName = "#{@environment.getProperty('powsybl-ws.elasticsearch.index.prefix')}equipments")
 @Setting(settingPath = "elasticsearch_settings.json")
 @TypeAlias(value = "EquipmentInfos")
-public class EquipmentInfos {
-    @Id
-    @AccessType(AccessType.Type.PROPERTY)
-    @SuppressWarnings("unused")
-    public String getUniqueId() {
-        return networkUuid + "_" + variantId + "_" + id;
-    }
-
-    @SuppressWarnings("unused")
-    public void setUniqueId(String uniqueId) {
-        // No setter because it a composite value
-    }
-
+public class EquipmentInfos extends BasicEquipmentInfos {
     @MultiField(
-        mainField = @Field(name = "equipmentId", type = FieldType.Text),
-        otherFields = {
-            @InnerField(suffix = "fullascii", type = FieldType.Keyword, normalizer = "fullascii"),
-            @InnerField(suffix = "raw", type = FieldType.Keyword)
-        }
+            mainField = @Field(name = "equipmentName", type = FieldType.Text),
+            otherFields = {
+                @InnerField(suffix = "fullascii", type = FieldType.Keyword, normalizer = "fullascii"),
+                @InnerField(suffix = "raw", type = FieldType.Keyword)
+            }
     )
-    String id;
-
-    @MultiField(
-        mainField = @Field(name = "equipmentName", type = FieldType.Text),
-        otherFields = {
-            @InnerField(suffix = "fullascii", type = FieldType.Keyword, normalizer = "fullascii"),
-            @InnerField(suffix = "raw", type = FieldType.Keyword)
-        }
-    )
-    String name;
+    private String name;
 
     @Field("equipmentType")
-    String type;
+    private String type;
 
     @Field(type = FieldType.Nested, includeInParent = true)
-    Set<VoltageLevelInfos> voltageLevels;
+    private Set<VoltageLevelInfos> voltageLevels;
 
     @Field(type = FieldType.Nested, includeInParent = true)
     private Set<SubstationInfos> substations;
-
-    UUID networkUuid;
-
-    String variantId;
 
     public static Set<VoltageLevel> getVoltageLevels(@NonNull Identifiable<?> identifiable) {
         if (identifiable instanceof Substation) {
@@ -108,6 +83,24 @@ public class EquipmentInfos {
         }
 
         throw NetworkConversionException.createEquipmentTypeUnknown(identifiable.getClass().getSimpleName());
+    }
+
+    // TODO This function need to transfer to poswybl-ws-commons at the new release
+    public static String getEquipmentTypeName(@NonNull Identifiable<?> identifiable) {
+        return identifiable.getType() == IdentifiableType.HVDC_LINE ? getHvdcTypeName((HvdcLine) identifiable) : identifiable.getType().name();
+    }
+
+    /**
+     * @param hvdcLine The hvdc line to get hvdc type name
+     * @return The hvdc type name string
+     * @throws NetworkConversionException if converter station types don't match
+     */
+    private static String getHvdcTypeName(HvdcLine hvdcLine) {
+        if (hvdcLine.getConverterStation1().getHvdcType() != hvdcLine.getConverterStation2().getHvdcType()) {
+            throw NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId());
+        }
+
+        return String.format("%s_%s", hvdcLine.getType().name(), hvdcLine.getConverterStation1().getHvdcType().name());
     }
 
     public static Set<VoltageLevelInfos> getVoltageLevelsInfos(@NonNull Identifiable<?> identifiable) {
