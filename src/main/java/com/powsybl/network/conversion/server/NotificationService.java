@@ -10,7 +10,6 @@ package com.powsybl.network.conversion.server;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,21 +31,18 @@ public class NotificationService {
     public static final String HEADER_REPORT_UUID = "reportUuid";
     public static final String HEADER_NETWORK_ID = "networkId";
     public static final String HEADER_NETWORK_UUID = "networkUuid";
-    public static final String HEADER_NETWORK_NAME = "networkName";
+    public static final String HEADER_CASE_UUID = "caseUuid";
     public static final String HEADER_RECEIVER = "receiver";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
     public static final String HEADER_EXPORT_PARAMETERS = "importParameters";
-    public static final String HEADER_CASE_FORMAT = "caseFormat";
-    public static final String HEADER_NETWORK_FORMAT = "format";
-    public static final String HEADER_CASE_NAME = "caseName";
+    public static final String HEADER_FORMAT = "format";
     public static final String HEADER_FILE_NAME = "fileName";
     public static final String HEADER_STUDY_UUID = "studyUuid";
     public static final String HEADER_NODE_UUID = "nodeUuid";
-    private static final String HEADER_USER_ID = "userId";
-    private static final String HEADER_ROOT_NETWORK_UUID = "rootNetworkUuid";
-    private static final String HEADER_FORMAT = "format";
-    private static final String HEADER_EXPORT_UUID = "exportUuid";
-    private static final String HEADER_ERROR = "error";
+    public static final String HEADER_USER_ID = "userId";
+    public static final String HEADER_ROOT_NETWORK_UUID = "rootNetworkUuid";
+    public static final String HEADER_EXPORT_UUID = "exportUuid";
+    public static final String HEADER_ERROR = "error";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -87,7 +83,7 @@ public class NotificationService {
                 .setHeader(HEADER_REPORT_UUID, reportUuid != null ? reportUuid.toString() : null)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
                 .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_CASE_FORMAT, caseFormat)
+                .setHeader(HEADER_FORMAT, caseFormat)
                 .build());
     }
 
@@ -95,20 +91,10 @@ public class NotificationService {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())
-                .setHeader(HEADER_CASE_FORMAT, caseFormatStr)
-                .setHeader(HEADER_CASE_NAME, caseNameStr)
+                .setHeader(HEADER_FORMAT, caseFormatStr)
+                .setHeader(HEADER_FILE_NAME, caseNameStr)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_IMPORT_PARAMETERS, importParameters)
-                .build());
-    }
-
-    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
-        sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
-                .setHeader(HEADER_VARIANT_ID, variantId)
-                .setHeader(HEADER_FILE_NAME, fileName)
-                .setHeader(HEADER_NETWORK_FORMAT, format)
-                .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }
 
@@ -127,20 +113,31 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
-        sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
-                .setHeader(HEADER_NETWORK_FORMAT, format)
-                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
-                .setHeader(HEADER_RECEIVER, receiver)
+    public void emitCaseExportSucceeded(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, String error) {
+        sendCaseExportSucceededMessage(MessageBuilder.withPayload("")
+                .setHeader(HEADER_CASE_UUID, caseUuid)
                 .setHeader(HEADER_FILE_NAME, fileName)
+                .setHeader(HEADER_FORMAT, format)
+                .setHeader(HEADER_USER_ID, userId)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_ERROR, error)
                 .build());
     }
 
-    public void emitCaseExportSucceeded(ExportNetworkInfos networkInfos, String formatStr, String receiver, Map<String, Object> formatParameters) {
-        sendCaseExportSucceededMessage(MessageBuilder.withPayload("")
-                .setHeader(HEADER_NETWORK_NAME, networkInfos.getNetworkName())
-                .setHeader(HEADER_FILE_NAME, networkInfos.getTempFilePath())
-                .setHeader(HEADER_NETWORK_FORMAT, formatStr)
+    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
+                .setHeader(HEADER_VARIANT_ID, variantId)
+                .setHeader(HEADER_FILE_NAME, fileName)
+                .setHeader(HEADER_FORMAT, format)
+                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .build());
+    }
+
+    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+        sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
+                .setHeader(HEADER_FILE_NAME, fileName)
+                .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());

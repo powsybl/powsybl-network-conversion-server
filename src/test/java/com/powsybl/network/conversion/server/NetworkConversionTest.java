@@ -49,8 +49,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
 import static org.junit.jupiter.api.Assertions.*;
@@ -100,6 +98,9 @@ class NetworkConversionTest {
     @Autowired
     private OutputDestination output;
 
+    @Autowired
+    private ObjectMapper mapper;
+
     @BeforeEach
     void setup() {
         networkConversionService.setCaseServerRest(caseServerRest);
@@ -110,13 +111,12 @@ class NetworkConversionTest {
     @Test
     void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
+            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
 
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
-                    .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
 
-            ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
-                    new ResourceSet("", "testCase.xiidm"));
+            ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
             Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
             given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
@@ -133,7 +133,7 @@ class NetworkConversionTest {
                 any(HttpEntity.class),
                 eq(String.class), eq(UUID.fromString(caseUuid))))
                 .willReturn(ResponseEntity.ok("testCase"));
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase.xiidm", "XIIDM")));
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase.xiidm", "XIIDM")));
 
             MvcResult mvcResult = mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
@@ -143,21 +143,18 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
-                    mvcResult.getResponse().getContentAsString());
+            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}", mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "first_variant_id")
-                .param("isAsyncRun", "false")
                 .param("reportUuid", UUID.randomUUID().toString())
                 .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
             mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
                 .param("variantId", "second_variant_id")
-                .param("isAsyncRun", "false")
                 .param("reportUuid", UUID.randomUUID().toString())
                 .param("caseFormat", "XIIDM"))
                 .andExpect(status().isOk());
@@ -170,87 +167,97 @@ class NetworkConversionTest {
 
             mvc.perform(get("/v1/export/formats"))
                     .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                     .andReturn();
 
-            UUID notFoundNetworkUuid = UUID.randomUUID();
-            given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
+            String notFoundNetworkUuid = String.valueOf(UUID.randomUUID());
+            given(networkStoreClient.getNetwork(UUID.fromString(notFoundNetworkUuid))).willThrow(new PowsyblException("Network " + notFoundNetworkUuid + " not found"));
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
-                    .param("isAsyncRun", "false"))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
+
+            String exportNetworkUuid1 = String.valueOf(UUID.randomUUID());
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM"))
+                    .andExpect(status().isAccepted())
                     .andReturn();
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.zip", VariantManagerConstants.INITIAL_VARIANT_ID)));
+            Message<byte[]> startMessage1 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage1);
+            assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
+            assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            String exportNetworkUuid2 = String.valueOf(UUID.randomUUID());
+            String receiver = "study-uuid|node-uuid|root-network-uuid|user-id";
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM")
+                            .param("variantId", "second_variant_id")
+                            .param("receiver", receiver))
+                    .andExpect(status().isAccepted())
+                    .andReturn();
 
-            byte[] zipBytes = mvcResult.getResponse().getContentAsByteArray();
-            assertNotNull(zipBytes);
-            assertTrue(zipBytes.length > 0);
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
-                while ((zis.getNextEntry()) != null) {
-                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                    assertTrue(content.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-                    assertTrue(content.contains("id=\"20140116_0830_2D4_UX1_pst\""));
-                }
-            }
+            Message<byte[]> startMessage2 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage2);
+            assertEquals(exportNetworkUuid2, mapper.readValue(startMessage2.getPayload(), String.class));
+            assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
+            assertEquals(receiver, startMessage2.getHeaders().get(NotificationService.HEADER_RECEIVER));
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
-                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-            String exported1 = mvcResult.getResponse().getContentAsString();
+            String exportNetworkUuid3 = String.valueOf(UUID.randomUUID());
+            Map<String, Object> exportParams = new HashMap<>();
+            exportParams.put("iidm.export.xml.indent", "false");
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
-                            .param("variantId", "second_variant_id").param("isAsyncRun", "false")
-                    .contentType(MediaType.APPLICATION_JSON_VALUE)
-                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-            String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid3, "XIIDM")
+                            .param("variantId", "second_variant_id")
+                            .param("receiver", receiver)
+                            .contentType(MediaType.APPLICATION_JSON_VALUE)
+                            .content(new ObjectMapper().writeValueAsString(exportParams)))
+                    .andExpect(status().isAccepted())
+                    .andReturn();
 
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.zip"));
-
-            // takes the iidm.export.xml.indent param into account
-            assertTrue(exported1.length() > exported2.length());
+            Message<byte[]> startMessage3 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage3);
+            assertEquals(exportNetworkUuid3, mapper.readValue(startMessage3.getPayload(), String.class));
+            Map<String, Object> receivedParams = (Map<String, Object>) startMessage3.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+            assertNotNull(receivedParams);
+            assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
 
             //with fileName
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + "studyName_Root", UUID.randomUUID().toString(), "XIIDM")
-                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
+            String exportNetworkUuid4 = String.valueOf(UUID.randomUUID());
+            String fileName = "studyName_Root";
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + fileName, exportNetworkUuid4, "XIIDM")
+                            .param("variantId", "second_variant_id")
+                            .param("receiver", receiver))
+                    .andExpect(status().isAccepted())
                     .andReturn();
 
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.zip"));
+            Message<byte[]> startMessage4 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage4);
+            assertEquals(exportNetworkUuid4, mapper.readValue(startMessage4.getPayload(), String.class));
+            assertEquals(fileName, startMessage4.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
-            // non existing variantId
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM")
-                            .param("variantId", "unknown_variant_id").param("isAsyncRun", "false"))
-                .andExpect(status().isNotFound())
-                .andReturn();
+            String exportNetworkUuid5 = String.valueOf(UUID.randomUUID());
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid5, "XIIDM")
+                            .param("variantId", "unknown_variant_id")
+                            .param("receiver", receiver))
+                    .andExpect(status().isAccepted())
+                    .andReturn();
 
-            // non existing format
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG")
-                            .param("variantId", "second_variant_id").param("isAsyncRun", "false"))
-                .andExpect(status().isInternalServerError())
-                .andReturn();
+            Message<byte[]> startMessage5 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage5);
+            assertEquals("unknown_variant_id", startMessage5.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
+
+            String exportNetworkUuid6 = String.valueOf(UUID.randomUUID());
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid6, "JPEG")
+                            .param("variantId", "second_variant_id")
+                            .param("receiver", receiver))
+                    .andExpect(status().isAccepted())
+                    .andReturn();
+
+            Message<byte[]> startMessage6 = output.receive(1000, "network.export.start");
+            assertNotNull(startMessage6);
+            assertEquals("JPEG", startMessage6.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString()))
-                .andExpect(status().isNotFound())
-                .andReturn();
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString())).andExpect(status().isNotFound()).andReturn();
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
-                .andExpect(status().isNoContent())
-                .andReturn();
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString())).andExpect(status().isNoContent()).andReturn();
 
             mvc.perform(post("/v1/networks/{networkUuid}/reindex-all", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -258,8 +265,7 @@ class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             // exclude switch, bus bar section and bus since it is not indexed
             assertEquals(74, infos.size());
-            assertTrue(infos.stream()
-                    .allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
+            assertTrue(infos.stream().allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -660,8 +666,7 @@ class NetworkConversionTest {
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
-                .willReturn(ResponseEntity.ok(true));
+            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class))).willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -678,62 +683,43 @@ class NetworkConversionTest {
 
             // convert to iidm
             MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
-                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andReturn();
-
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.xiidm\""));
-            assertTrue(mvcResult1.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             // convert to biidm
             MvcResult mvcResult2 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
-                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andReturn();
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
-            assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
 
             // fail because case not found
             MvcResult fail = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
-                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isAccepted())
                 .andReturn();
-            assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), fail.getResponse().getStatus());
-            assertEquals("Case export failed", fail.getResponse().getContentAsString());
 
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
-                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isAccepted())
                 .andReturn();
 
             // export case with an absolut path as fileName
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
-                            .param("isAsyncRun", "false")
                             .param("fileName", "/tmp/testCase")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andReturn();
-
-            // check that no temporary export directory is still present after conversions
-            assertFalse(Files.list(Paths.get("/tmp"))
-                    .anyMatch(path3 -> Files.isDirectory(path3) &&
-                            path3.getFileName().toString().startsWith("export_")));
         }
     }
 
@@ -776,21 +762,11 @@ class NetworkConversionTest {
 
             // convert to cgmes
             MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
-                    .param("isAsyncRun", "false")
                     .param("fileName", "testCase")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andReturn();
-            byte[] bytes = mvcResult3.getResponse().getContentAsByteArray();
-            List<String> filenames = new ArrayList<>();
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
-                ZipEntry entry;
-                while ((entry = zis.getNextEntry()) != null) {
-                    filenames.add(entry.getName());
-                }
-            }
-            assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
         }
     }
 

@@ -55,7 +55,6 @@ import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -193,7 +192,6 @@ public class NetworkConversionService {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
-                .stream()
                 .forEach(parameter -> defaultValues.put(parameter.getName(),
                         parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
         return defaultValues;
@@ -227,10 +225,11 @@ public class NetworkConversionService {
     @Bean
     Consumer<Message<UUID>> consumeNetworkExportStart() {
         return message -> {
+            UUID exportUuid = UUID.randomUUID();
             UUID networkUuid = message.getPayload();
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
-            String format = message.getHeaders().get(NotificationService.HEADER_NETWORK_FORMAT, String.class);
+            String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String receiverWithKey = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             String[] receiverParts = receiverWithKey != null ? receiverWithKey.split("\\|") : new String[4];
             UUID studyUuid = receiverParts.length > 0 ? UUID.fromString(receiverParts[0]) : null;
@@ -248,12 +247,14 @@ public class NetworkConversionService {
                         format,
                         () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
                 );
-                UUID exportUuid = UUID.randomUUID();
                 String s3Key = exportRootPath + "/" + exportUuid + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
                 notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, fileName, format, userId, exportUuid, null);
             } catch (Exception e) {
-                LOGGER.error("Export failed for network {}", networkUuid, e);
+                String errorMsg = String.format("Export failed for network %s: %s - %s", networkUuid, e.getMessage(), e.getCause().getMessage());
+                LOGGER.error(errorMsg);
+                notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, fileName, format, userId, exportUuid, errorMsg);
+
             }
         };
     }
@@ -317,26 +318,36 @@ public class NetworkConversionService {
     @Bean
     Consumer<Message<UUID>> consumeCaseExportStart() {
         return message -> {
+            UUID exportUuid = UUID.randomUUID();
             UUID caseUuid = message.getPayload();
-            String format = message.getHeaders().get(NotificationService.HEADER_NETWORK_FORMAT, String.class);
+            String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
-            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-
+            String receiverWithKey = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+            String[] receiverParts = receiverWithKey != null ? receiverWithKey.split("\\|") : new String[4];
+            String userId = receiverParts.length > 3 ? receiverParts[3] : null;
             Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
             Map<String, Object> formatParameters = new HashMap<>();
             if (rawParameters != null) {
                 rawParameters.forEach((key, value) -> formatParameters.put(key, value.toString()));
             }
-            LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
-            ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
-                    format,
-                    () -> {
-                        Optional<ExportNetworkInfos> result = exportCase(caseUuid, format, fileName, formatParameters);
-                        return result.orElseThrow(() ->
-                                new ResponseStatusException(HttpStatus.NOT_FOUND));
-                    }
-            );
-            notificationService.emitCaseExportSucceeded(exportNetworkInfos, format, receiver, formatParameters);
+            try {
+                LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
+                ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport(
+                        format,
+                        () -> {
+                            Optional<ExportNetworkInfos> result = exportCase(caseUuid, format, fileName, formatParameters);
+                            return result.orElseThrow(() ->
+                                    new ResponseStatusException(HttpStatus.NOT_FOUND));
+                        }
+                );
+                String s3Key = exportRootPath + "/" + exportUuid + "/" + fileName;
+                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
+                notificationService.emitCaseExportSucceeded(caseUuid, fileName, format, userId, exportUuid, null);
+            } catch (Exception e) {
+                String errorMsg = String.format("Export failed for case %s: %s - %s", caseUuid, e.getMessage(), e.getCause() != null ? e.getCause().getMessage() : "");
+                LOGGER.error(errorMsg);
+                notificationService.emitCaseExportSucceeded(caseUuid, fileName, format, userId, exportUuid, errorMsg);
+            }
         };
     }
 
@@ -785,33 +796,6 @@ public class NetworkConversionService {
             }
         }
         return zipFile;
-    }
-
-    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos, Charset filenameCharset) {
-        try {
-            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
-            InputStreamResource resource = new InputStreamResource(inputStream);
-
-            HttpHeaders headers = new HttpHeaders();
-            ContentDisposition.Builder builder = ContentDisposition.builder("attachment");
-            if (filenameCharset != null) {
-                builder.filename(exportNetworkInfos.getNetworkName(), filenameCharset);
-            } else {
-                builder.filename(exportNetworkInfos.getNetworkName());
-            }
-            headers.setContentDisposition(builder.build());
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(resource);
-
-        } catch (IOException e) {
-            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } finally {
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
-        }
     }
 
     private void cleanupTempFiles(Path tempFilePath) {
