@@ -88,8 +88,8 @@ public class NetworkConversionController {
                                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        return networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
-                .thenApply(exportNetworkInfos -> networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8));
+        return networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters).thenApply(exportNetworkInfos ->
+            networkConversionService.createExportNetworkResponse(exportNetworkInfos, StandardCharsets.UTF_8));
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -103,13 +103,8 @@ public class NetworkConversionController {
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Converting network {}...", caseUuid);
-        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters)
-                .thenApply(exportNetworkInfos -> {
-                    if (exportNetworkInfos.isEmpty()) {
-                        return ResponseEntity.notFound().build();
-                    }
-                    return networkConversionService.createExportNetworkResponse(exportNetworkInfos.get(), null);
-                });
+        return networkConversionService.exportCase(caseUuid, format, fileName, formatParameters).thenApply(exportNetworkInfos ->
+            networkConversionService.createExportNetworkResponse(exportNetworkInfos, null));
     }
 
     @GetMapping(value = "/export/formats")
@@ -132,7 +127,7 @@ public class NetworkConversionController {
     @Operation(summary = "Export a cgmes network from the network-store")
     public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws XMLStreamException {
         LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExport("CGMES", () -> networkConversionService.exportCgmesSv(networkUuid));
+        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSv(networkUuid);
         HttpHeaders header = new HttpHeaders();
         header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
         return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());

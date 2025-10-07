@@ -15,6 +15,7 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.NonNull;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.springframework.stereotype.Service;
@@ -30,9 +31,13 @@ public class NetworkConversionObserver {
     private static final String FORMAT_TAG_NAME = "format";
 
     private static final String IMPORT_OBSERVATION_NAME = OBSERVATION_PREFIX + "import";
+    private static final String IMPORT_TOTAL_OBSERVATION_NAME = OBSERVATION_PREFIX + "import.total";
+    private static final String IMPORT_PROCESSING_OBSERVATION_NAME = OBSERVATION_PREFIX + "import.processing";
     private static final String NUMBER_BUSES_IMPORTED_METER_NAME = IMPORT_OBSERVATION_NAME + ".buses";
 
     private static final String EXPORT_OBSERVATION_NAME = OBSERVATION_PREFIX + "export";
+    private static final String EXPORT_TOTAL_OBSERVATION_NAME = OBSERVATION_PREFIX + "export.total";
+    private static final String EXPORT_PROCESSING_OBSERVATION_NAME = OBSERVATION_PREFIX + "export.processing";
     private static final String NUMBER_BUSES_EXPORTED_METER_NAME = EXPORT_OBSERVATION_NAME + ".buses";
 
     private static final String TASK_TYPE_TAG_NAME = "type";
@@ -49,17 +54,35 @@ public class NetworkConversionObserver {
         this.meterRegistry = meterRegistry;
     }
 
-    public <E extends Throwable> ExportNetworkInfos observeExport(String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
-        Observation observation = createObservation(EXPORT_OBSERVATION_NAME, format);
-        ExportNetworkInfos exportInfos = observation.observeChecked(callable);
+    public <T, E extends Throwable> T observeExportTotal(String format, Observation.CheckedCallable<T, E> callable) throws E {
+        return createObservation(EXPORT_TOTAL_OBSERVATION_NAME, format).observeChecked(callable);
+    }
+
+    public <T, E extends Throwable> CompletableFuture<T> observeExportTotalAsync(String format, Observation.CheckedCallable<CompletableFuture<T>, E> callable) throws E {
+        var obs = createObservation(EXPORT_TOTAL_OBSERVATION_NAME, format);
+        obs.start();
+        var cf = callable.call();
+        cf.handle((result, exception) -> {
+            obs.stop();
+            return null;
+        });
+        return cf;
+    }
+
+    public <E extends Throwable> ExportNetworkInfos observeExportProcessing(String format, Observation.CheckedCallable<ExportNetworkInfos, E> callable) throws E {
+        ExportNetworkInfos exportInfos = createObservation(EXPORT_PROCESSING_OBSERVATION_NAME, format).observeChecked(callable);
         if (exportInfos != null) {
             recordNumberBuses(NUMBER_BUSES_EXPORTED_METER_NAME, format, exportInfos.getNumberBuses());
         }
         return exportInfos;
     }
 
-    public <E extends Throwable> Network observeImport(String format, Observation.CheckedCallable<Network, E> callable) throws E {
-        Network network = createObservation(IMPORT_OBSERVATION_NAME, format).observeChecked(callable);
+    public <T, E extends Throwable> T observeImportTotal(String format, Observation.CheckedCallable<T, E> callable) throws E {
+        return createObservation(IMPORT_TOTAL_OBSERVATION_NAME, format).observeChecked(callable);
+    }
+
+    public <E extends Throwable> Network observeImportProcessing(String format, Observation.CheckedCallable<Network, E> callable) throws E {
+        Network network = createObservation(IMPORT_PROCESSING_OBSERVATION_NAME, format).observeChecked(callable);
         if (network != null) {
             recordNumberBuses(NUMBER_BUSES_IMPORTED_METER_NAME, format, network.getBusView().getBusStream().count());
         }
