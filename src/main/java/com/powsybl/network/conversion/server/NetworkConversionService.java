@@ -316,19 +316,17 @@ public class NetworkConversionService {
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
         String format, Map<String, Object> formatParameters) {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
-        return networkConversionObserver.observeExportProcessing(format, () -> {
-            Network network = getNetwork(networkUuid);
-            if (variantId != null) {
-                if (network.getVariantManager().getVariantIds().contains(variantId)) {
-                    network.getVariantManager().setWorkingVariant(variantId);
-                } else {
-                    throw NetworkConversionException.createVariantIdUnknown(variantId);
-                }
+        Network network = getNetwork(networkUuid);
+        if (variantId != null) {
+            if (network.getVariantManager().getVariantIds().contains(variantId)) {
+                network.getVariantManager().setWorkingVariant(variantId);
+            } else {
+                throw NetworkConversionException.createVariantIdUnknown(variantId);
             }
-            String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
-            long networkSize = network.getBusView().getBusStream().count();
-            return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
-        });
+        }
+        String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
+        long networkSize = network.getBusView().getBusStream().count();
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -336,7 +334,10 @@ public class NetworkConversionService {
         try {
             return networkConversionObserver.observeExportTotal(format, () ->
                     importExportExecutionService.supplyAsync(() ->
-                        exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)).join()
+                        networkConversionObserver.observeExportProcessing(
+                            format,
+                            () -> exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)))
+                        .join()
             );
         } catch (CompletionException e) {
             if (e.getCause() instanceof NetworkConversionException exception) {
@@ -349,9 +350,9 @@ public class NetworkConversionService {
     public ExportNetworkInfos exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
         try {
             return networkConversionObserver.observeExportTotal(format, () ->
-                    importExportExecutionService.supplyAsync(() ->
-                        exportCaseExec(caseUuid, format, fileName, formatParameters)).join()
-            );
+                importExportExecutionService.supplyAsync(() ->
+                    networkConversionObserver.observeExportProcessing(format, () -> exportCaseExec(caseUuid, format, fileName, formatParameters)))
+                    .join());
         } catch (CompletionException e) {
             if (e.getCause() instanceof NetworkConversionException exception) {
                 throw exception;
@@ -371,13 +372,11 @@ public class NetworkConversionService {
         Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
         paramExtensions.ifPresent(paramMeta -> importProperties.put(paramMeta.getName(), paramMeta.getPossibleValues()));
 
-        return networkConversionObserver.observeExportProcessing(format, () -> {
-            Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
-                    importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
-            String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-            long networkSize = network.getBusView().getBusStream().count();
-            return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
-        });
+        Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
+                importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
+        String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
+        long networkSize = network.getBusView().getBusStream().count();
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
     }
 
     private String getNetworkName(Network network, String variantId) {
