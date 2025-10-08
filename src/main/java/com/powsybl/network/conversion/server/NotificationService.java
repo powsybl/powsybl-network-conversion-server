@@ -134,11 +134,11 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId) {
         sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
-                .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }

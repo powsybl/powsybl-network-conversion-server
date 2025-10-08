@@ -103,9 +103,9 @@ public class NetworkConversionController {
                                                              @Parameter(description = "Export format") @PathVariable("format") String format,
                                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                              @RequestBody(required = false) Map<String, Object> formatParameters,
-                                                             @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver) {
+                                                             @Parameter(description = "user Id") @RequestParam(name = "userId", required = false) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
-        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, receiver);
+        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId);
         return ResponseEntity.accepted().build();
     }
 

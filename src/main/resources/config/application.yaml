@@ -45,7 +45,7 @@ spring:
           consumer:
             concurrency: 2
             max-attempts: 1
-      output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishNetworkExportStart-out-0;publishNetworkExportSucceeded-out-0;consumeNetworkExportStart-in-0;publishCaseExportStart-out-0;publishCaseExportSucceeded-out-0;consumeCaseExportStart-in-0
+      output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishNetworkExportStart-out-0;publishNetworkExportSucceeded-out-0;publishCaseExportStart-out-0;publishCaseExportSucceeded-out-0
       rabbit:
         bindings:
           consumeCaseImportStart-in-0:
@@ -75,6 +75,12 @@ spring:
               quorum:
                 enabled: true
                 delivery-limit: 2
+
+powsybl:
+  services:
+    network-store-server:
+      preloading-strategy: COLLECTION
+
 management:
   health:
     solr:
