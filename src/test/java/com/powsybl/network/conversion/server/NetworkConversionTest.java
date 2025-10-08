@@ -44,10 +44,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -60,14 +61,14 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -1160,6 +1161,41 @@ class NetworkConversionTest {
                 .setMaxQ(9999.99)
                 .add();
         return network;
+    }
+
+    @Test
+    void testDownloadExportFile() throws Exception {
+        String exportUuid = UUID.randomUUID().toString();
+        String fileName = "testExport.xiidm";
+        String fileContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><network>test</network>";
+        byte[] fileBytes = fileContent.getBytes(StandardCharsets.UTF_8);
+        String s3Key = "exports/" + exportUuid + "/" + fileName;
+        S3Object s3Object = S3Object.builder().key(s3Key).size((long) fileBytes.length).build();
+        ListObjectsV2Response listResponse = ListObjectsV2Response.builder().contents(s3Object).build();
+        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
+        GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).metadata(Map.of("file-name", fileName)).build();
+        ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
+        given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
+
+        MvcResult result = mvc.perform(get("/v1/download/{exportUuid}", exportUuid))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("attachment")))
+                .andExpect(header().string("Content-Disposition", containsString(fileName)))
+                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andReturn();
+
+        byte[] downloadedContent = result.getResponse().getContentAsByteArray();
+        assertArrayEquals(fileBytes, downloadedContent);
+
+        // export not found
+        String notFoundUuid = UUID.randomUUID().toString();
+        ListObjectsV2Response emptyResponse = ListObjectsV2Response.builder().contents(Collections.emptyList()).build();
+        given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(notFoundUuid)))).willReturn(emptyResponse);
+        mvc.perform(get("/v1/download/{exportUuid}", notFoundUuid)).andExpect(status().isNotFound());
+        String exceptionUuid = UUID.randomUUID().toString();
+        reset(s3Client);
+        given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(exceptionUuid)))).willThrow(NoSuchKeyException.builder().build());
+        mvc.perform(get("/v1/download/{exportUuid}", exceptionUuid)).andExpect(status().isNotFound());
     }
 
     private void mockCaseExist(String ext, String caseUuid, boolean returnValue) {

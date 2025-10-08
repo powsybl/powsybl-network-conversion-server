@@ -276,9 +276,6 @@ public class NetworkConversionService {
         if (s3Client == null) {
             throw new PowsyblException("S3 service not available");
         }
-        if (exportUuid == null) {
-            return ResponseEntity.notFound().build();
-        }
         try {
             String s3Prefix = exportRootPath + "/" + exportUuid + "/";
             ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
