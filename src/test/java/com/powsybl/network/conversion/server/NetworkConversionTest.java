@@ -181,8 +181,18 @@ class NetworkConversionTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.xiidm", VariantManagerConstants.INITIAL_VARIANT_ID)));
-            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.zip", VariantManagerConstants.INITIAL_VARIANT_ID)));
+
+            byte[] zipBytes = mvcResult.getResponse().getContentAsByteArray();
+            assertNotNull(zipBytes);
+            assertTrue(zipBytes.length > 0);
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+                while ((zis.getNextEntry()) != null) {
+                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
+                    assertTrue(content.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+                    assertTrue(content.contains("id=\"20140116_0830_2D4_UX1_pst\""));
+                }
+            }
 
             mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
                 .andExpect(status().isOk())
@@ -199,8 +209,7 @@ class NetworkConversionTest {
             String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
 
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.xiidm"));
-            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.zip"));
 
             // takes the iidm.export.xml.indent param into account
             assertTrue(exported1.length() > exported2.length());
@@ -212,8 +221,7 @@ class NetworkConversionTest {
                     .andReturn();
 
             assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.xiidm"));
-            assertTrue(mvcResult.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.zip"));
 
             // non existing variantId
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
@@ -662,6 +670,8 @@ class NetworkConversionTest {
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
 
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+
             // convert to iidm
             MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
@@ -754,6 +764,8 @@ class NetworkConversionTest {
             mockCaseExist("iidm", caseUuid, true);
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
+
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
             // convert to cgmes
             MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
