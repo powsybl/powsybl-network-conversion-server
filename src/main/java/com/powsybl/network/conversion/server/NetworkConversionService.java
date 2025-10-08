@@ -345,9 +345,9 @@ public class NetworkConversionService {
         try {
             return networkConversionObserver.observeExportTotalAsync(format, () ->
                 importExportExecutionService.supplyAsync(() ->
-                        networkConversionObserver.observeExportProcessing(
-                            format,
-                            () -> exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)))
+                    networkConversionObserver.observeExportProcessing(
+                        format,
+                        () -> exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)))
             );
         } catch (CompletionException e) {
             if (e.getCause() instanceof NetworkConversionException exception) {
