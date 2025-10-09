@@ -1177,7 +1177,7 @@ class NetworkConversionTest {
         ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
         given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
 
-        MvcResult result = mvc.perform(get("/v1/download/{exportUuid}", exportUuid))
+        MvcResult result = mvc.perform(get("/v1/download-file/{exportUuid}", exportUuid))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("attachment")))
                 .andExpect(header().string("Content-Disposition", containsString(fileName)))
@@ -1191,11 +1191,11 @@ class NetworkConversionTest {
         String notFoundUuid = UUID.randomUUID().toString();
         ListObjectsV2Response emptyResponse = ListObjectsV2Response.builder().contents(Collections.emptyList()).build();
         given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(notFoundUuid)))).willReturn(emptyResponse);
-        mvc.perform(get("/v1/download/{exportUuid}", notFoundUuid)).andExpect(status().isNotFound());
+        mvc.perform(get("/v1/download-file/{exportUuid}", notFoundUuid)).andExpect(status().isNotFound());
         String exceptionUuid = UUID.randomUUID().toString();
         reset(s3Client);
         given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(exceptionUuid)))).willThrow(NoSuchKeyException.builder().build());
-        mvc.perform(get("/v1/download/{exportUuid}", exceptionUuid)).andExpect(status().isNotFound());
+        mvc.perform(get("/v1/download-file/{exportUuid}", exceptionUuid)).andExpect(status().isNotFound());
     }
 
     private void mockCaseExist(String ext, String caseUuid, boolean returnValue) {

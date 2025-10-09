@@ -169,7 +169,7 @@ public class NetworkConversionController {
 
     }
 
-    @GetMapping(value = "/download/{exportUuid}")
+    @GetMapping(value = "/download-file/{exportUuid}")
     @Operation(summary = "Get exported file from S3")
     public ResponseEntity<InputStreamResource> downloadExportFile(@PathVariable String exportUuid) {
         return networkConversionService.downloadExportFile(exportUuid);
