@@ -181,12 +181,12 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, Map<String, Object> formatParameters) {
-        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, formatParameters, receiver);
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, Map<String, Object> formatParameters, UUID exportUuid) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, formatParameters, receiver, exportUuid);
     }
 
-    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId) {
-        notificationService.emitCaseExportStart(caseUuid, fileName, format, formatParameters, userId);
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId, UUID exportUuid) {
+        notificationService.emitCaseExportStart(caseUuid, fileName, format, formatParameters, userId, exportUuid);
     }
 
     Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
@@ -226,8 +226,8 @@ public class NetworkConversionService {
     @Bean
     Consumer<Message<UUID>> consumeNetworkExportStart() {
         return message -> {
-            UUID exportUuid = UUID.randomUUID();
             UUID networkUuid = message.getPayload();
+            UUID exportUuid = UUID.fromString(Objects.requireNonNull(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class)));
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);

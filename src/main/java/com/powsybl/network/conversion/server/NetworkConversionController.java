@@ -84,15 +84,16 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<Void> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
-                                                             @Parameter(description = "Export format")@PathVariable("format") String format,
-                                                             @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                                             @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                             @RequestBody(required = false) Map<String, Object> formatParameters,
-                                                             @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver) {
+    public ResponseEntity<UUID> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
+                                              @Parameter(description = "Export format")@PathVariable("format") String format,
+                                              @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                              @RequestBody(required = false) Map<String, Object> formatParameters,
+                                              @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
-        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, formatParameters);
-        return ResponseEntity.accepted().build();
+        UUID exportUuid = UUID.randomUUID();
+        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, formatParameters, exportUuid);
+        return ResponseEntity.accepted().body(exportUuid);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -101,14 +102,15 @@ public class NetworkConversionController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
             )
     )
-    public ResponseEntity<Void> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
-                                                             @Parameter(description = "Export format") @PathVariable("format") String format,
-                                                             @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                                             @RequestBody(required = false) Map<String, Object> formatParameters,
-                                                             @RequestHeader(HEADER_USER_ID) String userId) {
+    public ResponseEntity<UUID> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+                                              @Parameter(description = "Export format") @PathVariable("format") String format,
+                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                              @RequestBody(required = false) Map<String, Object> formatParameters,
+                                              @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
-        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId);
-        return ResponseEntity.accepted().build();
+        UUID exportUuid = UUID.randomUUID();
+        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId, exportUuid);
+        return ResponseEntity.accepted().body(exportUuid);
     }
 
     @GetMapping(value = "/export/formats")

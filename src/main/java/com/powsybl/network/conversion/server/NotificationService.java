@@ -119,22 +119,26 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, Map<String, Object> formatParameters, String receiver) {
+    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format,
+                                       Map<String, Object> formatParameters, String receiver, UUID exportUuid) {
         sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .build());
     }
 
-    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId) {
+    public void emitCaseExportStart(UUID caseUuid, String fileName, String format,
+                                    Map<String, Object> formatParameters, String userId, UUID exportUuid) {
         sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .build());
     }
 }
