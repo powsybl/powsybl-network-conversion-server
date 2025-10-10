@@ -3,14 +3,6 @@ spring:
     name: network-conversion-server
 
   cloud:
-    aws:
-      endpoint: http://localhost:19000
-      region:
-        static: test
-      bucket: ws-bucket
-      credentials:
-        access-key: s3username
-        secret-key: s3password
     function:
       definition: consumeCaseImportStart;consumeNetworkExportStart;consumeCaseExportStart
     stream:
@@ -85,13 +77,6 @@ management:
   health:
     solr:
       enabled: false
-
-s3:
-  bucket: ws-bucket
-  login: s3username
-  password: s3password
-  subpath:
-    prefix: "export/"
 
 export-subpath: "network-exports"
 

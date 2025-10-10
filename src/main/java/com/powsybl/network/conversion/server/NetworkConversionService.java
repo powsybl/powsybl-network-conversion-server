@@ -124,10 +124,10 @@ public class NetworkConversionService {
 
     private final S3Client s3Client;
 
-    @Value("${s3.bucket:ws-bucket}")
+    @Value("${spring.cloud.aws.bucket:ws-bucket}")
     private final String bucketName;
 
-    @Value("${s3.subpath.prefix:}${export-subpath}")
+    @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}")
     private String exportRootPath;
 
     public NetworkConversionService(@Value("${powsybl.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
