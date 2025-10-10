@@ -32,6 +32,8 @@ import javax.xml.stream.XMLStreamException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static com.powsybl.network.conversion.server.NotificationService.HEADER_USER_ID;
+
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
  * @author Franck Lecuyer <franck.lecuyer at rte-france.com>
@@ -103,7 +105,7 @@ public class NetworkConversionController {
                                                              @Parameter(description = "Export format") @PathVariable("format") String format,
                                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                                              @RequestBody(required = false) Map<String, Object> formatParameters,
-                                                             @Parameter(description = "user Id") @RequestParam(name = "userId", required = false) String userId) {
+                                                             @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
         networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId);
         return ResponseEntity.accepted().build();

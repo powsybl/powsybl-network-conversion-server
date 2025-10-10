@@ -250,10 +250,10 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + "/" + exportUuid + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
-                notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, fileName, format, userId, exportUuid, null);
+                notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, userId, exportUuid, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
-                notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, fileName, format, userId, exportUuid, errorMsg);
+                notificationService.emitNetworkExportSucceeded(networkUuid, studyUuid, nodeUuid, rootNetworkUuid, userId, exportUuid, errorMsg);
                 LOGGER.error(errorMsg);
             }
         };
@@ -333,11 +333,11 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + "/" + exportUuid + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
-                notificationService.emitCaseExportSucceeded(caseUuid, fileName, format, userId, exportUuid, null);
+                notificationService.emitCaseExportSucceeded(caseUuid, userId, exportUuid, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
                 LOGGER.error(errorMsg);
-                notificationService.emitCaseExportSucceeded(caseUuid, fileName, format, userId, exportUuid, errorMsg);
+                notificationService.emitCaseExportSucceeded(caseUuid, userId, exportUuid, errorMsg);
             }
         };
     }

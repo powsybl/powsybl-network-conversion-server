@@ -98,26 +98,21 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportSucceeded(UUID networkUuid, UUID studyUuid, UUID nodeUuid, UUID rootNetworkUuid, String fileName,
-                                           String format, String userId, UUID exportUuid, String error) {
+    public void emitNetworkExportSucceeded(UUID networkUuid, UUID studyUuid, UUID nodeUuid, UUID rootNetworkUuid, String userId, UUID exportUuid, String error) {
         sendNetworkExportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_UUID, networkUuid)
                 .setHeader(HEADER_STUDY_UUID, studyUuid)
                 .setHeader(HEADER_NODE_UUID, nodeUuid)
                 .setHeader(HEADER_ROOT_NETWORK_UUID, rootNetworkUuid)
-                .setHeader(HEADER_FILE_NAME, fileName)
-                .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_ERROR, error)
                 .build());
     }
 
-    public void emitCaseExportSucceeded(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, String error) {
+    public void emitCaseExportSucceeded(UUID caseUuid, String userId, UUID exportUuid, String error) {
         sendCaseExportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_CASE_UUID, caseUuid)
-                .setHeader(HEADER_FILE_NAME, fileName)
-                .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_ERROR, error)

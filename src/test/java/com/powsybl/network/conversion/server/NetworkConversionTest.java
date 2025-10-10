@@ -206,7 +206,6 @@ class NetworkConversionTest {
             Message<byte[]> successMessage1 = output.receive(5000, "network.export.succeeded");
             assertNotNull(successMessage1);
             assertEquals(exportNetworkUuid1, successMessage1.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
-            assertEquals("XIIDM", successMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
             assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -274,7 +273,6 @@ class NetworkConversionTest {
             Message<byte[]> successMessage4 = output.receive(5000, "network.export.succeeded");
             assertNotNull(successMessage4);
             assertEquals(exportNetworkUuid4, successMessage4.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
-            assertEquals(fileName, successMessage4.getHeaders().get(NotificationService.HEADER_FILE_NAME));
             assertNull(successMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // nonexistent variantId
@@ -751,7 +749,7 @@ class NetworkConversionTest {
             // convert to iidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
-                    .param("userId", "userId")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isAccepted())
@@ -765,8 +763,6 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage1 = output.receive(10000, "case.export.succeeded");
             assertNotNull(resultMessage1);
             assertEquals(caseUuid, String.valueOf(resultMessage1.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
-            assertEquals("XIIDM", resultMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
-            assertEquals("testCase", resultMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -782,7 +778,7 @@ class NetworkConversionTest {
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
-                    .param("userId", "userId")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isAccepted())
@@ -796,7 +792,6 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage2 = output.receive(10000, "case.export.succeeded");
             assertNotNull(resultMessage2);
             assertEquals(caseUuid, String.valueOf(resultMessage2.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
-            assertEquals("BIIDM", resultMessage2.getHeaders().get(NotificationService.HEADER_FORMAT));
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             ArgumentCaptor<Path> filePathCaptor2 = ArgumentCaptor.forClass(Path.class);
@@ -818,7 +813,7 @@ class NetworkConversionTest {
             // fail because case not found
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
                     .param("fileName", "testCase")
-                    .param("userId", "userId")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isAccepted())
@@ -838,7 +833,7 @@ class NetworkConversionTest {
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
                     .param("fileName", "testCase")
-                    .param("userId", "userId")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isAccepted())
@@ -859,7 +854,7 @@ class NetworkConversionTest {
             // export case with an absolut path as fileName
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                             .param("fileName", "/tmp/testCase")
-                            .param("userId", "userId")
+                            .header("userId", "userId")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                     .andExpect(status().isAccepted())
@@ -924,6 +919,7 @@ class NetworkConversionTest {
             // convert to cgmes
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isAccepted())
@@ -942,8 +938,6 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage = output.receive(5000, "case.export.succeeded");
             assertNotNull(resultMessage);
             assertEquals(caseUuid, String.valueOf(resultMessage.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
-            assertEquals("CGMES", resultMessage.getHeaders().get(NotificationService.HEADER_FORMAT));
-            assertEquals("testCase", resultMessage.getHeaders().get(NotificationService.HEADER_FILE_NAME));
             assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
 
             UUID exportUuid = (UUID) resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID);
