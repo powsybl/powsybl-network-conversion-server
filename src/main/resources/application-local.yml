@@ -2,6 +2,9 @@ server:
   port: 5003
 
 spring:
+  cloud:
+    aws:
+      endpoint: http://localhost:19000
   rabbitmq:
     addresses: localhost
   elasticsearch:
