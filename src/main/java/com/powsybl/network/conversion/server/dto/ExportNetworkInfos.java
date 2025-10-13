@@ -7,6 +7,7 @@
 package com.powsybl.network.conversion.server.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -19,6 +20,7 @@ import java.nio.file.Path;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@Builder
 public class ExportNetworkInfos {
 
     private String networkName;
