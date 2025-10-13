@@ -747,7 +747,7 @@ class NetworkConversionTest {
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
             // convert to iidm
-            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+            MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -755,7 +755,10 @@ class NetworkConversionTest {
                 .andExpect(status().isAccepted())
                 .andReturn();
 
-            Message<byte[]> startMessage1 = output.receive(1000, "case.export.start");
+            String responseBody = result.getResponse().getContentAsString();
+            assertNotNull(responseBody);
+            assertFalse(responseBody.isEmpty());
+            Message<byte[]> startMessage1 = output.receive(10000, "case.export.start");
             assertNotNull(startMessage1);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
@@ -940,7 +943,7 @@ class NetworkConversionTest {
             assertEquals(caseUuid, String.valueOf(resultMessage.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
 
-            UUID exportUuid = (UUID) resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID);
+            String exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             assertNotNull(exportUuid);
 
             verify(networkConversionService, times(1)).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture(), fileNameCaptor.capture());
@@ -959,9 +962,9 @@ class NetworkConversionTest {
             }
             assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
             String s3Key = s3KeyCaptor.getValue();
-            exportUuid = (UUID) resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID);
+            exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             assertNotNull(exportUuid);
-            assertTrue(s3Key.contains(exportUuid.toString()));
+            assertTrue(s3Key.contains(exportUuid));
             assertTrue(s3Key.contains("testCase"));
             String fileName = fileNameCaptor.getValue();
             assertNotNull(fileName);

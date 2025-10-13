@@ -181,11 +181,11 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, Map<String, Object> formatParameters, UUID exportUuid) {
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, Map<String, Object> formatParameters, String exportUuid) {
         notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, formatParameters, receiver, exportUuid);
     }
 
-    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId, UUID exportUuid) {
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId, String exportUuid) {
         notificationService.emitCaseExportStart(caseUuid, fileName, format, formatParameters, userId, exportUuid);
     }
 
@@ -227,7 +227,7 @@ public class NetworkConversionService {
     Consumer<Message<UUID>> consumeNetworkExportStart() {
         return message -> {
             UUID networkUuid = message.getPayload();
-            UUID exportUuid = UUID.fromString(Objects.requireNonNull(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class)));
+            String exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
