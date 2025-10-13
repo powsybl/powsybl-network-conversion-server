@@ -315,11 +315,11 @@ public class NetworkConversionService {
     @Bean
     Consumer<Message<UUID>> consumeCaseExportStart() {
         return message -> {
-            UUID exportUuid = UUID.randomUUID();
             UUID caseUuid = message.getPayload();
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
+            String exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
             Map<String, Object> formatParameters = new HashMap<>();
             if (rawParameters != null) {

@@ -110,7 +110,7 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseExportSucceeded(UUID caseUuid, String userId, UUID exportUuid, String error) {
+    public void emitCaseExportSucceeded(UUID caseUuid, String userId, String exportUuid, String error) {
         sendCaseExportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_CASE_UUID, caseUuid)
                 .setHeader(HEADER_USER_ID, userId)
