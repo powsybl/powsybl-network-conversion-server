@@ -46,7 +46,7 @@ import static com.powsybl.network.conversion.server.NotificationService.HEADER_U
 public class NetworkConversionController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionController.class);
-    public static final String A_SYNCHRONOUSLY = "asynchronously";
+    public static final String ASYNCHRONOUSLY = "asynchronously";
     public static final String SYNCHRONOUSLY = "synchronously";
 
     @Autowired
@@ -64,7 +64,7 @@ public class NetworkConversionController {
                                                    @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters,
                                                    @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
                                                    @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
-        LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? A_SYNCHRONOUSLY : SYNCHRONOUSLY);
+        LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? ASYNCHRONOUSLY : SYNCHRONOUSLY);
         Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
             NetworkInfos networkInfos = networkConversionService.importCase(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters);
@@ -89,28 +89,28 @@ public class NetworkConversionController {
                                               @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @RequestBody(required = false) Map<String, Object> formatParameters,
-                                              @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver) {
+                                              @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
-        String exportUuid = UUID.randomUUID().toString();
-        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, formatParameters, exportUuid);
-        return ResponseEntity.accepted().body(exportUuid);
+        UUID exportUuid = UUID.randomUUID();
+        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, userId, formatParameters, exportUuid);
+        return ResponseEntity.accepted().body(exportUuid.toString());
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
     @Operation(summary = "Export a network from case server in asked format",
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Parameters for chosen format",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
-            )
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Parameters for chosen format",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
+        )
     )
-    public ResponseEntity<String> exportNetwork(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+    public ResponseEntity<String> convertCase(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format") @PathVariable("format") String format,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @RequestBody(required = false) Map<String, Object> formatParameters,
                                               @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
-        String exportUuid = UUID.randomUUID().toString();
+        UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId, exportUuid);
-        return ResponseEntity.accepted().body(exportUuid);
+        return ResponseEntity.accepted().body(exportUuid.toString());
     }
 
     @GetMapping(value = "/export/formats")

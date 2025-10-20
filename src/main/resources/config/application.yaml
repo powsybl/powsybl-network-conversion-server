@@ -19,8 +19,8 @@ spring:
             max-attempts: 1
         publishNetworkExportStart-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.start
-        publishNetworkExportSucceeded-out-0:
-          destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.succeeded
+        publishNetworkExportFinished-out-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.finished
         consumeNetworkExportStart-in-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.start
           group: exportGroup
@@ -29,15 +29,15 @@ spring:
             max-attempts: 1
         publishCaseExportStart-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.start
-        publishCaseExportSucceeded-out-0:
-          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.succeeded
+        publishCaseExportFinished-out-0:
+          destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.finished
         consumeCaseExportStart-in-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.start
           group: exportGroup
           consumer:
             concurrency: 2
             max-attempts: 1
-      output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishNetworkExportStart-out-0;publishNetworkExportSucceeded-out-0;publishCaseExportStart-out-0;publishCaseExportSucceeded-out-0
+      output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishNetworkExportStart-out-0;publishNetworkExportFinished-out-0;publishCaseExportStart-out-0;publishCaseExportFinished-out-0
       rabbit:
         bindings:
           consumeCaseImportStart-in-0:
