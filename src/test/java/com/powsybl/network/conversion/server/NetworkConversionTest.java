@@ -208,7 +208,7 @@ class NetworkConversionTest {
             UUID exportNetworkUuid2 = UUID.randomUUID();
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM")
                             .param("variantId", "second_variant_id")
-                            .header("userId", "user-id"))
+                            .param("userId", "user-id"))
                     .andExpect(status().isAccepted())
                     .andReturn();
 
@@ -231,7 +231,7 @@ class NetworkConversionTest {
 
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid3, "XIIDM")
                             .param("variantId", "second_variant_id")
-                            .header("userId", "user-id")
+                            .param("userId", "user-id")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content(new ObjectMapper().writeValueAsString(exportParams)))
                     .andExpect(status().isAccepted())
@@ -254,7 +254,7 @@ class NetworkConversionTest {
             String fileName = "studyName_Root";
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + fileName, exportNetworkUuid4, "XIIDM")
                             .param("variantId", "second_variant_id")
-                            .header("userId", "user-id"))
+                            .param("userId", "user-id"))
                     .andExpect(status().isAccepted())
                     .andReturn();
 
@@ -272,7 +272,7 @@ class NetworkConversionTest {
             UUID exportNetworkUuid5 = UUID.randomUUID();
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid5, "XIIDM")
                             .param("variantId", "unknown_variant_id")
-                            .header("userId", "user-id"))
+                            .param("userId", "user-id"))
                     .andExpect(status().isAccepted())
                     .andReturn();
 
@@ -291,7 +291,7 @@ class NetworkConversionTest {
             UUID exportNetworkUuid6 = UUID.randomUUID();
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid6, "JPEG")
                             .param("variantId", "second_variant_id")
-                            .header("userId", "user-id"))
+                            .param("userId", "user-id"))
                     .andExpect(status().isAccepted())
                     .andReturn();
 

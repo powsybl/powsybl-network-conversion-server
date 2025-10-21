@@ -181,18 +181,19 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String userId, Map<String, Object> formatParameters, UUID exportUuid) {
-        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, formatParameters, userId, exportUuid);
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, userId, exportUuid, formatParameters);
     }
 
-    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, Map<String, Object> formatParameters, String userId, UUID exportUuid) {
-        notificationService.emitCaseExportStart(caseUuid, fileName, format, formatParameters, userId, exportUuid);
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitCaseExportStart(caseUuid, fileName, format, userId, exportUuid, formatParameters);
     }
 
     Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
         Map<String, String> defaultValues = new HashMap<>();
         importer.getParameters()
+                .stream()
                 .forEach(parameter -> defaultValues.put(parameter.getName(),
                         parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
         return defaultValues;
@@ -227,16 +228,12 @@ public class NetworkConversionService {
     Consumer<Message<UUID>> consumeNetworkExportStart() {
         return message -> {
             UUID networkUuid = message.getPayload();
-            String exportUuid = String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class));
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
-            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
-            Map<String, Object> formatParameters = new HashMap<>();
-            if (rawParameters != null) {
-                rawParameters.forEach((key, value) -> formatParameters.put(key, value.toString()));
-            }
+            String exportUuid = extractExportUuid(message);
+            Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
                 ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExportProcessing(
@@ -311,12 +308,8 @@ public class NetworkConversionService {
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
-            String exportUuid = String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class));
-            Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
-            Map<String, Object> formatParameters = new HashMap<>();
-            if (rawParameters != null) {
-                rawParameters.forEach((key, value) -> formatParameters.put(key, value.toString()));
-            }
+            String exportUuid = extractExportUuid(message);
+            Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
                 ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExportProcessing(
@@ -332,6 +325,23 @@ public class NetworkConversionService {
                 notificationService.emitCaseExportFinished(caseUuid, userId, exportUuid, errorMsg);
             }
         };
+    }
+
+    private String extractExportUuid(Message<UUID> message) {
+        return String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class));
+    }
+
+    private Map<String, Object> extractFormatParameters(Message<UUID> message) {
+        Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+        Map<String, Object> formatParameters = new HashMap<>();
+        if (rawParameters != null) {
+            rawParameters.forEach((key, value) -> {
+                if (value != null) {
+                    formatParameters.put(key, value.toString());
+                }
+            });
+        }
+        return formatParameters;
     }
 
     private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {

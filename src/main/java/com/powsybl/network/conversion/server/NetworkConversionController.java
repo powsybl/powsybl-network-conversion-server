@@ -85,14 +85,14 @@ public class NetworkConversionController {
         )
     )
     public ResponseEntity<String> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
-                                              @Parameter(description = "Export format")@PathVariable("format") String format,
-                                              @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                              @RequestBody(required = false) Map<String, Object> formatParameters,
-                                              @RequestHeader(HEADER_USER_ID) String userId) {
+                                 @Parameter(description = "Export format")@PathVariable("format") String format,
+                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                 @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                 @Parameter(description = "user Id") @RequestParam(name = HEADER_USER_ID, required = false) String userId,
+                                 @RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
         UUID exportUuid = UUID.randomUUID();
-        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, userId, formatParameters, exportUuid);
+        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, userId, exportUuid, formatParameters);
         return ResponseEntity.accepted().body(exportUuid.toString());
     }
 
@@ -105,11 +105,11 @@ public class NetworkConversionController {
     public ResponseEntity<String> convertCase(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format") @PathVariable("format") String format,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                              @RequestBody(required = false) Map<String, Object> formatParameters,
+                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters,
                                               @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
         UUID exportUuid = UUID.randomUUID();
-        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, formatParameters, userId, exportUuid);
+        networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, userId, exportUuid, formatParameters);
         return ResponseEntity.accepted().body(exportUuid.toString());
     }
 
