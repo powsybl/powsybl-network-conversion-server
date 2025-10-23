@@ -190,8 +190,8 @@ class NetworkConversionTest {
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
 
             UUID exportNetworkUuid1 = UUID.randomUUID();
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM")
-                            .header("userId", "user-id"))
+            String receiver = "test receiver";
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM").param("receiver", receiver))
                     .andExpect(status().isAccepted())
                     .andReturn();
             Message<byte[]> startMessage1 = output.receive(1000, "network.export.start");
@@ -206,9 +206,7 @@ class NetworkConversionTest {
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
             UUID exportNetworkUuid2 = UUID.randomUUID();
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM")
-                            .param("variantId", "second_variant_id")
-                            .param("userId", "user-id"))
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM").param("variantId", "second_variant_id").param("receiver", receiver))
                     .andExpect(status().isAccepted())
                     .andReturn();
 
@@ -216,12 +214,10 @@ class NetworkConversionTest {
             assertNotNull(startMessage2);
             assertEquals(String.valueOf(exportNetworkUuid2), mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
-            assertEquals("user-id", startMessage2.getHeaders().get(NotificationService.HEADER_USER_ID));
 
             Message<byte[]> successMessage2 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage2);
             assertEquals(exportNetworkUuid2, successMessage2.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
-            assertEquals("user-id", successMessage2.getHeaders().get(NotificationService.HEADER_USER_ID));
             assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // takes the iidm.export.xml.indent param into account
@@ -231,7 +227,7 @@ class NetworkConversionTest {
 
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid3, "XIIDM")
                             .param("variantId", "second_variant_id")
-                            .param("userId", "user-id")
+                            .param("receiver", receiver)
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content(new ObjectMapper().writeValueAsString(exportParams)))
                     .andExpect(status().isAccepted())
@@ -272,7 +268,7 @@ class NetworkConversionTest {
             UUID exportNetworkUuid5 = UUID.randomUUID();
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid5, "XIIDM")
                             .param("variantId", "unknown_variant_id")
-                            .param("userId", "user-id"))
+                            .param("receiver", receiver))
                     .andExpect(status().isAccepted())
                     .andReturn();
 

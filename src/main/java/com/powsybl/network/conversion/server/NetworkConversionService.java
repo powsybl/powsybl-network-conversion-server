@@ -232,7 +232,7 @@ public class NetworkConversionService {
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            String exportUuid = extractExportUuid(message);
+            String exportUuid = extractExportUuid(message).toString();
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
@@ -308,7 +308,7 @@ public class NetworkConversionService {
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
-            String exportUuid = extractExportUuid(message);
+            String exportUuid = extractExportUuid(message).toString();
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
@@ -327,8 +327,8 @@ public class NetworkConversionService {
         };
     }
 
-    private String extractExportUuid(Message<UUID> message) {
-        return String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class));
+    private UUID extractExportUuid(Message<UUID> message) {
+        return message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
     }
 
     private Map<String, Object> extractFormatParameters(Message<UUID> message) {
