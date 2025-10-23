@@ -181,8 +181,8 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
-        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, userId, exportUuid, formatParameters);
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
     }
 
     void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
@@ -231,7 +231,7 @@ public class NetworkConversionService {
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
-            String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             String exportUuid = extractExportUuid(message);
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
@@ -242,10 +242,10 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + "/" + exportUuid + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
-                notificationService.emitNetworkExportFinished(networkUuid, userId, exportUuid, null);
+                notificationService.emitNetworkExportFinished(networkUuid, receiver, exportUuid, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
-                notificationService.emitNetworkExportFinished(networkUuid, userId, exportUuid, errorMsg);
+                notificationService.emitNetworkExportFinished(networkUuid, receiver, exportUuid, errorMsg);
                 LOGGER.error(errorMsg);
             }
         };
@@ -328,7 +328,7 @@ public class NetworkConversionService {
     }
 
     private String extractExportUuid(Message<UUID> message) {
-        return String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class));
+        return String.valueOf(message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class));
     }
 
     private Map<String, Object> extractFormatParameters(Message<UUID> message) {

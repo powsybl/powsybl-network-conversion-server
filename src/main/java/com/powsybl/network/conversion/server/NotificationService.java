@@ -97,10 +97,10 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportFinished(UUID networkUuid, String userId, String exportUuid, String error) {
+    public void emitNetworkExportFinished(UUID networkUuid, String receiver, String exportUuid, String error) {
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_UUID, networkUuid)
-                .setHeader(HEADER_USER_ID, userId)
+                .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_ERROR, error)
                 .build());
@@ -115,12 +115,12 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, String receiver, UUID exportUuid, Map<String, Object> formatParameters) {
         sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
-                .setHeader(HEADER_USER_ID, userId)
+                .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
