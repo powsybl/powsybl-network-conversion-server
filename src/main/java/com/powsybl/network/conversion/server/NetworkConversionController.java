@@ -85,11 +85,11 @@ public class NetworkConversionController {
         )
     )
     public ResponseEntity<UUID> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
-                                 @Parameter(description = "Export format")@PathVariable("format") String format,
-                                 @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
-                                 @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
-                                 @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
-                                 @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
+                                              @Parameter(description = "Export format")@PathVariable("format") String format,
+                                              @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
+                                              @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
+                                              @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
+                                              @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
         UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
