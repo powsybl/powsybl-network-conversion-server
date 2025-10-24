@@ -201,7 +201,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage1 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage1);
-            assertEquals(exportNetworkUuid1, successMessage1.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
             assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -217,7 +216,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage2 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage2);
-            assertEquals(exportNetworkUuid2, successMessage2.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
             assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // takes the iidm.export.xml.indent param into account
@@ -242,7 +240,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage3 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage3);
-            assertEquals(exportNetworkUuid3, successMessage3.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
             assertNull(successMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
 
             //with fileName
@@ -261,7 +258,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage4 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage4);
-            assertEquals(exportNetworkUuid4, successMessage4.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
             assertNull(successMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // nonexistent variantId
@@ -278,7 +274,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage5 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage5);
-            assertEquals(String.valueOf(exportNetworkUuid5), String.valueOf(successMessage5.getHeaders().get(NotificationService.HEADER_NETWORK_UUID)));
             assertNotNull(successMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage5 = (String) successMessage5.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage5.contains("Export failed"));
@@ -297,7 +292,6 @@ class NetworkConversionTest {
 
             Message<byte[]> successMessage6 = output.receive(5000, "network.export.finished");
             assertNotNull(successMessage6);
-            assertEquals(String.valueOf(exportNetworkUuid6), String.valueOf(successMessage6.getHeaders().get(NotificationService.HEADER_NETWORK_UUID)));
             assertNotNull(successMessage6.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage6 = (String) successMessage6.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage6.contains("Export failed"));
@@ -754,7 +748,6 @@ class NetworkConversionTest {
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
             Message<byte[]> resultMessage1 = output.receive(10000, "case.export.finished");
             assertNotNull(resultMessage1);
-            assertEquals(caseUuid, String.valueOf(resultMessage1.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -783,7 +776,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage2 = output.receive(10000, "case.export.finished");
             assertNotNull(resultMessage2);
-            assertEquals(caseUuid, String.valueOf(resultMessage2.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             ArgumentCaptor<Path> filePathCaptor2 = ArgumentCaptor.forClass(Path.class);
@@ -816,7 +808,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage3 = output.receive(10000, "case.export.finished");
             assertNotNull(resultMessage3);
-            assertEquals(randomUuid, resultMessage3.getHeaders().get(NotificationService.HEADER_CASE_UUID));
             assertNotNull(resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
             assertNotNull(errorMessage3);
@@ -837,7 +828,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage4 = output.receive(10000, "case.export.finished");
             assertNotNull(resultMessage4);
-            assertEquals(caseUuid, String.valueOf(resultMessage4.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNotNull(resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
             assertNotNull(errorMessage4);
@@ -858,7 +848,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage5 = output.receive(10000, "case.export.finished");
             assertNotNull(resultMessage5);
-            assertEquals(caseUuid, String.valueOf(resultMessage5.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
 
             assertTrue(Files.list(Paths.get("/tmp")).anyMatch(pathTmp -> Files.isDirectory(pathTmp) && pathTmp.getFileName().toString().startsWith("export_")));
@@ -929,7 +918,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage = output.receive(5000, "case.export.finished");
             assertNotNull(resultMessage);
-            assertEquals(caseUuid, String.valueOf(resultMessage.getHeaders().get(NotificationService.HEADER_CASE_UUID)));
             assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
 
             UUID exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);

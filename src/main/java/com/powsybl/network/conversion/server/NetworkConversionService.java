@@ -242,10 +242,10 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + "/" + exportUuid.toString() + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
-                notificationService.emitNetworkExportFinished(networkUuid, receiver, exportUuid, null);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
-                notificationService.emitNetworkExportFinished(networkUuid, receiver, exportUuid, errorMsg);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
                 LOGGER.error(errorMsg);
             }
         };
@@ -318,11 +318,11 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + "/" + exportUuid.toString() + "/" + fileName;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
-                notificationService.emitCaseExportFinished(caseUuid, userId, exportUuid, null);
+                notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
                 LOGGER.error(errorMsg);
-                notificationService.emitCaseExportFinished(caseUuid, userId, exportUuid, errorMsg);
+                notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
             }
         };
     }

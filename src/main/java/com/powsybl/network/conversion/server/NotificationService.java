@@ -97,18 +97,16 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportFinished(UUID networkUuid, String receiver, UUID exportUuid, String error) {
+    public void emitNetworkExportFinished(UUID exportUuid, String receiver, String error) {
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
-                .setHeader(HEADER_NETWORK_UUID, networkUuid)
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_ERROR, error)
                 .build());
     }
 
-    public void emitCaseExportFinished(UUID caseUuid, String userId, UUID exportUuid, String error) {
+    public void emitCaseExportFinished(UUID exportUuid, String userId, String error) {
         sendCaseExportFinishedMessage(MessageBuilder.withPayload("")
-                .setHeader(HEADER_CASE_UUID, caseUuid)
                 .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid)
                 .setHeader(HEADER_ERROR, error)
