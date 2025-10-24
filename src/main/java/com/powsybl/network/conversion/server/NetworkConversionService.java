@@ -48,7 +48,10 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -232,7 +235,8 @@ public class NetworkConversionService {
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            UUID exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
+            String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
+            UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
@@ -240,7 +244,7 @@ public class NetworkConversionService {
                         format,
                         () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
                 );
-                String s3Key = exportRootPath + "/" + exportUuid.toString() + "/" + fileName;
+                String s3Key = exportRootPath + "/" + exportUuid;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
@@ -266,20 +270,13 @@ public class NetworkConversionService {
 
     public ResponseEntity<InputStreamResource> downloadExportFile(String exportUuid) {
         try {
-            String s3Prefix = exportRootPath + "/" + exportUuid + "/";
-            GetObjectRequest getRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(s3Prefix)
-                    .build();
+            String s3Key = exportRootPath + "/" + exportUuid;
+            GetObjectRequest getRequest = GetObjectRequest.builder().bucket(bucketName).key(s3Key).build();
             ResponseInputStream<GetObjectResponse> s3InputStream = s3Client.getObject(getRequest);
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentDisposition(ContentDisposition.builder("attachment")
-                    .filename(s3InputStream.response().metadata().get(METADATA_FILE_NAME)).build());
+            headers.setContentDisposition(ContentDisposition.builder("attachment").filename(s3InputStream.response().metadata().get(METADATA_FILE_NAME)).build());
             headers.setContentLength(s3InputStream.response().contentLength());
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(new InputStreamResource(s3InputStream));
+            return ResponseEntity.ok().headers(headers).contentType(MediaType.APPLICATION_OCTET_STREAM).body(new InputStreamResource(s3InputStream));
         } catch (NoSuchKeyException e) {
             return ResponseEntity.notFound().build();
         }
@@ -292,7 +289,8 @@ public class NetworkConversionService {
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
-            UUID exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
+            String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
+            UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
@@ -300,7 +298,7 @@ public class NetworkConversionService {
                         format,
                         () -> exportCase(caseUuid, format, fileName, formatParameters)
                 );
-                String s3Key = exportRootPath + "/" + exportUuid.toString() + "/" + fileName;
+                String s3Key = exportRootPath + "/" + exportUuid;
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
                 notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {

@@ -100,7 +100,7 @@ public class NotificationService {
     public void emitNetworkExportFinished(UUID exportUuid, String receiver, String error) {
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_ERROR, error)
                 .build());
     }
@@ -108,7 +108,7 @@ public class NotificationService {
     public void emitCaseExportFinished(UUID exportUuid, String userId, String error) {
         sendCaseExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_USER_ID, userId)
-                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_ERROR, error)
                 .build());
     }
@@ -119,7 +119,7 @@ public class NotificationService {
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }
@@ -129,7 +129,7 @@ public class NotificationService {
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
                 .setHeader(HEADER_USER_ID, userId)
-                .setHeader(HEADER_EXPORT_UUID, exportUuid)
+                .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
                 .build());
     }
