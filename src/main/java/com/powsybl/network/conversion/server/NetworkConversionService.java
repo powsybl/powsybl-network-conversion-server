@@ -28,7 +28,6 @@ import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,14 +198,6 @@ public class NetworkConversionService {
         };
     }
 
-    private void removePropertyWhenEmptyValue(Map<String, Object> importParameters, String propertyName) {
-        if (importParameters.containsKey(propertyName) &&
-            importParameters.get(propertyName) instanceof String &&
-            StringUtils.isEmpty((String) importParameters.get(propertyName))) {
-            importParameters.remove(propertyName);
-        }
-    }
-
     private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
         ReportNode rootReport = ReportNode.NO_OP;
@@ -231,11 +222,6 @@ public class NetworkConversionService {
         Network network = networkConversionObserver.observeImportProcessing(caseFormat, () -> {
             if (!importParameters.isEmpty()) {
                 Properties importProperties = new Properties();
-                // To avoid exception in powsybl-core (ExtensionOptionsUtil.java::getAndCheckExtensionsToInclude) when both properties are not null :
-                //  "You can't define both included and excluded extensions in parameters"
-                removePropertyWhenEmptyValue(importParameters, "iidm.import.xml.included.extensions");
-                removePropertyWhenEmptyValue(importParameters, "iidm.import.xml.excluded.extensions");
-
                 importProperties.putAll(importParameters);
                 return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
             } else {
