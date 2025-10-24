@@ -84,14 +84,14 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<String> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
+    public ResponseEntity<UUID> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                  @Parameter(description = "Export format")@PathVariable("format") String format,
                                  @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                  @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                  @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
                                  @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
-        String exportUuid = UUID.randomUUID().toString();
+        UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
         return ResponseEntity.accepted().body(exportUuid);
     }
@@ -102,13 +102,13 @@ public class NetworkConversionController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Properties.class))
         )
     )
-    public ResponseEntity<String> convertCase(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
+    public ResponseEntity<UUID> convertCase(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format")@PathVariable("format") String format,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters,
                                               @RequestHeader(HEADER_USER_ID) String userId) {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
-        String exportUuid = UUID.randomUUID().toString();
+        UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, userId, exportUuid, formatParameters);
         return ResponseEntity.accepted().body(exportUuid);
     }
