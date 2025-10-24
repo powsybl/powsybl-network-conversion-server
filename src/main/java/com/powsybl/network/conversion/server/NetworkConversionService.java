@@ -417,13 +417,6 @@ public class NetworkConversionService {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
-    private static CgmesExportContext createContext(Network network) {
-        CgmesExportContext context = new CgmesExportContext();
-        context.setScenarioTime(network.getCaseDate());
-        context.addIidmMappings(network);
-        return context;
-    }
-
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
         String caseFormat = "CGMES";
         if (CollectionUtils.isEmpty(boundaries)) {  // no boundaries given, standard import
