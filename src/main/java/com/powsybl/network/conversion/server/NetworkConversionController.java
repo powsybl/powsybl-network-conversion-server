@@ -22,13 +22,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.xml.stream.XMLStreamException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -121,16 +118,6 @@ public class NetworkConversionController {
         LOGGER.debug("getImportParametersOfFormat ...");
         ImportExportFormatMeta parameters = networkConversionService.getCaseImportParameters(caseUuid);
         return ResponseEntity.ok().body(parameters);
-    }
-
-    @GetMapping(value = "/networks/{networkUuid}/export-sv-cgmes")
-    @Operation(summary = "Export a cgmes network from the network-store")
-    public ResponseEntity<byte[]> exportCgmesSv(@Parameter(description = "Network UUID") @PathVariable("networkUuid") UUID networkUuid) throws XMLStreamException {
-        LOGGER.debug("Exporting network {}...", networkUuid);
-        ExportNetworkInfos exportNetworkInfos = networkConversionService.exportCgmesSv(networkUuid);
-        HttpHeaders header = new HttpHeaders();
-        header.setContentDisposition(ContentDisposition.builder("attachment").filename(exportNetworkInfos.getNetworkName(), StandardCharsets.UTF_8).build());
-        return ResponseEntity.ok().headers(header).contentType(MediaType.APPLICATION_OCTET_STREAM).body(exportNetworkInfos.getNetworkData());
     }
 
     @PostMapping(value = "/networks/cgmes")
