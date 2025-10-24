@@ -93,7 +93,7 @@ public class NetworkConversionController {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
         UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
-        return ResponseEntity.accepted().body(exportUuid);
+        return ResponseEntity.ok().body(exportUuid);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -110,7 +110,7 @@ public class NetworkConversionController {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
         UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, userId, exportUuid, formatParameters);
-        return ResponseEntity.accepted().body(exportUuid);
+        return ResponseEntity.ok().body(exportUuid);
     }
 
     @GetMapping(value = "/export/formats")

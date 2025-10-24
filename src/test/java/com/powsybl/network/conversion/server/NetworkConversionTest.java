@@ -192,7 +192,7 @@ class NetworkConversionTest {
             UUID exportNetworkUuid1 = UUID.randomUUID();
             String receiver = "test receiver";
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM").param("receiver", receiver))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
             Message<byte[]> startMessage1 = output.receive(1000, "network.export.start");
             assertNotNull(startMessage1);
@@ -206,7 +206,7 @@ class NetworkConversionTest {
 
             UUID exportNetworkUuid2 = UUID.randomUUID();
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM").param("variantId", "second_variant_id").param("receiver", receiver))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage2 = output.receive(1000, "network.export.start");
@@ -228,7 +228,7 @@ class NetworkConversionTest {
                             .param("receiver", receiver)
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content(new ObjectMapper().writeValueAsString(exportParams)))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage3 = output.receive(1000, "network.export.start");
@@ -248,7 +248,7 @@ class NetworkConversionTest {
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + fileName, exportNetworkUuid4, "XIIDM")
                             .param("variantId", "second_variant_id")
                             .param("userId", "user-id"))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage4 = output.receive(1000, "network.export.start");
@@ -265,7 +265,7 @@ class NetworkConversionTest {
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid5, "XIIDM")
                             .param("variantId", "unknown_variant_id")
                             .param("receiver", receiver))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage5 = output.receive(1000, "network.export.start");
@@ -283,7 +283,7 @@ class NetworkConversionTest {
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid6, "JPEG")
                             .param("variantId", "second_variant_id")
                             .param("userId", "user-id"))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage6 = output.receive(1000, "network.export.start");
@@ -735,7 +735,7 @@ class NetworkConversionTest {
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andReturn();
 
             String responseBody = result.getResponse().getContentAsString();
@@ -766,7 +766,7 @@ class NetworkConversionTest {
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andReturn();
 
             Message<byte[]> startMessage2 = output.receive(1000, "case.export.start");
@@ -800,7 +800,7 @@ class NetworkConversionTest {
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andReturn();
 
             Message<byte[]> startMessage3 = output.receive(1000, "case.export.start");
@@ -819,7 +819,7 @@ class NetworkConversionTest {
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andReturn();
 
             Message<byte[]> startMessage4 = output.receive(1000, "case.export.start");
@@ -839,7 +839,7 @@ class NetworkConversionTest {
                             .header("userId", "userId")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                    .andExpect(status().isAccepted())
+                    .andExpect(status().isOk())
                     .andReturn();
 
             Message<byte[]> startMessage5 = output.receive(1000, "case.export.start");
@@ -903,7 +903,7 @@ class NetworkConversionTest {
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andReturn();
 
             Message<byte[]> startMessage = output.receive(1000, "case.export.start");
