@@ -232,7 +232,7 @@ public class NetworkConversionService {
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
-            UUID exportUuid = extractExportUuid(message);
+            UUID exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
@@ -267,35 +267,19 @@ public class NetworkConversionService {
     public ResponseEntity<InputStreamResource> downloadExportFile(String exportUuid) {
         try {
             String s3Prefix = exportRootPath + "/" + exportUuid + "/";
-            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
-                    .bucket(bucketName)
-                    .prefix(s3Prefix)
-                    .maxKeys(1)
-                    .build();
-            ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
-            if (listResponse.contents().isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            S3Object firstObject = listResponse.contents().getFirst();
-            String s3Key = firstObject.key();
             GetObjectRequest getRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(s3Key)
+                    .key(s3Prefix)
                     .build();
-            ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(getRequest);
-            String fileName = s3Object.response().metadata().get(METADATA_FILE_NAME);
-            if (fileName == null) {
-                fileName = s3Key.substring(s3Key.lastIndexOf("/") + 1);
-            }
-            Long fileLength = s3Object.response().contentLength();
+            ResponseInputStream<GetObjectResponse> s3InputStream = s3Client.getObject(getRequest);
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentDisposition(ContentDisposition.builder("attachment").filename(fileName).build());
-            headers.setContentLength(fileLength);
-            InputStreamResource resource = new InputStreamResource(s3Object);
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .filename(s3InputStream.response().metadata().get(METADATA_FILE_NAME)).build());
+            headers.setContentLength(s3InputStream.response().contentLength());
             return ResponseEntity.ok()
                     .headers(headers)
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(resource);
+                    .body(new InputStreamResource(s3InputStream));
         } catch (NoSuchKeyException e) {
             return ResponseEntity.notFound().build();
         }
@@ -308,7 +292,7 @@ public class NetworkConversionService {
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
-            UUID exportUuid = extractExportUuid(message);
+            UUID exportUuid = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
             Map<String, Object> formatParameters = extractFormatParameters(message);
             try {
                 LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
@@ -327,11 +311,8 @@ public class NetworkConversionService {
         };
     }
 
-    private UUID extractExportUuid(Message<UUID> message) {
-        return message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, UUID.class);
-    }
-
     private Map<String, Object> extractFormatParameters(Message<UUID> message) {
+        // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
         Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
         Map<String, Object> formatParameters = new HashMap<>();
         if (rawParameters != null) {

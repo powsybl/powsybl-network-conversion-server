@@ -1143,10 +1143,6 @@ class NetworkConversionTest {
         String fileName = "testExport.xiidm";
         String fileContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><network>test</network>";
         byte[] fileBytes = fileContent.getBytes(StandardCharsets.UTF_8);
-        String s3Key = "exports/" + exportUuid + "/" + fileName;
-        S3Object s3Object = S3Object.builder().key(s3Key).size((long) fileBytes.length).build();
-        ListObjectsV2Response listResponse = ListObjectsV2Response.builder().contents(s3Object).build();
-        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
         GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).metadata(Map.of("file-name", fileName)).build();
         ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
         given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
@@ -1161,14 +1157,10 @@ class NetworkConversionTest {
         byte[] downloadedContent = result.getResponse().getContentAsByteArray();
         assertArrayEquals(fileBytes, downloadedContent);
 
-        // export not found
-        String notFoundUuid = UUID.randomUUID().toString();
-        ListObjectsV2Response emptyResponse = ListObjectsV2Response.builder().contents(Collections.emptyList()).build();
-        given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(notFoundUuid)))).willReturn(emptyResponse);
-        mvc.perform(get("/v1/download-file/{exportUuid}", notFoundUuid)).andExpect(status().isNotFound());
-        String exceptionUuid = UUID.randomUUID().toString();
+        // exception case
         reset(s3Client);
-        given(s3Client.listObjectsV2(argThat((ListObjectsV2Request req) -> req.prefix().contains(exceptionUuid)))).willThrow(NoSuchKeyException.builder().build());
+        String exceptionUuid = UUID.randomUUID().toString();
+        given(s3Client.getObject(any(GetObjectRequest.class))).willThrow(NoSuchKeyException.builder().build());
         mvc.perform(get("/v1/download-file/{exportUuid}", exceptionUuid)).andExpect(status().isNotFound());
     }
 
