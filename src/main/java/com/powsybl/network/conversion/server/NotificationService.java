@@ -31,7 +31,6 @@ public class NotificationService {
     public static final String HEADER_REPORT_UUID = "reportUuid";
     public static final String HEADER_NETWORK_ID = "networkId";
     public static final String HEADER_NETWORK_UUID = "networkUuid";
-    public static final String HEADER_CASE_UUID = "caseUuid";
     public static final String HEADER_RECEIVER = "receiver";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
