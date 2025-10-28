@@ -238,9 +238,10 @@ public class NetworkConversionService {
             String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
             Map<String, Object> formatParameters = extractFormatParameters(message);
+            ExportNetworkInfos exportNetworkInfos = null;
             try {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
-                ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExportProcessing(
+                exportNetworkInfos = networkConversionObserver.observeExportProcessing(
                         format,
                         () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
                 );
@@ -251,6 +252,10 @@ public class NetworkConversionService {
                 String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
                 LOGGER.error(errorMsg);
+            } finally {
+                if (exportNetworkInfos != null) {
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                }
             }
         };
     }
@@ -292,9 +297,10 @@ public class NetworkConversionService {
             String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
             Map<String, Object> formatParameters = extractFormatParameters(message);
+            ExportNetworkInfos exportNetworkInfos = null;
             try {
                 LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
-                ExportNetworkInfos exportNetworkInfos = networkConversionObserver.observeExportProcessing(
+                exportNetworkInfos = networkConversionObserver.observeExportProcessing(
                         format,
                         () -> exportCase(caseUuid, format, fileName, formatParameters)
                 );
@@ -305,6 +311,10 @@ public class NetworkConversionService {
                 String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
                 LOGGER.error(errorMsg);
                 notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
+            } finally {
+                if (exportNetworkInfos != null) {
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                }
             }
         };
     }
@@ -764,7 +774,7 @@ public class NetworkConversionService {
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
             if (tempDir != null) {
-                cleanupTempFiles(tempDir);
+                cleanUpTempFiles(tempDir);
             }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
@@ -785,7 +795,7 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    private void cleanupTempFiles(Path tempFilePath) {
+    public void cleanUpTempFiles(Path tempFilePath) {
         try {
             if (Files.exists(tempFilePath)) {
                 FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
