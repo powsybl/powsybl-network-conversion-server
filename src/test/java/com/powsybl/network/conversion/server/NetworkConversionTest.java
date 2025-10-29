@@ -56,7 +56,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -730,15 +729,13 @@ class NetworkConversionTest {
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
-            ArgumentCaptor<Path> filePathCaptor2 = ArgumentCaptor.forClass(Path.class);
+            ArgumentCaptor<Path> filePathCaptor1 = ArgumentCaptor.forClass(Path.class);
+            byte[][] fileContent1 = new byte[1][];
             doAnswer(invocation -> {
-                Path uploadedFilePath2 = invocation.getArgument(0);
-                Path testDir = Paths.get("/tmp/test");
-                Files.createDirectories(testDir);
-                Path copiedFilePath2 = testDir.resolve(uploadedFilePath2.getFileName());
-                Files.copy(uploadedFilePath2, copiedFilePath2, StandardCopyOption.REPLACE_EXISTING);
+                Path uploadedFilePath1 = invocation.getArgument(0);
+                fileContent1[0] = Files.readAllBytes(uploadedFilePath1);
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(filePathCaptor1.capture(), anyString(), anyString());
             // convert to iidm
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
@@ -762,25 +759,19 @@ class NetworkConversionTest {
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
-            verify(networkConversionService, atLeastOnce()).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
-            Path uploadedFile1 = filePathCaptor2.getValue();
+            verify(networkConversionService, atLeastOnce()).uploadFile(filePathCaptor1.capture(), anyString(), anyString());
+            Path uploadedFile1 = filePathCaptor1.getValue();
             assertNotNull(uploadedFile1);
             assertTrue(uploadedFile1.toString().contains("export_"));
-            Path copiedFilePath1 = Paths.get("/tmp/test").resolve(uploadedFile1.getFileName());
-            assertTrue(Files.exists(copiedFilePath1));
-            String content1 = Files.readString(copiedFilePath1);
-            assertTrue(content1.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-            Files.deleteIfExists(copiedFilePath1);
+            assertTrue(new String(fileContent1[0], StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
-            ArgumentCaptor<Path> filePathCaptor3 = ArgumentCaptor.forClass(Path.class);
+            ArgumentCaptor<Path> filePathCaptor2 = ArgumentCaptor.forClass(Path.class);
+            byte[][] fileContent2 = new byte[1][];
             doAnswer(invocation -> {
-                Path uploadedFilePath3 = invocation.getArgument(0);
-                Path testDir = Paths.get("/tmp/test");
-                Files.createDirectories(testDir);
-                Path copiedFilePath3 = testDir.resolve(uploadedFilePath3.getFileName());
-                Files.copy(uploadedFilePath3, copiedFilePath3, StandardCopyOption.REPLACE_EXISTING);
+                Path uploadedFilePath2 = invocation.getArgument(0);
+                fileContent2[0] = Files.readAllBytes(uploadedFilePath2);
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor3.capture(), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -799,23 +790,18 @@ class NetworkConversionTest {
             assertNotNull(resultMessage2);
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
-            verify(networkConversionService, atLeast(2)).uploadFile(filePathCaptor3.capture(), anyString(), anyString());
-            Path uploadedFile2 = filePathCaptor3.getAllValues().get(filePathCaptor3.getAllValues().size() - 1);
+            verify(networkConversionService, atLeast(2)).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
+            Path uploadedFile2 = filePathCaptor2.getAllValues().getLast();
             assertNotNull(uploadedFile2);
             assertTrue(uploadedFile2.toString().contains("export_"));
-            Path copiedFilePath2 = Paths.get("/tmp/test").resolve(uploadedFile2.getFileName());
-            assertTrue(Files.exists(copiedFilePath2));
-            assertTrue(Files.size(copiedFilePath2) > 0, "BIIDM file should not be empty");
-            assertTrue(copiedFilePath2.toString().endsWith(".biidm"), "File should have .biidm extension");
-            byte[] firstBytes = new byte[20];
-            try (InputStream is = Files.newInputStream(copiedFilePath2)) {
-                int bytesRead = is.read(firstBytes);
-                if (bytesRead > 0) {
-                    String header = new String(firstBytes, 0, Math.min(11, bytesRead), StandardCharsets.US_ASCII);
-                    assertTrue(header.startsWith("Binary IIDM"), "BIIDM file should start with 'Binary IIDM'");
-                }
+            assertNotNull(fileContent2[0], "File content should not be null");
+            assertTrue(fileContent2[0].length > 0, "File should not be empty");
+            assertTrue(uploadedFile2.toString().endsWith(".biidm"), "File should have .biidm extension");
+            if (fileContent2[0].length >= 11) {
+                String header = new String(fileContent2[0], 0, 11, StandardCharsets.US_ASCII);
+                assertTrue(header.startsWith("Binary IIDM"), "BIIDM file should start with 'Binary IIDM'");
             }
-            Files.deleteIfExists(copiedFilePath2);
+
             // fail because case not found
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -918,12 +904,10 @@ class NetworkConversionTest {
             ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<String> fileNameCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
+            byte[][] fileContent = new byte[1][];
             doAnswer(invocation -> {
                 Path uploadedFilePath = invocation.getArgument(0);
-                Path testDir = Paths.get("/tmp/test");
-                Files.createDirectories(testDir);
-                Path copiedFilePath = testDir.resolve(uploadedFilePath.getFileName());
-                Files.copy(uploadedFilePath, copiedFilePath, StandardCopyOption.REPLACE_EXISTING);
+                fileContent[0] = Files.readAllBytes(uploadedFilePath);
                 return null;
             }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture(), fileNameCaptor.capture());
 
@@ -957,18 +941,17 @@ class NetworkConversionTest {
             Path uploadedFilePath = filePathCaptor.getValue();
             assertNotNull(uploadedFilePath);
             assertTrue(uploadedFilePath.toString().contains("export_"));
-            Path copiedFilePath = Paths.get("/tmp/test").resolve(uploadedFilePath.getFileName());
-            assertTrue(Files.exists(copiedFilePath));
-            byte[] bytes = Files.readAllBytes(copiedFilePath);
+            assertNotNull(fileContent[0], "File content should not be null");
+            assertTrue(fileContent[0].length > 0, "File should not be empty");
+
             List<String> filenames = new ArrayList<>();
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(fileContent[0]))) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
                     filenames.add(entry.getName());
                 }
             }
             assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
-            Files.deleteIfExists(copiedFilePath);
             String s3Key = s3KeyCaptor.getValue();
             exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             assertNotNull(exportUuid);
