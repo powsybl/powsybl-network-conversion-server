@@ -81,6 +81,14 @@ class NetworkConversionTest {
 
     private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
 
+    private static final String NETWORK_EXPORT_START = "network.export.start";
+
+    private static final String NETWORK_EXPORT_FINISHED = "network.export.finished";
+
+    private static final String CASE_EXPORT_START = "case.export.start";
+
+    private static final String CASE_EXPORT_FINISHED = "case.export.finished";
+
     private static final Map<String, Object> EMPTY_PARAMETERS = new HashMap<>();
 
     @Autowired
@@ -194,12 +202,12 @@ class NetworkConversionTest {
             mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM").param("receiver", receiver))
                     .andExpect(status().isOk())
                     .andReturn();
-            Message<byte[]> startMessage1 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage1 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
 
-            Message<byte[]> successMessage1 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage1);
             assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
@@ -209,12 +217,12 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage2 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage2 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage2);
             assertEquals(String.valueOf(exportNetworkUuid2), mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
-            Message<byte[]> successMessage2 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage2 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage2);
             assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
@@ -231,14 +239,14 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage3 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage3 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage3);
             assertEquals(String.valueOf(exportNetworkUuid3), mapper.readValue(startMessage3.getPayload(), String.class));
             Map<String, Object> receivedParams = (Map<String, Object>) startMessage3.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
             assertNotNull(receivedParams);
             assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
 
-            Message<byte[]> successMessage3 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage3 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage3);
             assertNull(successMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
 
@@ -251,12 +259,12 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage4 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage4 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage4);
             assertEquals(String.valueOf(exportNetworkUuid4), mapper.readValue(startMessage4.getPayload(), String.class));
             assertEquals(fileName, startMessage4.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
-            Message<byte[]> successMessage4 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage4 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage4);
             assertNull(successMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
 
@@ -268,11 +276,11 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage5 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage5 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage5);
             assertEquals("unknown_variant_id", startMessage5.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
-            Message<byte[]> successMessage5 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage5 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage5);
             assertNotNull(successMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage5 = (String) successMessage5.getHeaders().get(NotificationService.HEADER_ERROR);
@@ -286,11 +294,11 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage6 = output.receive(1000, "network.export.start");
+            Message<byte[]> startMessage6 = output.receive(1000, NETWORK_EXPORT_START);
             assertNotNull(startMessage6);
             assertEquals("JPEG", startMessage6.getHeaders().get(NotificationService.HEADER_FORMAT));
 
-            Message<byte[]> successMessage6 = output.receive(1000, "network.export.finished");
+            Message<byte[]> successMessage6 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage6);
             assertNotNull(successMessage6.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage6 = (String) successMessage6.getHeaders().get(NotificationService.HEADER_ERROR);
@@ -748,13 +756,13 @@ class NetworkConversionTest {
             String responseBody = result.getResponse().getContentAsString();
             assertNotNull(responseBody);
             assertFalse(responseBody.isEmpty());
-            Message<byte[]> startMessage1 = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage1);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
-            Message<byte[]> resultMessage1 = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage1);
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
@@ -781,12 +789,12 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            Message<byte[]> startMessage2 = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage2 = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage2);
             assertEquals(caseUuid, mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("BIIDM", startMessage2.getHeaders().get(NotificationService.HEADER_FORMAT));
 
-            Message<byte[]> resultMessage2 = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage2 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage2);
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
@@ -811,10 +819,10 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            Message<byte[]> startMessage3 = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage3 = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage3);
 
-            Message<byte[]> resultMessage3 = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage3 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage3);
             assertNotNull(resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
@@ -830,11 +838,11 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            Message<byte[]> startMessage4 = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage4 = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage4);
             assertEquals("JPEG", startMessage4.getHeaders().get(NotificationService.HEADER_FORMAT));
 
-            Message<byte[]> resultMessage4 = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage4 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage4);
             assertNotNull(resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
@@ -850,11 +858,11 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
 
-            Message<byte[]> startMessage5 = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage5 = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage5);
             assertEquals("/tmp/testCase", startMessage5.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
-            Message<byte[]> resultMessage5 = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage5 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage5);
             assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             // check that no temporary export directory is still present after conversions
@@ -920,7 +928,7 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            Message<byte[]> startMessage = output.receive(1000, "case.export.start");
+            Message<byte[]> startMessage = output.receive(1000, CASE_EXPORT_START);
             assertNotNull(startMessage);
             assertEquals(caseUuid, mapper.readValue(startMessage.getPayload(), String.class));
             assertEquals("CGMES", startMessage.getHeaders().get(NotificationService.HEADER_FORMAT));
@@ -930,7 +938,7 @@ class NetworkConversionTest {
             assertNotNull(receivedParams);
             assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
 
-            Message<byte[]> resultMessage = output.receive(1000, "case.export.finished");
+            Message<byte[]> resultMessage = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNotNull(resultMessage);
             assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
 
