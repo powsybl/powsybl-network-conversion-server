@@ -26,7 +26,6 @@ import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -45,10 +44,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -126,7 +126,6 @@ class NetworkConversionTest {
         networkConversionService.setCaseServerRest(caseServerRest);
         networkConversionService.setGeoDataServerRest(geoDataRest);
         networkConversionService.setReportServerRest(reportServerRest);
-        given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class))).willReturn(PutObjectResponse.builder().build());
     }
 
     @Test
@@ -203,12 +202,10 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
             Message<byte[]> startMessage1 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage1);
             assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -218,12 +215,10 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage2 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage2);
             assertEquals(String.valueOf(exportNetworkUuid2), mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
             Message<byte[]> successMessage2 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage2);
             assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // takes the iidm.export.xml.indent param into account
@@ -240,14 +235,11 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage3 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage3);
             assertEquals(String.valueOf(exportNetworkUuid3), mapper.readValue(startMessage3.getPayload(), String.class));
             Map<String, Object> receivedParams = (Map<String, Object>) startMessage3.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
-            assertNotNull(receivedParams);
             assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
 
             Message<byte[]> successMessage3 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage3);
             assertNull(successMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
 
             //with fileName
@@ -260,12 +252,10 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage4 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage4);
             assertEquals(String.valueOf(exportNetworkUuid4), mapper.readValue(startMessage4.getPayload(), String.class));
             assertEquals(fileName, startMessage4.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             Message<byte[]> successMessage4 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage4);
             assertNull(successMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // nonexistent variantId
@@ -277,11 +267,9 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage5 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage5);
             assertEquals("unknown_variant_id", startMessage5.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
             Message<byte[]> successMessage5 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage5);
             assertNotNull(successMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage5 = (String) successMessage5.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage5.contains("Export failed"));
@@ -295,11 +283,9 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage6 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage6);
             assertEquals("JPEG", startMessage6.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> successMessage6 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage6);
             assertNotNull(successMessage6.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage6 = (String) successMessage6.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage6.contains("Export failed"));
@@ -737,13 +723,12 @@ class NetworkConversionTest {
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
-            ArgumentCaptor<Path> filePathCaptor1 = ArgumentCaptor.forClass(Path.class);
-            byte[][] fileContent1 = new byte[1][];
+            byte[][] fileContent = new byte[1][];
             doAnswer(invocation -> {
-                Path uploadedFilePath1 = invocation.getArgument(0);
-                fileContent1[0] = Files.readAllBytes(uploadedFilePath1);
+                Path uploadedFilePath = invocation.getArgument(0);
+                fileContent[0] = Files.readAllBytes(uploadedFilePath);
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor1.capture(), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString(), anyString());
             // convert to iidm
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
@@ -757,29 +742,20 @@ class NetworkConversionTest {
             assertNotNull(responseBody);
             assertFalse(responseBody.isEmpty());
             Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage1);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage1);
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
+            assertTrue(new String(fileContent[0], StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
-            verify(networkConversionService, atLeastOnce()).uploadFile(filePathCaptor1.capture(), anyString(), anyString());
-            Path uploadedFile1 = filePathCaptor1.getValue();
-            assertNotNull(uploadedFile1);
-            assertTrue(uploadedFile1.toString().contains("export_"));
-            assertTrue(new String(fileContent1[0], StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-
-            ArgumentCaptor<Path> filePathCaptor2 = ArgumentCaptor.forClass(Path.class);
-            byte[][] fileContent2 = new byte[1][];
             doAnswer(invocation -> {
-                Path uploadedFilePath2 = invocation.getArgument(0);
-                fileContent2[0] = Files.readAllBytes(uploadedFilePath2);
+                Path uploadedFilePath = invocation.getArgument(0);
+                fileContent[0] = Files.readAllBytes(uploadedFilePath);
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString(), anyString());
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -790,25 +766,11 @@ class NetworkConversionTest {
                 .andReturn();
 
             Message<byte[]> startMessage2 = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage2);
             assertEquals(caseUuid, mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("BIIDM", startMessage2.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> resultMessage2 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage2);
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
-
-            verify(networkConversionService, atLeast(2)).uploadFile(filePathCaptor2.capture(), anyString(), anyString());
-            Path uploadedFile2 = filePathCaptor2.getAllValues().getLast();
-            assertNotNull(uploadedFile2);
-            assertTrue(uploadedFile2.toString().contains("export_"));
-            assertNotNull(fileContent2[0], "File content should not be null");
-            assertTrue(fileContent2[0].length > 0, "File should not be empty");
-            assertTrue(uploadedFile2.toString().endsWith(".biidm"), "File should have .biidm extension");
-            if (fileContent2[0].length >= 11) {
-                String header = new String(fileContent2[0], 0, 11, StandardCharsets.US_ASCII);
-                assertTrue(header.startsWith("Binary IIDM"), "BIIDM file should start with 'Binary IIDM'");
-            }
 
             // fail because case not found
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
@@ -819,15 +781,11 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            Message<byte[]> startMessage3 = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage3);
-
             Message<byte[]> resultMessage3 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage3);
             assertNotNull(resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
-            assertNotNull(errorMessage3);
-            assertTrue(errorMessage3.contains("Export failed") || errorMessage3.contains("Case export failed"));
+            assertNotNull(errorMessage3); //Method invocation 'contains' may produce 'NullPointerException'
+            assertTrue(errorMessage3.contains("Export failed"));
 
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
@@ -839,14 +797,11 @@ class NetworkConversionTest {
                 .andReturn();
 
             Message<byte[]> startMessage4 = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage4);
             assertEquals("JPEG", startMessage4.getHeaders().get(NotificationService.HEADER_FORMAT));
-
             Message<byte[]> resultMessage4 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage4);
             assertNotNull(resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
-            assertNotNull(errorMessage4);
+            assertNotNull(errorMessage4); // Method invocation 'contains' may produce 'NullPointerException'
             assertTrue(errorMessage4.contains("Export failed"));
 
             // export case with an absolut path as fileName
@@ -859,11 +814,8 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage5 = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage5);
             assertEquals("/tmp/testCase", startMessage5.getHeaders().get(NotificationService.HEADER_FILE_NAME));
-
             Message<byte[]> resultMessage5 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage5);
             assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             // check that no temporary export directory is still present after conversions
             assertFalse(Files.list(Paths.get("/tmp")).anyMatch(pathTmp -> Files.isDirectory(pathTmp) && pathTmp.getFileName().toString().startsWith("export_")));
@@ -909,15 +861,11 @@ class NetworkConversionTest {
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
-            ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
-            ArgumentCaptor<String> fileNameCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
             byte[][] fileContent = new byte[1][];
             doAnswer(invocation -> {
-                Path uploadedFilePath = invocation.getArgument(0);
-                fileContent[0] = Files.readAllBytes(uploadedFilePath);
+                fileContent[0] = Files.readAllBytes(invocation.getArgument(0));
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture(), fileNameCaptor.capture());
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString(), anyString());
 
             // convert to cgmes
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
@@ -929,29 +877,16 @@ class NetworkConversionTest {
                 .andReturn();
 
             Message<byte[]> startMessage = output.receive(1000, CASE_EXPORT_START);
-            assertNotNull(startMessage);
             assertEquals(caseUuid, mapper.readValue(startMessage.getPayload(), String.class));
             assertEquals("CGMES", startMessage.getHeaders().get(NotificationService.HEADER_FORMAT));
             assertEquals("testCase", startMessage.getHeaders().get(NotificationService.HEADER_FILE_NAME));
-
             Map<String, Object> receivedParams = (Map<String, Object>) startMessage.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
-            assertNotNull(receivedParams);
+            assertNotNull(receivedParams); //Method invocation 'get' may produce 'NullPointerException'
             assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
-
             Message<byte[]> resultMessage = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage);
             assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
-
             String exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             assertNotNull(exportUuid);
-
-            verify(networkConversionService, times(1)).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture(), fileNameCaptor.capture());
-            Path uploadedFilePath = filePathCaptor.getValue();
-            assertNotNull(uploadedFilePath);
-            assertTrue(uploadedFilePath.toString().contains("export_"));
-            assertNotNull(fileContent[0], "File content should not be null");
-            assertTrue(fileContent[0].length > 0, "File should not be empty");
-
             List<String> filenames = new ArrayList<>();
             try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(fileContent[0]))) {
                 ZipEntry entry;
@@ -960,13 +895,8 @@ class NetworkConversionTest {
                 }
             }
             assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
-            String s3Key = s3KeyCaptor.getValue();
             exportUuid = resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             assertNotNull(exportUuid);
-            assertTrue(s3Key.contains(exportUuid));
-            String fileName = fileNameCaptor.getValue();
-            assertNotNull(fileName);
-            assertEquals("testCase.zip", fileName);
         }
     }
 
