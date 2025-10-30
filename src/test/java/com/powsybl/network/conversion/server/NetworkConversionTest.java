@@ -132,7 +132,6 @@ class NetworkConversionTest {
     @Test
     void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
-            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
 
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
@@ -203,12 +202,10 @@ class NetworkConversionTest {
                     .andExpect(status().isOk())
                     .andReturn();
             Message<byte[]> startMessage1 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage1);
             assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
             assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
@@ -218,12 +215,10 @@ class NetworkConversionTest {
                     .andReturn();
 
             Message<byte[]> startMessage2 = output.receive(1000, NETWORK_EXPORT_START);
-            assertNotNull(startMessage2);
             assertEquals(String.valueOf(exportNetworkUuid2), mapper.readValue(startMessage2.getPayload(), String.class));
             assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
             Message<byte[]> successMessage2 = output.receive(1000, NETWORK_EXPORT_FINISHED);
-            assertNotNull(successMessage2);
             assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // takes the iidm.export.xml.indent param into account
