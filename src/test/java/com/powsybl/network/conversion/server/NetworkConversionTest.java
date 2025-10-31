@@ -132,7 +132,6 @@ class NetworkConversionTest {
     @Test
     void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
-            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
 
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
