@@ -32,14 +32,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
@@ -95,22 +95,22 @@ class NetworkConversionTest {
     @Autowired
     private MockMvc mvc;
 
-    @MockBean
+    @MockitoBean
     @Qualifier("caseServerRest")
     private RestTemplate caseServerRest;
 
-    @MockBean
+    @MockitoBean
     @Qualifier("geoDataRest")
     private RestTemplate geoDataRest;
 
-    @MockBean
+    @MockitoBean
     @Qualifier("reportServer")
     private RestTemplate reportServerRest;
 
-    @SpyBean
+    @MockitoSpyBean
     private NetworkConversionService networkConversionService;
 
-    @MockBean
+    @MockitoBean
     private NetworkStoreService networkStoreClient;
 
     @Autowired
@@ -119,7 +119,7 @@ class NetworkConversionTest {
     @Autowired
     private ObjectMapper mapper;
 
-    @MockBean
+    @MockitoBean
     private S3Client s3Client;
 
     @BeforeEach
