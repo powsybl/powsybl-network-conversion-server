@@ -145,7 +145,7 @@ class NetworkConversionTest {
 
             UUID reportUuid = UUID.fromString("11111111-f351-4c2e-a383-2ad08dd5f8fb");
             given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
-                    .willReturn(new ResponseEntity<>(HttpStatus.OK));
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
             String caseUuid = UUID.randomUUID().toString();
             given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
