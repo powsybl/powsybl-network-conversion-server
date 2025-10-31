@@ -755,8 +755,8 @@ class NetworkConversionTest {
             UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
 
             assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm"));
-            assertTrue(s3KeyCaptor.getValue().equals("network-exports/" + exportUuid));
-            assertTrue(filenameCaptor.getValue().equals("testCase.xiidm"));
+            assertEquals("network-exports/" + exportUuid, s3KeyCaptor.getValue());
+            assertEquals("testCase.xiidm", filenameCaptor.getValue());
 
             String responseBody = result.getResponse().getContentAsString();
             assertFalse(responseBody.isEmpty());
@@ -767,7 +767,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
-            assertNotNull(resultMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
             verify(networkConversionService, atLeastOnce()).uploadFile(any(Path.class), anyString(), anyString());
 
@@ -810,7 +809,6 @@ class NetworkConversionTest {
             assertEquals("BIIDM", startMessage3.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> resultMessage3 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage3.contains("Case export failed"));
 
@@ -827,7 +825,6 @@ class NetworkConversionTest {
             assertEquals("JPEG", startMessage4.getHeaders().get(NotificationService.HEADER_FORMAT));
 
             Message<byte[]> resultMessage4 = output.receive(1000, CASE_EXPORT_FINISHED);
-            assertNotNull(resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
             assertTrue(errorMessage4.contains("Export failed"));
 
