@@ -78,7 +78,7 @@ management:
     solr:
       enabled: false
 
-export-subpath: "network-exports"
+export-subpath: "network_exports"
 
 # maximum concurrent network import/export
 # to avoid out of memory issues
