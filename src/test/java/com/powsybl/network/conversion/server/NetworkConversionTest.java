@@ -755,7 +755,7 @@ class NetworkConversionTest {
             UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
 
             assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm"));
-            assertEquals("network-exports/" + exportUuid, s3KeyCaptor.getValue());
+            assertEquals("network_exports/" + exportUuid, s3KeyCaptor.getValue());
             assertEquals("testCase.xiidm", filenameCaptor.getValue());
 
             String responseBody = result.getResponse().getContentAsString();
