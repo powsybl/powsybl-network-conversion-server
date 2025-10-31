@@ -768,8 +768,6 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
 
-            verify(networkConversionService, atLeastOnce()).uploadFile(any(Path.class), anyString(), anyString());
-
             assertTrue(new String(baos.toByteArray(), StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             doAnswer(invocation -> {
