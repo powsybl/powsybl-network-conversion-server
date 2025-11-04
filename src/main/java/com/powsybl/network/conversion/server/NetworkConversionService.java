@@ -124,7 +124,8 @@ public class NetworkConversionService {
                                     NetworkConversionExecutionService networkConversionExecutionService,
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
-                                    ImportExportExecutionService importExportExecutionService) {
+                                    ImportExportExecutionService importExportExecutionService,
+                                    RestTemplateBuilder restTemplateBuilder) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
@@ -132,7 +133,6 @@ public class NetworkConversionService {
         this.networkConversionObserver = networkConversionObserver;
         this.importExportExecutionService = importExportExecutionService;
 
-        RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
 
