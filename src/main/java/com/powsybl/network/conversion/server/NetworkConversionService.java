@@ -140,6 +140,7 @@ public class NetworkConversionService {
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
                                     ImportExportExecutionService importExportExecutionService,
+                                    RestTemplateBuilder restTemplateBuilder,
                                     S3Client s3Client,
                                     @Value("${spring.cloud.aws.bucket:ws-bucket}") String bucketName,
                                     @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}") String exportRootPath) {
@@ -153,7 +154,6 @@ public class NetworkConversionService {
         this.bucketName = bucketName;
         this.exportRootPath = exportRootPath;
 
-        RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
 
