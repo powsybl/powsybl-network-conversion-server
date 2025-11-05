@@ -736,14 +736,13 @@ class NetworkConversionTest {
 
             ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<String> filenameCaptor = ArgumentCaptor.forClass(String.class);
 
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
             doAnswer(invocation -> {
                 Path uploadedFilePath = invocation.getArgument(0);
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
-            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture(), filenameCaptor.capture());
+            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
             // convert to iidm
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
@@ -755,8 +754,7 @@ class NetworkConversionTest {
             UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
 
             assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm"));
-            assertEquals("network_exports/" + exportUuid, s3KeyCaptor.getValue());
-            assertEquals("testCase.xiidm", filenameCaptor.getValue());
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm", s3KeyCaptor.getValue());
 
             String responseBody = result.getResponse().getContentAsString();
             assertFalse(responseBody.isEmpty());
@@ -774,7 +772,7 @@ class NetworkConversionTest {
                 Path uploadedFilePath = invocation.getArgument(0);
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
-            }).when(networkConversionService).uploadFile(any(Path.class), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString());
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -888,7 +886,7 @@ class NetworkConversionTest {
                 Path uploadedFilePath = invocation.getArgument(0);
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
-            }).when(networkConversionService).uploadFile(any(Path.class), anyString(), anyString());
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString());
 
             // convert to cgmes
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
@@ -1117,17 +1115,18 @@ class NetworkConversionTest {
     @Test
     void testDownloadExportFile() throws Exception {
         String exportUuid = UUID.randomUUID().toString();
-        String fileName = "testExport.xiidm";
         String fileContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><network>test</network>";
         byte[] fileBytes = fileContent.getBytes(StandardCharsets.UTF_8);
-        GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).metadata(Map.of("file-name", fileName)).build();
+        GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).build();
         ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
         given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
+        S3Object s3Object = S3Object.builder().key(exportUuid).size((long) fileBytes.length).build();
+        ListObjectsV2Response listResponse = ListObjectsV2Response.builder().contents(s3Object).build();
+        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
 
         MvcResult result = mvc.perform(get("/v1/download-file/{exportUuid}", exportUuid))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("attachment")))
-                .andExpect(header().string("Content-Disposition", containsString(fileName)))
                 .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
                 .andReturn();
 
@@ -1138,6 +1137,7 @@ class NetworkConversionTest {
         reset(s3Client);
         String failedExportUuid = UUID.randomUUID().toString();
         given(s3Client.getObject(any(GetObjectRequest.class))).willThrow(NoSuchKeyException.builder().build());
+        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
         mvc.perform(get("/v1/download-file/{exportUuid}", failedExportUuid)).andExpect(status().isNotFound());
     }
 

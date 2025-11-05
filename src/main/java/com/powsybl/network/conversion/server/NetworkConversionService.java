@@ -48,10 +48,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -73,7 +70,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
-import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
@@ -89,7 +85,7 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    public static final String METADATA_FILE_NAME = "file-name";
+    private static final String DELIMITER = "/";
 
     public static final Set<IdentifiableType> TYPES_FOR_INDEXING = Set.of(
             IdentifiableType.SUBSTATION,
@@ -245,8 +241,8 @@ public class NetworkConversionService {
                         format,
                         () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
                 );
-                String s3Key = exportRootPath + "/" + exportUuid;
-                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
+                String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
+                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
@@ -260,12 +256,11 @@ public class NetworkConversionService {
         };
     }
 
-    public void uploadFile(Path filePath, String s3Key, String fileName) throws IOException {
+    public void uploadFile(Path filePath, String s3Key) throws IOException {
         try {
             PutObjectRequest putRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(s3Key)
-                    .metadata(Map.of(METADATA_FILE_NAME, fileName))
                     .build();
             s3Client.putObject(putRequest, RequestBody.fromFile(filePath));
         } catch (SdkException e) {
@@ -275,13 +270,25 @@ public class NetworkConversionService {
 
     public ResponseEntity<InputStreamResource> downloadExportFile(String exportUuid) {
         try {
-            String s3Key = exportRootPath + "/" + exportUuid;
-            GetObjectRequest getRequest = GetObjectRequest.builder().bucket(bucketName).key(s3Key).build();
+            ListObjectsV2Request requestBuild = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .prefix(exportRootPath + DELIMITER + exportUuid + DELIMITER)
+                    .build();
+            ListObjectsV2Response response = s3Client.listObjectsV2(requestBuild);
+            S3Object s3Object = response.contents().getFirst();
+            GetObjectRequest getRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Object.key())
+                    .build();
             ResponseInputStream<GetObjectResponse> s3InputStream = s3Client.getObject(getRequest);
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentDisposition(ContentDisposition.builder("attachment").filename(s3InputStream.response().metadata().get(METADATA_FILE_NAME)).build());
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .build());
             headers.setContentLength(s3InputStream.response().contentLength());
-            return ResponseEntity.ok().headers(headers).contentType(MediaType.APPLICATION_OCTET_STREAM).body(new InputStreamResource(s3InputStream));
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(new InputStreamResource(s3InputStream));
         } catch (NoSuchKeyException e) {
             return ResponseEntity.notFound().build();
         }
@@ -304,8 +311,8 @@ public class NetworkConversionService {
                         format,
                         () -> exportCase(caseUuid, format, fileName, formatParameters)
                 );
-                String s3Key = exportRootPath + "/" + exportUuid;
-                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key, exportNetworkInfos.getNetworkName());
+                String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
+                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {
                 String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
