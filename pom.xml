@@ -24,7 +24,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <powsybl-ws-dependencies.version>2.25.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.26.0</powsybl-ws-dependencies.version>
         <spring-cloud-aws.version>3.2.0</spring-cloud-aws.version>
     </properties>
 
