@@ -281,8 +281,11 @@ public class NetworkConversionService {
                     .key(s3Object.key())
                     .build();
             ResponseInputStream<GetObjectResponse> s3InputStream = s3Client.getObject(getRequest);
+            String fileKey = s3Object.key();
+            String fileName = s3Object.key().substring(fileKey.lastIndexOf('/') + 1);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .filename(fileName)
                     .build());
             headers.setContentLength(s3InputStream.response().contentLength());
             return ResponseEntity.ok()
