@@ -44,13 +44,17 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriComponentsBuilder;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -66,7 +70,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
-import static com.powsybl.network.conversion.server.NetworkConversionConstants.DELIMITER;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
@@ -81,6 +84,8 @@ import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipm
 public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
+
+    private static final String DELIMITER = "/";
 
     public static final Set<IdentifiableType> TYPES_FOR_INDEXING = Set.of(
             IdentifiableType.SUBSTATION,
@@ -116,6 +121,12 @@ public class NetworkConversionService {
 
     private final ObjectMapper objectMapper;
 
+    private final S3Client s3Client;
+
+    private final String bucketName;
+
+    private final String exportRootPath;
+
     public NetworkConversionService(@Value("${powsybl.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
                                     @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
@@ -125,13 +136,19 @@ public class NetworkConversionService {
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
                                     ImportExportExecutionService importExportExecutionService,
-                                    RestTemplateBuilder restTemplateBuilder) {
+                                    RestTemplateBuilder restTemplateBuilder,
+                                    S3Client s3Client,
+                                    @Value("${spring.cloud.aws.bucket:ws-bucket}") String bucketName,
+                                    @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}") String exportRootPath) {
         this.networkStoreService = networkStoreService;
         this.equipmentInfosService = equipmentInfosService;
         this.networkConversionExecutionService = networkConversionExecutionService;
         this.notificationService = notificationService;
         this.networkConversionObserver = networkConversionObserver;
         this.importExportExecutionService = importExportExecutionService;
+        this.s3Client = s3Client;
+        this.bucketName = bucketName;
+        this.exportRootPath = exportRootPath;
 
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
@@ -161,6 +178,14 @@ public class NetworkConversionService {
 
     void importCaseAsynchronously(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters, String receiver) {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
+    }
+
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
+    }
+
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitCaseExportStart(caseUuid, fileName, format, userId, exportUuid, formatParameters);
     }
 
     Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
@@ -196,6 +221,126 @@ public class NetworkConversionService {
             NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
             notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeNetworkExportStart() {
+        return message -> {
+            UUID networkUuid = message.getPayload();
+            String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
+            String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
+            String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
+            String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
+            String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
+            UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
+            Map<String, Object> formatParameters = extractFormatParameters(message);
+            ExportNetworkInfos exportNetworkInfos = null;
+            try {
+                LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
+                exportNetworkInfos = networkConversionObserver.observeExportProcessing(
+                        format,
+                        () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+                );
+                String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
+                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
+            } catch (Exception e) {
+                String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
+                LOGGER.error(errorMsg);
+            } finally {
+                if (exportNetworkInfos != null) {
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                }
+            }
+        };
+    }
+
+    public void uploadFile(Path filePath, String s3Key) throws IOException {
+        try {
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            s3Client.putObject(putRequest, RequestBody.fromFile(filePath));
+        } catch (SdkException e) {
+            throw new IOException("Error occurred while uploading file to S3: " + e.getMessage());
+        }
+    }
+
+    public ResponseEntity<InputStreamResource> downloadExportFile(String exportUuid) {
+        try {
+            ListObjectsV2Request requestBuild = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .prefix(exportRootPath + DELIMITER + exportUuid + DELIMITER)
+                    .build();
+            ListObjectsV2Response response = s3Client.listObjectsV2(requestBuild);
+            S3Object s3Object = response.contents().getFirst();
+            GetObjectRequest getRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Object.key())
+                    .build();
+            ResponseInputStream<GetObjectResponse> s3InputStream = s3Client.getObject(getRequest);
+            String fileKey = s3Object.key();
+            String fileName = s3Object.key().substring(fileKey.lastIndexOf('/') + 1);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .filename(fileName)
+                    .build());
+            headers.setContentLength(s3InputStream.response().contentLength());
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(new InputStreamResource(s3InputStream));
+        } catch (NoSuchKeyException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseExportStart() {
+        return message -> {
+            UUID caseUuid = message.getPayload();
+            String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
+            String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
+            String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
+            String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
+            UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
+            Map<String, Object> formatParameters = extractFormatParameters(message);
+            ExportNetworkInfos exportNetworkInfos = null;
+            try {
+                LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
+                exportNetworkInfos = networkConversionObserver.observeExportProcessing(
+                        format,
+                        () -> exportCase(caseUuid, format, fileName, formatParameters)
+                );
+                String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
+                uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
+                notificationService.emitCaseExportFinished(exportUuid, userId, null);
+            } catch (Exception e) {
+                String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
+                LOGGER.error(errorMsg);
+                notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
+            } finally {
+                if (exportNetworkInfos != null) {
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                }
+            }
+        };
+    }
+
+    private Map<String, Object> extractFormatParameters(Message<UUID> message) {
+        // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
+        Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+        Map<String, Object> formatParameters = new HashMap<>();
+        if (rawParameters != null) {
+            rawParameters.forEach((key, value) -> {
+                if (value != null) {
+                    formatParameters.put(key, value.toString());
+                }
+            });
+        }
+        return formatParameters;
     }
 
     private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
@@ -639,7 +784,7 @@ public class NetworkConversionService {
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (IOException e) {
             if (tempDir != null) {
-                cleanupTempFiles(tempDir);
+                cleanUpTempFiles(tempDir);
             }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
@@ -660,34 +805,7 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    public ResponseEntity<InputStreamResource> createExportNetworkResponse(ExportNetworkInfos exportNetworkInfos, Charset filenameCharset) {
-        try {
-            InputStream inputStream = Files.newInputStream(exportNetworkInfos.getTempFilePath());
-            InputStreamResource resource = new InputStreamResource(inputStream);
-
-            HttpHeaders headers = new HttpHeaders();
-            ContentDisposition.Builder builder = ContentDisposition.builder("attachment");
-            if (filenameCharset != null) {
-                builder.filename(exportNetworkInfos.getNetworkName(), filenameCharset);
-            } else {
-                builder.filename(exportNetworkInfos.getNetworkName());
-            }
-            headers.setContentDisposition(builder.build());
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(resource);
-
-        } catch (IOException e) {
-            LOGGER.error("Export failed for : {}", exportNetworkInfos.getNetworkName(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } finally {
-            cleanupTempFiles(exportNetworkInfos.getTempFilePath());
-        }
-    }
-
-    private void cleanupTempFiles(Path tempFilePath) {
+    public void cleanUpTempFiles(Path tempFilePath) {
         try {
             if (Files.exists(tempFilePath)) {
                 FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
