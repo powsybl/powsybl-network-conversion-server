@@ -7,7 +7,6 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
-import com.powsybl.network.conversion.server.dto.ExportNetworkInfos;
 import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +25,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static com.powsybl.network.conversion.server.NotificationService.HEADER_USER_ID;
