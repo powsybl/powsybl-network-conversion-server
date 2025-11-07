@@ -245,9 +245,9 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
+                String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e);
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
-                LOGGER.error(errorMsg);
+                LOGGER.error(errorMsg, e);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
@@ -275,7 +275,9 @@ public class NetworkConversionService {
                     .prefix(exportRootPath + DELIMITER + exportUuid + DELIMITER)
                     .build();
             ListObjectsV2Response response = s3Client.listObjectsV2(requestBuild);
-            S3Object s3Object = response.contents().getFirst();
+            S3Object s3Object = response.contents().stream()
+                    .filter(obj -> !obj.key().endsWith(DELIMITER))
+                    .findFirst().orElseThrow(() -> new IllegalStateException("Export file not found for export UUID: " + exportUuid));
             GetObjectRequest getRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(s3Object.key())
@@ -318,9 +320,9 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
-                LOGGER.error(errorMsg);
+                String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e);
                 notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
+                LOGGER.error(errorMsg);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
