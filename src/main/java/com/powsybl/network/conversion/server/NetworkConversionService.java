@@ -65,6 +65,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedDownloadExportFile;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
@@ -239,9 +240,8 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e.getMessage());
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
-                LOGGER.error(errorMsg);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, String.format("Export failed for network %s", fileName));
+                LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
@@ -269,7 +269,11 @@ public class NetworkConversionService {
                     .prefix(exportRootPath + DELIMITER + exportUuid + DELIMITER)
                     .build();
             ListObjectsV2Response response = s3Client.listObjectsV2(requestBuild);
-            S3Object s3Object = response.contents().getFirst();
+            // We need here to filter directory objects to retrieve the file because some s3 implementations
+            // will return in the listing file objets AND directory objects.
+            S3Object s3Object = response.contents().stream()
+                    .filter(obj -> !obj.key().endsWith(DELIMITER))
+                    .findFirst().orElseThrow(() -> createFailedDownloadExportFile(exportUuid));
             GetObjectRequest getRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(s3Object.key())
@@ -312,9 +316,8 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e.getMessage());
-                LOGGER.error(errorMsg);
-                notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
+                notificationService.emitCaseExportFinished(exportUuid, userId, String.format("Export failed for case %s", fileName));
+                LOGGER.error(String.format("Export failed for case %s (uuid: %s):", fileName, caseUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
@@ -744,7 +747,7 @@ public class NetworkConversionService {
                 filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
             }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
-        } catch (IOException e) {
+        } catch (Exception e) {
             if (tempDir != null) {
                 cleanUpTempFiles(tempDir);
             }
