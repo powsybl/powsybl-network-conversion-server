@@ -10,8 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cases.datasource.CaseDataSourceClient;
-import com.powsybl.cgmes.conversion.export.CgmesExportContext;
-import com.powsybl.cgmes.conversion.export.StateVariablesExport;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.DataSourceUtil;
 import com.powsybl.commons.datasource.DirectoryDataSource;
@@ -19,7 +17,6 @@ import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.commons.report.ReportNodeDeserializer;
 import com.powsybl.commons.report.ReportNodeJsonModule;
-import com.powsybl.commons.xml.XmlUtil;
 import com.powsybl.computation.local.LocalComputationManager;
 import com.powsybl.iidm.network.*;
 import com.powsybl.network.conversion.server.dto.*;
@@ -50,9 +47,6 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -567,38 +561,6 @@ public class NetworkConversionService {
 
     void setGeoDataServerRest(RestTemplate geoDataServerRest) {
         this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
-    }
-
-    public ExportNetworkInfos exportCgmesSv(UUID networkUuid) throws XMLStreamException {
-        return networkConversionObserver.observeExportTotal("CGMES", () -> exportCgmesSvExec(networkUuid));
-    }
-
-    public ExportNetworkInfos exportCgmesSvExec(UUID networkUuid) throws XMLStreamException {
-        Network network = getNetwork(networkUuid);
-
-        Properties properties = new Properties();
-        properties.put("iidm.import.cgmes.profile-used-for-initial-state-values", "SV");
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        XMLStreamWriter writer = null;
-
-        try {
-            writer = XmlUtil.initializeWriter(true, "    ", outputStream);
-            StateVariablesExport.write(network, writer, createContext(network));
-        } finally {
-            if (writer != null) {
-                writer.close();
-            }
-        }
-        long networkSize = network.getBusView().getBusStream().count();
-        return new ExportNetworkInfos(network.getNameOrId(), outputStream.toByteArray(), networkSize);
-    }
-
-    private static CgmesExportContext createContext(Network network) {
-        CgmesExportContext context = new CgmesExportContext();
-        context.setScenarioTime(network.getCaseDate());
-        context.addIidmMappings(network);
-        return context;
     }
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
