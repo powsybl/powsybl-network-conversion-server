@@ -28,7 +28,8 @@ public final class NetworkConversionException extends RuntimeException {
         FAILED_CASE_IMPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_CASE_EXPORT(HttpStatus.INTERNAL_SERVER_ERROR),
         FAILED_NETWORK_REINDEX(HttpStatus.INTERNAL_SERVER_ERROR),
-        FAILED_COPY_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR);
+        FAILED_COPY_TMP_FILE(HttpStatus.INTERNAL_SERVER_ERROR),
+        FAILED_DOWNLOAD_FILE(HttpStatus.INTERNAL_SERVER_ERROR);
 
         public final HttpStatus status;
 
@@ -96,5 +97,9 @@ public final class NetworkConversionException extends RuntimeException {
 
     public static NetworkConversionException createFailedNetworkReindex(UUID networkUuid, Exception cause) {
         return new NetworkConversionException(Type.FAILED_NETWORK_REINDEX, String.format("Reindex of network '%s' has failed", networkUuid), cause);
+    }
+
+    public static NetworkConversionException createFailedDownloadExportFile(String exportUuid) {
+        return new NetworkConversionException(Type.FAILED_DOWNLOAD_FILE, String.format("Failed to download file for export UUID '%s'", exportUuid));
     }
 }
