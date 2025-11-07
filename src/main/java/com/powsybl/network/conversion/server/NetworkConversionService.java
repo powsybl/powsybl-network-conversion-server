@@ -747,7 +747,7 @@ public class NetworkConversionService {
                 filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
             }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
-        } catch (IOException e) {
+        } catch (Exception e) {
             if (tempDir != null) {
                 cleanUpTempFiles(tempDir);
             }
