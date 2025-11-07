@@ -783,7 +783,7 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage3 = output.receive(1000, CASE_EXPORT_FINISHED);
             String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
-            assertTrue(errorMessage3.contains("Case export failed"));
+            assertTrue(errorMessage3.contains("Export failed for case testCase:"));
 
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
