@@ -23,21 +23,8 @@ public class ExportNetworkInfos {
 
     private String networkName;
 
-    private byte[] networkData;
-
     private Path tempFilePath;
 
     private long numberBuses;
 
-    public ExportNetworkInfos(String networkName, Path tempFilePath, long numberBuses) {
-        this.networkName = networkName;
-        this.tempFilePath = tempFilePath;
-        this.numberBuses = numberBuses;
-    }
-
-    public ExportNetworkInfos(String networkName, byte[] networkData, long numberBuses) {
-        this.networkName = networkName;
-        this.networkData = networkData;
-        this.numberBuses = numberBuses;
-    }
 }
