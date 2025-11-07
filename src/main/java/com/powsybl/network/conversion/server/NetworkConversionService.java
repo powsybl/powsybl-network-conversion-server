@@ -245,9 +245,8 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitNetworkExportFinished(exportUuid, receiver, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for network %s: %s", networkUuid, e);
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, errorMsg);
-                LOGGER.error(errorMsg, e);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, String.format("Export failed for network %s:", fileName));
+                LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
@@ -320,9 +319,8 @@ public class NetworkConversionService {
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
                 notificationService.emitCaseExportFinished(exportUuid, userId, null);
             } catch (Exception e) {
-                String errorMsg = String.format("Export failed for case %s: %s", caseUuid, e);
-                notificationService.emitCaseExportFinished(exportUuid, userId, errorMsg);
-                LOGGER.error(errorMsg);
+                notificationService.emitCaseExportFinished(exportUuid, userId, String.format("Export failed for case %s:", fileName));
+                LOGGER.error(String.format("Export failed for case %s (uuid: %s):", fileName, caseUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
                     cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
