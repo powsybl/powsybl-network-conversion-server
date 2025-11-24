@@ -113,6 +113,10 @@
             <artifactId>spring-cloud-stream</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>context-propagation</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter-s3</artifactId>
             <version>${spring-cloud-aws.version}</version>

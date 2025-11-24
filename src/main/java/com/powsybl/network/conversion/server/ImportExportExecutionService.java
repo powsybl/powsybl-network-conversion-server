@@ -6,7 +6,10 @@
  */
 package com.powsybl.network.conversion.server;
 
+import io.micrometer.context.ContextExecutorService;
+import io.micrometer.context.ContextSnapshotFactory;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Supplier;
@@ -22,12 +25,14 @@ import lombok.NonNull;
  */
 @Service
 public class ImportExportExecutionService {
-    private ThreadPoolExecutor executorService;
+    private final ExecutorService executorService;
 
     public ImportExportExecutionService(@Value("${max-concurrent-import-export}") int maxConcurrentImportExport,
                                                     @NonNull NetworkConversionObserver networkConversionObserver) {
-        executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(maxConcurrentImportExport);
-        networkConversionObserver.createThreadPoolMetric(executorService);
+        ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(maxConcurrentImportExport);
+        networkConversionObserver.createThreadPoolMetric(threadPoolExecutor);
+        executorService = ContextExecutorService.wrap(threadPoolExecutor,
+                () -> ContextSnapshotFactory.builder().build().captureAll());
     }
 
     @PreDestroy
