@@ -87,7 +87,11 @@ public class EquipmentInfos extends BasicEquipmentInfos {
 
     // TODO This function need to transfer to poswybl-ws-commons at the new release
     public static String getEquipmentTypeName(@NonNull Identifiable<?> identifiable) {
-        return identifiable.getType() == IdentifiableType.HVDC_LINE ? getHvdcTypeName((HvdcLine) identifiable) : identifiable.getType().name();
+        return switch (identifiable.getType()) {
+            case IdentifiableType.HVDC_LINE -> getHvdcLineTypeName((HvdcLine) identifiable);
+            case IdentifiableType.HVDC_CONVERTER_STATION -> getHvdcConverterStationTypeName((HvdcConverterStation<?>) identifiable);
+            default -> identifiable.getType().name();
+        };
     }
 
     /**
@@ -95,12 +99,16 @@ public class EquipmentInfos extends BasicEquipmentInfos {
      * @return The hvdc type name string
      * @throws NetworkConversionException if converter station types don't match
      */
-    private static String getHvdcTypeName(HvdcLine hvdcLine) {
+    private static String getHvdcLineTypeName(HvdcLine hvdcLine) {
         if (hvdcLine.getConverterStation1().getHvdcType() != hvdcLine.getConverterStation2().getHvdcType()) {
             throw NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId());
         }
 
         return String.format("%s_%s", hvdcLine.getType().name(), hvdcLine.getConverterStation1().getHvdcType().name());
+    }
+
+    private static String getHvdcConverterStationTypeName(HvdcConverterStation<?> hvdcConverterStation) {
+        return String.format("%s_%s", hvdcConverterStation.getHvdcType(), hvdcConverterStation.getType().name().substring(hvdcConverterStation.getType().name().indexOf('_') + 1));
     }
 
     public static Set<VoltageLevelInfos> getVoltageLevelsInfos(@NonNull Identifiable<?> identifiable) {
