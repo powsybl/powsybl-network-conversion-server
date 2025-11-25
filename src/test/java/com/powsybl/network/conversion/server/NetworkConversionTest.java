@@ -371,6 +371,9 @@ class NetworkConversionTest {
         if (type.equals("HVDC_LINE_VSC") || type.equals("HVDC_LINE_LCC")) {
             return IdentifiableType.HVDC_LINE;
         }
+        if (type.equals("VSC_CONVERTER_STATION") || type.equals("LCC_CONVERTER_STATION")) {
+            return IdentifiableType.HVDC_CONVERTER_STATION;
+        }
         return IdentifiableType.valueOf(type);
     }
 
