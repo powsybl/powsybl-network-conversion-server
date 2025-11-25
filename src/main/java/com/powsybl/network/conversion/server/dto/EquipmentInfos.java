@@ -108,7 +108,7 @@ public class EquipmentInfos extends BasicEquipmentInfos {
     }
 
     private static String getHvdcConverterStationTypeName(HvdcConverterStation<?> hvdcConverterStation) {
-        return String.format("%s_%s", hvdcConverterStation.getHvdcType(), hvdcConverterStation.getType().name().substring(hvdcConverterStation.getType().name().indexOf('_') + 1));
+        return String.format("%s_%s", hvdcConverterStation.getHvdcType(), "CONVERTER_STATION");
     }
 
     public static Set<VoltageLevelInfos> getVoltageLevelsInfos(@NonNull Identifiable<?> identifiable) {
