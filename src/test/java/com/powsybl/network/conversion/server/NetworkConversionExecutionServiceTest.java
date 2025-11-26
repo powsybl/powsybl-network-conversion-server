@@ -51,7 +51,7 @@ class NetworkConversionExecutionServiceTest {
             }
 
             @Override
-            public void reset() {
+            public void setValue() {
                 threadLocal.remove();
             }
         });
