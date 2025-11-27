@@ -320,4 +320,16 @@ class EquipmentInfosServiceTests {
         String errorMessage = assertThrows(NetworkConversionException.class, () -> EquipmentInfos.getEquipmentTypeName(hvdcLine)).getMessage();
         assertEquals(NetworkConversionException.createHybridHvdcUnsupported(hvdcLine.getId()).getMessage(), errorMessage);
     }
+
+    @Test
+    void testHvdcConverterStationTypeName() {
+        //BBE1AA5_ct_1
+        ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
+        Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
+        UUID networkUuid = UUID.randomUUID();
+
+        HvdcConverterStation<?> hvdcConverterStation = network.getHvdcConverterStation("BBE1AA5_ct_1");
+        EquipmentInfos hvdcConverterStationInfos = NetworkConversionService.toEquipmentInfos(hvdcConverterStation, networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        assertEquals(hvdcConverterStationInfos.getType(), String.format("%s_%s", hvdcConverterStation.getHvdcType(), "CONVERTER_STATION"));
+    }
 }
