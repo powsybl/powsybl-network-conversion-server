@@ -26,6 +26,7 @@ import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -38,30 +39,36 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.messaging.Message;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.http.AbortableInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static com.powsybl.network.conversion.server.NetworkConversionService.TYPES_FOR_INDEXING;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * @author Abdelsalem Hedhili <abdelsalem.hedhili at rte-france.com>
@@ -73,6 +80,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class NetworkConversionTest {
 
     private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
+
+    private static final String NETWORK_EXPORT_START = "network.export.start";
+
+    private static final String NETWORK_EXPORT_FINISHED = "network.export.finished";
+
+    private static final String CASE_EXPORT_START = "case.export.start";
+
+    private static final String CASE_EXPORT_FINISHED = "case.export.finished";
 
     private static final Map<String, Object> EMPTY_PARAMETERS = new HashMap<>();
 
@@ -91,7 +106,7 @@ class NetworkConversionTest {
     @Qualifier("reportServer")
     private RestTemplate reportServerRest;
 
-    @Autowired
+    @MockitoSpyBean
     private NetworkConversionService networkConversionService;
 
     @MockitoBean
@@ -99,6 +114,12 @@ class NetworkConversionTest {
 
     @Autowired
     private OutputDestination output;
+
+    @Autowired
+    private ObjectMapper mapper;
+
+    @MockitoBean
+    private S3Client s3Client;
 
     @BeforeEach
     void setup() {
@@ -112,11 +133,9 @@ class NetworkConversionTest {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
             byte[] networkByte = inputStream.readAllBytes();
 
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
-                    .willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
 
-            ReadOnlyDataSource dataSource = new ResourceDataSource("testCase",
-                    new ResourceSet("", "testCase.xiidm"));
+            ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
             Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
 
             given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
@@ -133,7 +152,7 @@ class NetworkConversionTest {
                 any(HttpEntity.class),
                 eq(String.class), eq(UUID.fromString(caseUuid))))
                 .willReturn(ResponseEntity.ok("testCase"));
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase.xiidm", "XIIDM")));
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase.xiidm", "XIIDM")));
 
             MvcResult mvcResult = mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
@@ -143,8 +162,7 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}",
-                    mvcResult.getResponse().getContentAsString());
+            assertEquals("{\"networkUuid\":\"" + randomUuid + "\",\"networkId\":\"20140116_0830_2D4_UX1_pst\"}", mvcResult.getResponse().getContentAsString());
             assertFalse(network.getVariantManager().getVariantIds().contains("first_variant_id"));
 
             mvc.perform(post("/v1/networks")
@@ -174,77 +192,124 @@ class NetworkConversionTest {
                     .andReturn();
 
             UUID notFoundNetworkUuid = UUID.randomUUID();
-            given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid.toString() + " not found"));
+            given(networkStoreClient.getNetwork(notFoundNetworkUuid)).willThrow(new PowsyblException("Network " + notFoundNetworkUuid + " not found"));
             given(networkStoreClient.getNetwork(any(UUID.class), eq(PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW))).willReturn(network);
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM"))
+
+            UUID exportNetworkUuid1 = UUID.randomUUID();
+            String receiver = "test receiver";
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid1, "XIIDM").param("receiver", receiver))
                     .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains(String.format("filename*=UTF-8''20140116_0830_2D4_UX1_pst_%s.zip", VariantManagerConstants.INITIAL_VARIANT_ID)));
+            Message<byte[]> startMessage1 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage1);
+            assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
+            assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
 
-            byte[] zipBytes = mvcResult.getResponse().getContentAsByteArray();
-            assertNotNull(zipBytes);
-            assertTrue(zipBytes.length > 0);
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
-                while ((zis.getNextEntry()) != null) {
-                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                    assertTrue(content.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-                    assertTrue(content.contains("id=\"20140116_0830_2D4_UX1_pst\""));
-                }
-            }
+            Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage1);
+            assertNull(successMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
+            assertNotNull(successMessage1.getHeaders().get(NotificationService.HEADER_EXPORT_UUID));
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-            String exported1 = mvcResult.getResponse().getContentAsString();
+            UUID exportNetworkUuid2 = UUID.randomUUID();
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid2, "XIIDM").param("variantId", "second_variant_id").param("receiver", receiver))
+                    .andExpect(status().isOk())
+                    .andReturn();
 
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id")
-                    .contentType(MediaType.APPLICATION_JSON_VALUE)
-                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-            String exported2 = mvcResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
+            Message<byte[]> startMessage2 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage2);
+            assertEquals(String.valueOf(exportNetworkUuid2), mapper.readValue(startMessage2.getPayload(), String.class));
+            assertEquals("second_variant_id", startMessage2.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
 
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''20140116_0830_2D4_UX1_pst_second_variant_id.zip"));
+            Message<byte[]> successMessage2 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage2);
+            assertNull(successMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
 
             // takes the iidm.export.xml.indent param into account
-            assertTrue(exported1.length() > exported2.length());
+            UUID exportNetworkUuid3 = UUID.randomUUID();
+            Map<String, Object> exportParams = new HashMap<>();
+            exportParams.put("iidm.export.xml.indent", "false");
 
-            //with fileName
-            mvcResult = mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + "studyName_Root", UUID.randomUUID().toString(), "XIIDM").param("variantId", "second_variant_id"))
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid3, "XIIDM")
+                            .param("variantId", "second_variant_id")
+                            .param("receiver", receiver)
+                            .contentType(MediaType.APPLICATION_JSON_VALUE)
+                            .content(new ObjectMapper().writeValueAsString(exportParams)))
                     .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
                     .andReturn();
 
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''studyName_Root.zip"));
+            Message<byte[]> startMessage3 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage3);
+            assertEquals(String.valueOf(exportNetworkUuid3), mapper.readValue(startMessage3.getPayload(), String.class));
+            Map<String, Object> receivedParams = (Map<String, Object>) startMessage3.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+            assertNotNull(receivedParams);
+            assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
 
-            // non existing variantId
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "XIIDM").param("variantId", "unknown_variant_id"))
-                .andExpect(status().isNotFound())
-                .andReturn();
+            Message<byte[]> successMessage3 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage3);
+            assertNull(successMessage3.getHeaders().get(NotificationService.HEADER_ERROR));
 
-            // non existing format
-            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", UUID.randomUUID().toString(), "JPEG").param("variantId", "second_variant_id"))
-                .andExpect(status().isInternalServerError())
-                .andReturn();
+            //with fileName
+            UUID exportNetworkUuid4 = UUID.randomUUID();
+            String fileName = "studyName_Root";
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}?fileName=" + fileName, exportNetworkUuid4, "XIIDM")
+                            .param("variantId", "second_variant_id")
+                            .param("userId", "user-id"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Message<byte[]> startMessage4 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage4);
+            assertEquals(String.valueOf(exportNetworkUuid4), mapper.readValue(startMessage4.getPayload(), String.class));
+            assertEquals(fileName, startMessage4.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            Message<byte[]> successMessage4 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage4);
+            assertNull(successMessage4.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            // nonexistent variantId
+            UUID exportNetworkUuid5 = UUID.randomUUID();
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid5, "XIIDM")
+                            .param("variantId", "unknown_variant_id")
+                            .param("receiver", receiver))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Message<byte[]> startMessage5 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage5);
+            assertEquals("unknown_variant_id", startMessage5.getHeaders().get(NotificationService.HEADER_VARIANT_ID));
+
+            Message<byte[]> successMessage5 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage5);
+            assertNotNull(successMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
+            String errorMessage5 = (String) successMessage5.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertTrue(errorMessage5.contains("Export failed"));
+
+            // nonexistent format
+            UUID exportNetworkUuid6 = UUID.randomUUID();
+            mvc.perform(post("/v1/networks/{networkUuid}/export/{format}", exportNetworkUuid6, "JPEG")
+                            .param("variantId", "second_variant_id")
+                            .param("userId", "user-id"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Message<byte[]> startMessage6 = output.receive(1000, NETWORK_EXPORT_START);
+            assertNotNull(startMessage6);
+            assertEquals("JPEG", startMessage6.getHeaders().get(NotificationService.HEADER_FORMAT));
+
+            Message<byte[]> successMessage6 = output.receive(1000, NETWORK_EXPORT_FINISHED);
+            assertNotNull(successMessage6);
+            assertNotNull(successMessage6.getHeaders().get(NotificationService.HEADER_ERROR));
+            String errorMessage6 = (String) successMessage6.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertTrue(errorMessage6.contains("Export failed"));
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
             networkConversionService.deleteAllEquipmentInfosByNetworkUuid(networkUuid);
             List<EquipmentInfos> infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             assertTrue(infos.isEmpty());
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString()))
-                .andExpect(status().isNotFound())
-                .andReturn();
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", notFoundNetworkUuid.toString())).andExpect(status().isNotFound()).andReturn();
 
-            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
-                .andExpect(status().isNoContent())
-                .andReturn();
+            mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString())).andExpect(status().isNoContent()).andReturn();
 
             mvc.perform(post("/v1/networks/{networkUuid}/reindex-all", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -252,8 +317,7 @@ class NetworkConversionTest {
             infos = networkConversionService.getAllEquipmentInfos(networkUuid);
             // exclude switch, bus bar section and bus since it is not indexed
             assertEquals(74, infos.size());
-            assertTrue(infos.stream()
-                    .allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
+            assertTrue(infos.stream().allMatch(equipmentInfos -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipmentInfos))));
 
             mvc.perform(head("/v1/networks/{networkUuid}/indexed-equipments", networkUuid.toString()))
                 .andExpect(status().isOk())
@@ -306,6 +370,9 @@ class NetworkConversionTest {
         String type = equipmentInfos.getType();
         if (type.equals("HVDC_LINE_VSC") || type.equals("HVDC_LINE_LCC")) {
             return IdentifiableType.HVDC_LINE;
+        }
+        if (type.equals("VSC_CONVERTER_STATION") || type.equals("LCC_CONVERTER_STATION")) {
+            return IdentifiableType.HVDC_CONVERTER_STATION;
         }
         return IdentifiableType.valueOf(type);
     }
@@ -378,29 +445,6 @@ class NetworkConversionTest {
 
         Message<byte[]> message = output.receive(1000, "case.import.start");
         assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
-    }
-
-    @Test
-    void testExportSv() throws Exception {
-        Network network = new CgmesImport()
-                .importData(CgmesConformity1Catalog.microGridBaseCaseBE().dataSource(), NetworkFactory.findDefault(), null);
-        UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
-        given(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).willReturn(network);
-
-        MvcResult mvcResult = mvc.perform(get("/v1/networks/{networkUuid}/export-sv-cgmes", networkUuid))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_OCTET_STREAM))
-                .andReturn();
-
-        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("attachment;"));
-        assertTrue(Objects.requireNonNull(mvcResult.getResponse().getHeader("content-disposition")).contains("filename*=UTF-8''urn%3Auuid%3Ad400c631-75a0-4c30-8aed-832b0d282e73"));
-        assertTrue(mvcResult.getResponse().getContentAsString().contains("<md:Model.description>CGMES Conformity Assessment: 'MicroGridTestConfiguration....BC (MAS BE) Test Configuration. The model is owned by ENTSO-E and is provided by ENTSO-E â\u0080\u009Cas it isâ\u0080\u009D. To the fullest extent permitted by law, ENTSO-E shall not be liable for any damages of any kind arising out of the use of the model (including any of its subsequent modifications). ENTSO-E neither warrants, nor represents that the use of the model will not infringe the rights of third parties. Any use of the model shall  include a reference to ENTSO-E. ENTSO-E web site is the only official source of information related to the model.</md:Model.description>\n" +
-            "        <md:Model.version>2</md:Model.version>\n" +
-            "        <md:Model.DependentOn rdf:resource=\"urn:uuid:d400c631-75a0-4c30-8aed-832b0d282e73\"/>\n" +
-            "        <md:Model.DependentOn rdf:resource=\"urn:uuid:f2f43818-09c8-4252-9611-7af80c398d20\"/>\n" +
-            "        <md:Model.DependentOn rdf:resource=\"urn:uuid:2399cbd1-9a39-11e0-aa80-0800200c9a66\"/>\n" +
-            "        <md:Model.profile>http://entsoe.eu/CIM/StateVariables/4/1</md:Model.profile>\n" +
-            "        <md:Model.modelingAuthoritySet>http://elia.be/CGMES/2.4.15</md:Model.modelingAuthoritySet>"));
     }
 
     @Test
@@ -634,7 +678,6 @@ class NetworkConversionTest {
     @Test
     void testExportEndpoint() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
-            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
@@ -654,8 +697,7 @@ class NetworkConversionTest {
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
-                .willReturn(ResponseEntity.ok(true));
+            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class))).willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -672,66 +714,118 @@ class NetworkConversionTest {
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
+            ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
+            ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
+
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
             // convert to iidm
-            MvcResult mvcResult1 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+            MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
+            UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
 
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult1.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.xiidm\""));
-            assertTrue(mvcResult1.getResponse().getContentAsString().startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm"));
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm", s3KeyCaptor.getValue());
 
+            String responseBody = result.getResponse().getContentAsString();
+            assertFalse(responseBody.isEmpty());
+            Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
+            assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            assertTrue(new String(baos.toByteArray(), StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString());
             // convert to biidm
-            MvcResult mvcResult2 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("attachment;"));
-            assertTrue(Objects.requireNonNull(mvcResult2.getResponse().getHeader("content-disposition")).contains("filename=\"testCase.biidm\""));
-            assertTrue(mvcResult2.getResponse().getContentAsString().startsWith("Binary IIDM"));
+
+            Message<byte[]> startMessage2 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals(caseUuid, mapper.readValue(startMessage2.getPayload(), String.class));
+            assertEquals("BIIDM", startMessage2.getHeaders().get(NotificationService.HEADER_FORMAT));
+
+            Message<byte[]> resultMessage2 = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            String fileContent = new String(baos.toByteArray(), StandardCharsets.UTF_8);
+            assertTrue(fileContent.contains("Binary IIDM"), "BIIDM file should start with 'Binary IIDM'");
 
             // fail because case not found
-            MvcResult fail = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
+            mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isOk())
                 .andReturn();
-            assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), fail.getResponse().getStatus());
-            assertEquals("Case export failed", fail.getResponse().getContentAsString());
+
+            Message<byte[]> startMessage3 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals("BIIDM", startMessage3.getHeaders().get(NotificationService.HEADER_FORMAT));
+
+            Message<byte[]> resultMessage3 = output.receive(1000, CASE_EXPORT_FINISHED);
+            String errorMessage3 = (String) resultMessage3.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertTrue(errorMessage3.contains("Export failed for case testCase"));
 
             // fail because network format does not exist
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "JPEG")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isOk())
                 .andReturn();
+
+            Message<byte[]> startMessage4 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals("JPEG", startMessage4.getHeaders().get(NotificationService.HEADER_FORMAT));
+
+            Message<byte[]> resultMessage4 = output.receive(1000, CASE_EXPORT_FINISHED);
+            String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertTrue(errorMessage4.contains("Export failed for case testCase"));
 
             // export case with an absolut path as fileName
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                             .param("fileName", "/tmp/testCase")
+                            .header("userId", "userId")
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                     .andExpect(status().isOk())
                     .andReturn();
 
+            Message<byte[]> startMessage5 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals("/tmp/testCase", startMessage5.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            Message<byte[]> resultMessage5 = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             // check that no temporary export directory is still present after conversions
-            assertFalse(Files.list(Paths.get("/tmp"))
-                    .anyMatch(path3 -> Files.isDirectory(path3) &&
-                            path3.getFileName().toString().startsWith("export_")));
+            assertFalse(Files.list(Paths.get("/tmp")).anyMatch(pathTmp -> Files.isDirectory(pathTmp) && pathTmp.getFileName().toString().startsWith("export_")));
         }
     }
 
     @Test
     void testConvertToCgmes() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/fourSubstations_first_variant_id.xiidm")) {
-            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
@@ -767,22 +861,46 @@ class NetworkConversionTest {
 
             given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
 
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString());
+
             // convert to cgmes
-            MvcResult mvcResult3 = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
+            MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "CGMES")
                     .param("fileName", "testCase")
+                    .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
-            byte[] bytes = mvcResult3.getResponse().getContentAsByteArray();
+
+            UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
+
+            Message<byte[]> startMessage = output.receive(1000, CASE_EXPORT_START);
+            assertEquals(caseUuid, mapper.readValue(startMessage.getPayload(), String.class));
+            assertEquals("CGMES", startMessage.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals("testCase", startMessage.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            Map<String, Object> receivedParams = (Map<String, Object>) startMessage.getHeaders().get(NotificationService.HEADER_EXPORT_PARAMETERS);
+            assertEquals("false", receivedParams.get("iidm.export.xml.indent"));
+
+            Message<byte[]> resultMessage = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            assertEquals(exportUuid.toString(), resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class));
+
             List<String> filenames = new ArrayList<>();
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(baos.toByteArray()))) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
                     filenames.add(entry.getName());
                 }
             }
             assertTrue(filenames.containsAll(List.of("testCase_EQ.xml", "testCase_SV.xml", "testCase_SSH.xml", "testCase_TP.xml")));
+            assertEquals(exportUuid.toString(), resultMessage.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class));
         }
     }
 
@@ -972,6 +1090,35 @@ class NetworkConversionTest {
                 .setMaxQ(9999.99)
                 .add();
         return network;
+    }
+
+    @Test
+    void testDownloadExportFile() throws Exception {
+        String exportUuid = UUID.randomUUID().toString();
+        String fileContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><network>test</network>";
+        byte[] fileBytes = fileContent.getBytes(StandardCharsets.UTF_8);
+        GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).build();
+        ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
+        given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
+        S3Object s3Object = S3Object.builder().key(exportUuid).size((long) fileBytes.length).build();
+        ListObjectsV2Response listResponse = ListObjectsV2Response.builder().contents(s3Object).build();
+        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
+
+        MvcResult result = mvc.perform(get("/v1/download-file/{exportUuid}", exportUuid))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("attachment")))
+                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andReturn();
+
+        byte[] downloadedContent = result.getResponse().getContentAsByteArray();
+        assertArrayEquals(fileBytes, downloadedContent);
+
+        // exception case
+        reset(s3Client);
+        String failedExportUuid = UUID.randomUUID().toString();
+        given(s3Client.getObject(any(GetObjectRequest.class))).willThrow(NoSuchKeyException.builder().build());
+        given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
+        mvc.perform(get("/v1/download-file/{exportUuid}", failedExportUuid)).andExpect(status().isNotFound());
     }
 
     private void mockCaseExist(String ext, String caseUuid, boolean returnValue) {
