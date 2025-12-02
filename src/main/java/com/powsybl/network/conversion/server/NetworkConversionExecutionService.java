@@ -23,15 +23,14 @@ import java.util.concurrent.Executors;
 public class NetworkConversionExecutionService {
 
     private ExecutorService executorService;
-    private ContextSnapshotFactory snapshotFactory;
 
     @PostConstruct
     private void postConstruct() {
-        snapshotFactory = ContextSnapshotFactory.builder().build();
+        ContextSnapshotFactory snapshotFactory = ContextSnapshotFactory.builder().build();
 
         executorService = ContextExecutorService.wrap(
             Executors.newCachedThreadPool(),
-            () -> snapshotFactory.captureAll()
+            snapshotFactory::captureAll
         );
     }
 
