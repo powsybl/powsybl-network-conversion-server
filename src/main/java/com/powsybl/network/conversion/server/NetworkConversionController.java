@@ -67,7 +67,7 @@ public class NetworkConversionController {
         }
 
         networkConversionService.importCaseAsynchronously(caseUuid, variantId, reportUuid, caseFormat, nonNullImportParameters, receiver);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.accepted().build();
     }
 
     // Swagger RequestBody interferes badly with Spring RequestBody where required is false.
@@ -89,7 +89,7 @@ public class NetworkConversionController {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
         UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, exportUuid, formatParameters);
-        return ResponseEntity.ok().body(exportUuid);
+        return ResponseEntity.accepted().body(exportUuid);
     }
 
     @PostMapping(value = "/cases/{caseUuid}/convert/{format}")
@@ -106,7 +106,7 @@ public class NetworkConversionController {
         LOGGER.debug("Converting asynchronously case {} ...", caseUuid);
         UUID exportUuid = UUID.randomUUID();
         networkConversionService.exportCaseAsynchronously(caseUuid, fileName, format, userId, exportUuid, formatParameters);
-        return ResponseEntity.ok().body(exportUuid);
+        return ResponseEntity.accepted().body(exportUuid);
     }
 
     @GetMapping(value = "/export/formats")
