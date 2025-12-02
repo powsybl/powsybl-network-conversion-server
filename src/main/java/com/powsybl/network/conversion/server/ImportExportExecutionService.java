@@ -31,8 +31,8 @@ public class ImportExportExecutionService {
                                                     @NonNull NetworkConversionObserver networkConversionObserver) {
         ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(maxConcurrentImportExport);
         networkConversionObserver.createThreadPoolMetric(threadPoolExecutor);
-        executorService = ContextExecutorService.wrap(threadPoolExecutor,
-                () -> ContextSnapshotFactory.builder().build().captureAll());
+        var contextSnapshotFactory = ContextSnapshotFactory.builder().build();
+        executorService = ContextExecutorService.wrap(threadPoolExecutor, contextSnapshotFactory::captureAll);
     }
 
     @PreDestroy
