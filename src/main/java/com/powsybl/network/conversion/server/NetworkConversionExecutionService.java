@@ -6,6 +6,8 @@
  */
 package com.powsybl.network.conversion.server;
 
+import io.micrometer.context.ContextExecutorService;
+import io.micrometer.context.ContextSnapshotFactory;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -24,7 +26,12 @@ public class NetworkConversionExecutionService {
 
     @PostConstruct
     private void postConstruct() {
-        executorService = Executors.newCachedThreadPool();
+        ContextSnapshotFactory snapshotFactory = ContextSnapshotFactory.builder().build();
+
+        executorService = ContextExecutorService.wrap(
+            Executors.newCachedThreadPool(),
+            snapshotFactory::captureAll
+        );
     }
 
     @PreDestroy
