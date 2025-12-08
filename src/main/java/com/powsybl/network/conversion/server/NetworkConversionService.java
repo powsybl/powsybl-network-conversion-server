@@ -244,7 +244,7 @@ public class NetworkConversionService {
                 LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
-                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath().getParent());
                 }
             }
         };
@@ -320,7 +320,7 @@ public class NetworkConversionService {
                 LOGGER.error(String.format("Export failed for case %s (uuid: %s):", fileName, caseUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
-                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath().getParent());
                 }
             }
         };
@@ -773,7 +773,7 @@ public class NetworkConversionService {
     public void cleanUpTempFiles(Path tempFilePath) {
         try {
             if (Files.exists(tempFilePath)) {
-                FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
+                FileUtils.deleteDirectory(tempFilePath.toFile());
             }
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
