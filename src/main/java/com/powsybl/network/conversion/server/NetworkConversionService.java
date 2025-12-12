@@ -25,7 +25,6 @@ import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +37,7 @@ import org.springframework.http.*;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.DefaultUriBuilderFactory;
@@ -50,6 +50,8 @@ import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -65,7 +67,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
-import static com.powsybl.network.conversion.server.NetworkConversionConstants.REPORT_API_VERSION;
+import static com.powsybl.network.conversion.server.NetworkConversionConstants.*;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedDownloadExportFile;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
@@ -81,8 +83,6 @@ public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
 
-    private static final String DELIMITER = "/";
-
     public static final Set<IdentifiableType> TYPES_FOR_INDEXING = Set.of(
             IdentifiableType.SUBSTATION,
             IdentifiableType.VOLTAGE_LEVEL,
@@ -97,6 +97,8 @@ public class NetworkConversionService {
             IdentifiableType.DANGLING_LINE,
             IdentifiableType.STATIC_VAR_COMPENSATOR,
             IdentifiableType.HVDC_CONVERTER_STATION);
+
+    private FileSystem fileSystem;
 
     private RestTemplate caseServerRest;
 
@@ -145,6 +147,7 @@ public class NetworkConversionService {
         this.s3Client = s3Client;
         this.bucketName = bucketName;
         this.exportRootPath = exportRootPath;
+        this.fileSystem = FileSystems.getDefault();
 
         caseServerRest = restTemplateBuilder.build();
         caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
@@ -250,6 +253,10 @@ public class NetworkConversionService {
                 }
             }
         };
+    }
+
+    public void setFileSystem(FileSystem fileSystem) {
+        this.fileSystem = Objects.requireNonNull(fileSystem);
     }
 
     public void uploadFile(Path filePath, String s3Key) throws IOException {
@@ -733,7 +740,7 @@ public class NetworkConversionService {
                                                      long networkSize, boolean withNotZipFileName) {
         Path tempDir = null;
         try {
-            tempDir = Files.createTempDirectory("export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            tempDir = Files.createTempDirectory(fileSystem.getPath(TMP_DIR), "export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
             String finalFileOrNetworkName = fileOrNetworkName.replace('/', '_');
             DirectoryDataSource dataSource = new DirectoryDataSource(tempDir, finalFileOrNetworkName);
             network.write(format, exportProperties, dataSource);
@@ -776,7 +783,7 @@ public class NetworkConversionService {
     private void cleanUpTempDir(Path tempDirPath) {
         try {
             if (Files.exists(tempDirPath)) {
-                FileUtils.deleteDirectory(tempDirPath.toFile());
+                FileSystemUtils.deleteRecursively(tempDirPath);
             }
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
