@@ -1,8 +1,9 @@
 /**
- * Copyright (c) 2019, RTE (http://www.rte-france.com)
+ * Copyright (c) 2019-2025, RTE (http://www.rte-france.com)
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * SPDX-License-Identifier: MPL-2.0
  */
 package com.powsybl.network.conversion.server;
 
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
+import com.powsybl.commons.datasource.DirectoryDataSource;
 import com.powsybl.commons.datasource.ReadOnlyDataSource;
 import com.powsybl.commons.datasource.ResourceDataSource;
 import com.powsybl.commons.datasource.ResourceSet;
@@ -26,6 +28,7 @@ import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,12 +54,14 @@ import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -1119,6 +1124,36 @@ class NetworkConversionTest {
         given(s3Client.getObject(any(GetObjectRequest.class))).willThrow(NoSuchKeyException.builder().build());
         given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
         mvc.perform(get("/v1/download-file/{exportUuid}", failedExportUuid)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testCleanupTempDirOnError() throws IOException {
+        UUID networkUuid = UUID.randomUUID();
+        String variantId = "variantId";
+        String fileName = "fileName";
+        String format = "XIIDM";
+        Path dummyFileToKeep = Path.of("/tmp/dummyFile.txt");
+        Map<String, Object> formatParameters = Collections.emptyMap();
+        Files.createFile(dummyFileToKeep);
+        Network dummyNetwork = mock(Network.class, RETURNS_DEEP_STUBS);
+        when(networkStoreClient.getNetwork(networkUuid, PreloadingStrategy.ALL_COLLECTIONS_NEEDED_FOR_BUS_VIEW)).thenReturn(dummyNetwork);
+        when(dummyNetwork.getVariantManager().getVariantIds().contains(variantId)).thenReturn(true);
+
+        AtomicReference<DirectoryDataSource> directoryDataSource = new AtomicReference<>();
+        doAnswer(invocation -> {
+            directoryDataSource.set(invocation.getArgument(2));
+            Path directory = directoryDataSource.get().getDirectory();
+            assertTrue(Files.exists(directory));
+            assertTrue(Files.exists(dummyFileToKeep));
+            throw new IOException();
+        }).when(dummyNetwork).write(eq(format), any(Properties.class), any(DirectoryDataSource.class));
+
+        Executable executable = () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters);
+
+        assertThrowsExactly(NetworkConversionException.class, executable, "Failed to stream network to file");
+        assertFalse(Files.exists(directoryDataSource.get().getDirectory()));
+        assertTrue(Files.exists(dummyFileToKeep));
+        Files.delete(dummyFileToKeep); // Cleanup since it's on the local filesystem
     }
 
     private void mockCaseExist(String ext, String caseUuid, boolean returnValue) {
