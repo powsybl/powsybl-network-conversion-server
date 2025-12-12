@@ -1,8 +1,9 @@
 /**
- * Copyright (c) 2019, RTE (http://www.rte-france.com)
+ * Copyright (c) 2019-2025, RTE (http://www.rte-france.com)
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * SPDX-License-Identifier: MPL-2.0
  */
 package com.powsybl.network.conversion.server;
 
@@ -244,7 +245,8 @@ public class NetworkConversionService {
                 LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
-                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                    Path tempDir = exportNetworkInfos.getTempFilePath().getParent();
+                    cleanUpTempDir(tempDir);
                 }
             }
         };
@@ -320,7 +322,8 @@ public class NetworkConversionService {
                 LOGGER.error(String.format("Export failed for case %s (uuid: %s):", fileName, caseUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
-                    cleanUpTempFiles(exportNetworkInfos.getTempFilePath());
+                    Path tempDir = exportNetworkInfos.getTempFilePath().getParent();
+                    cleanUpTempDir(tempDir);
                 }
             }
         };
@@ -749,7 +752,7 @@ public class NetworkConversionService {
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
-                cleanUpTempFiles(tempDir);
+                cleanUpTempDir(tempDir);
             }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
@@ -770,10 +773,10 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    public void cleanUpTempFiles(Path tempFilePath) {
+    private void cleanUpTempDir(Path tempDirPath) {
         try {
-            if (Files.exists(tempFilePath)) {
-                FileUtils.deleteDirectory(tempFilePath.getParent().toFile());
+            if (Files.exists(tempDirPath)) {
+                FileUtils.deleteDirectory(tempDirPath.toFile());
             }
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
