@@ -8,6 +8,10 @@
 package com.powsybl.network.conversion.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Feature;
+import com.google.common.jimfs.Jimfs;
+import com.google.common.jimfs.PathType;
 import com.powsybl.cgmes.conformity.CgmesConformity1Catalog;
 import com.powsybl.cgmes.conversion.CgmesImport;
 import com.powsybl.commons.PowsyblException;
@@ -26,6 +30,7 @@ import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
 import com.powsybl.network.store.iidm.impl.NetworkFactoryImpl;
 import com.powsybl.network.store.iidm.impl.NetworkImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -57,6 +62,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -84,6 +90,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfigurationWithTestChannel
 class NetworkConversionTest {
 
+    private static final String WORK_DIR = "/tmp";
+
     private static final String IMPORT_CASE_ERROR_MESSAGE = "An error occured while importing case";
 
     private static final String NETWORK_EXPORT_START = "network.export.start";
@@ -95,6 +103,8 @@ class NetworkConversionTest {
     private static final String CASE_EXPORT_FINISHED = "case.export.finished";
 
     private static final Map<String, Object> EMPTY_PARAMETERS = new HashMap<>();
+
+    FileSystem fileSystem;
 
     @Autowired
     private MockMvc mvc;
@@ -127,10 +137,21 @@ class NetworkConversionTest {
     private S3Client s3Client;
 
     @BeforeEach
-    void setup() {
+    void setup() throws IOException {
+        fileSystem = Jimfs.newFileSystem(provideJimfsUnixConfigurationWithPosixFileAttributes());
+
+        networkConversionService.setRootDirectory(WORK_DIR);
+        networkConversionService.setFileSystem(fileSystem);
         networkConversionService.setCaseServerRest(caseServerRest);
         networkConversionService.setGeoDataServerRest(geoDataRest);
         networkConversionService.setReportServerRest(reportServerRest);
+
+        createStorageDir();
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        fileSystem.close();
     }
 
     @Test
@@ -824,7 +845,8 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage5 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             // check that no temporary export directory is still present after conversions
-            assertFalse(Files.list(Paths.get("/tmp")).anyMatch(pathTmp -> Files.isDirectory(pathTmp) && pathTmp.getFileName().toString().startsWith("export_")));
+            List<Path> filesInWorkDir = Files.list(fileSystem.getPath(WORK_DIR)).toList();
+            assertTrue(filesInWorkDir.isEmpty());
         }
     }
 
@@ -1132,7 +1154,7 @@ class NetworkConversionTest {
         String variantId = "variantId";
         String fileName = "fileName";
         String format = "XIIDM";
-        Path dummyFileToKeep = Path.of("/tmp/dummyFile.txt");
+        Path dummyFileToKeep = fileSystem.getPath("/tmp/dummyFile.txt");
         Map<String, Object> formatParameters = Collections.emptyMap();
         Files.createFile(dummyFileToKeep);
         Network dummyNetwork = mock(Network.class, RETURNS_DEEP_STUBS);
@@ -1168,5 +1190,21 @@ class NetworkConversionTest {
             .toUriString();
         given(caseServerRest.exchange(eq(path), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
             .willReturn(ResponseEntity.ok(returnValue));
+    }
+
+    private void createStorageDir() throws IOException {
+        Path storageRootDirectory = fileSystem.getPath(WORK_DIR);
+        if (!Files.exists(storageRootDirectory)) {
+            Files.createDirectories(storageRootDirectory);
+        }
+    }
+
+    private Configuration provideJimfsUnixConfigurationWithPosixFileAttributes() {
+        return Configuration.builder(PathType.unix())
+                .setRoots("/")
+                .setWorkingDirectory(WORK_DIR)
+                .setAttributeViews("posix")
+                .setSupportedFeatures(Feature.LINKS, Feature.SYMBOLIC_LINKS, Feature.SECURE_DIRECTORY_STREAM, Feature.FILE_CHANNEL)
+                .build();
     }
 }
