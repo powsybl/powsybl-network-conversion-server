@@ -351,39 +351,40 @@ public class NetworkConversionService {
     }
 
     private NetworkInfos importCaseExec(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
-        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
-        ReportNode rootReport = ReportNode.NO_OP;
-        ReportNode reporter = ReportNode.NO_OP;
-        if (reportUuid != null) {
-            String reporterId = "Root";
-            rootReport = ReportNode.newRootReportNode()
-                    .withAllResourceBundlesFromClasspath()
-                    .withMessageTemplate("network.conversion.server.reporterId")
-                    .withUntypedValue("reporterId", reporterId)
-                    .build();
+        try (CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid)) {
+            ReportNode rootReport = ReportNode.NO_OP;
+            ReportNode reporter = ReportNode.NO_OP;
+            if (reportUuid != null) {
+                String reporterId = "Root";
+                rootReport = ReportNode.newRootReportNode()
+                        .withAllResourceBundlesFromClasspath()
+                        .withMessageTemplate("network.conversion.server.reporterId")
+                        .withUntypedValue("reporterId", reporterId)
+                        .build();
 
-            String subReporterId = "Import Case : " + dataSource.getBaseName();
-            reporter = rootReport.newReportNode()
-                    .withMessageTemplate("network.conversion.server.subReporterId")
-                    .withUntypedValue("subReporterId", subReporterId)
-                    .add();
-        }
-
-        AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        ReportNode finalReporter = reporter;
-        Network network = networkConversionObserver.observeImportProcessing(caseFormat, () -> {
-            if (!importParameters.isEmpty()) {
-                Properties importProperties = new Properties();
-                importProperties.putAll(importParameters);
-                return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
-            } else {
-                return networkStoreService.importNetwork(dataSource, finalReporter, false);
+                String subReporterId = "Import Case : " + dataSource.getBaseName();
+                reporter = rootReport.newReportNode()
+                        .withMessageTemplate("network.conversion.server.subReporterId")
+                        .withUntypedValue("subReporterId", subReporterId)
+                        .add();
             }
-        });
-        UUID networkUuid = networkStoreService.getNetworkUuid(network);
-        LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
-        saveNetwork(network, networkUuid, variantId, rootReport, reportUuid);
-        return new NetworkInfos(networkUuid, network.getId());
+
+            AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
+            ReportNode finalReporter = reporter;
+            Network network = networkConversionObserver.observeImportProcessing(caseFormat, () -> {
+                if (!importParameters.isEmpty()) {
+                    Properties importProperties = new Properties();
+                    importProperties.putAll(importParameters);
+                    return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
+                } else {
+                    return networkStoreService.importNetwork(dataSource, finalReporter, false);
+                }
+            });
+            UUID networkUuid = networkStoreService.getNetworkUuid(network);
+            LOGGER.trace("Import network '{}' : {} seconds", networkUuid, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime.get()));
+            saveNetwork(network, networkUuid, variantId, rootReport, reportUuid);
+            return new NetworkInfos(networkUuid, network.getId());
+        }
     }
 
     public NetworkInfos importCase(UUID caseUuid, String variantId, UUID reportUuid, String caseFormat, Map<String, Object> importParameters) {
@@ -515,20 +516,20 @@ public class NetworkConversionService {
 
     public ExportNetworkInfos exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
-        CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
+        try (CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid)) {
+            // build import properties to import all available extensions
+            // TODO : Check at next powsybl upgrade if this code is still required. To be removed if not useful anymore
+            Properties importProperties = new Properties();
+            ImportExportFormatMeta caseImportParameters = getCaseImportParameters(caseUuid);
+            Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
+            paramExtensions.ifPresent(paramMeta -> importProperties.put(paramMeta.getName(), paramMeta.getPossibleValues()));
 
-        // build import properties to import all available extensions
-        // TODO : Check at next powsybl upgrade if this code is still required. To be removed if not useful anymore
-        Properties importProperties = new Properties();
-        ImportExportFormatMeta caseImportParameters = getCaseImportParameters(caseUuid);
-        Optional<ParamMeta> paramExtensions = caseImportParameters.getParameters().stream().filter(param -> param.getName().endsWith("extensions") && param.getType() == STRING_LIST).findFirst();
-        paramExtensions.ifPresent(paramMeta -> importProperties.put(paramMeta.getName(), paramMeta.getPossibleValues()));
-
-        Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
-                importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
-        String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
-        long networkSize = network.getBusView().getBusStream().count();
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
+            Network network = Network.read(dataSource, LocalComputationManager.getDefault(), ImportConfig.load(),
+                    importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
+            String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
+            long networkSize = network.getBusView().getBusStream().count();
+            return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
+        }
     }
 
     private String getNetworkName(Network network, String variantId) {
