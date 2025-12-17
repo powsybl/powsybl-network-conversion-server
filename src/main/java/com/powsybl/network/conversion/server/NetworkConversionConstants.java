@@ -1,8 +1,9 @@
 /**
- * Copyright (c) 2019, RTE (http://www.rte-france.com)
+ * Copyright (c) 2019-2025, RTE (http://www.rte-france.com)
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * SPDX-License-Identifier: MPL-2.0
  */
 package com.powsybl.network.conversion.server;
 
@@ -19,4 +20,5 @@ final class NetworkConversionConstants {
     static final String CASE_API_VERSION = "v1";
     static final String REPORT_API_VERSION = "v1";
     static final String DELIMITER = "/";
+    static final String TMP_DIR = "/tmp";
 }
