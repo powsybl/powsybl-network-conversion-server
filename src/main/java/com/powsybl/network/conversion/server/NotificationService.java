@@ -14,6 +14,7 @@ import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
@@ -41,9 +42,13 @@ public class NotificationService {
     public static final String HEADER_USER_ID = "userId";
     public static final String HEADER_EXPORT_UUID = "exportUuid";
     public static final String HEADER_ERROR = "error";
+    public static final String HEADER_EXPORT_FOLDER = "exportFolder";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
+
+    @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}")
+    String exportRootPath;
 
     private void sendCaseImportStartMessage(Message<UUID> message) {
         MESSAGE_OUTPUT_LOGGER.debug("Sending import start message : {}", message);
@@ -97,8 +102,10 @@ public class NotificationService {
     }
 
     public void emitNetworkExportFinished(UUID exportUuid, String receiver, String error) {
+
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_EXPORT_FOLDER, exportRootPath)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_ERROR, error)
                 .build());
