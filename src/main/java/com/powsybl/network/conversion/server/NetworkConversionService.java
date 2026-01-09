@@ -294,13 +294,15 @@ public class NetworkConversionService {
             headers.setContentDisposition(ContentDisposition.builder("attachment")
                     .filename(fileName)
                     .build());
+            headers.add(HttpHeaders.CONTENT_TYPE, Files.probeContentType(Path.of(fileName)));
             headers.setContentLength(s3InputStream.response().contentLength());
             return ResponseEntity.ok()
                     .headers(headers)
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .body(new InputStreamResource(s3InputStream));
         } catch (NoSuchKeyException e) {
             return ResponseEntity.notFound().build();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
