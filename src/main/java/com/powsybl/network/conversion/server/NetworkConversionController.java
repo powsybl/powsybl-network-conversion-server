@@ -84,7 +84,7 @@ public class NetworkConversionController {
                                               @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
-                                              @Parameter(description = "export infos") @RequestParam(name="exportInfos", required = false) String exportInfos,
+                                              @Parameter(description = "export infos") @RequestParam(name = "exportInfos", required = false) String exportInfos,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters
                                               ) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
