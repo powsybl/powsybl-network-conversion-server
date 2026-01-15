@@ -1125,14 +1125,14 @@ class NetworkConversionTest {
         GetObjectResponse getObjectResponse = GetObjectResponse.builder().contentLength((long) fileBytes.length).build();
         ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(new ByteArrayInputStream(fileBytes)));
         given(s3Client.getObject(any(GetObjectRequest.class))).willReturn(responseInputStream);
-        S3Object s3Object = S3Object.builder().key(exportUuid).size((long) fileBytes.length).build();
+        S3Object s3Object = S3Object.builder().key("network_exports/" + exportUuid + "/casename.zip").size((long) fileBytes.length).build();
         ListObjectsV2Response listResponse = ListObjectsV2Response.builder().contents(s3Object).build();
         given(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).willReturn(listResponse);
 
         MvcResult result = mvc.perform(get("/v1/download-file/{exportUuid}", exportUuid))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("attachment")))
-                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andExpect(content().contentType("application/zip"))
                 .andReturn();
 
         byte[] downloadedContent = result.getResponse().getContentAsByteArray();
