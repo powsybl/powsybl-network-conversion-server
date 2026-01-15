@@ -292,8 +292,7 @@ public class NetworkConversionService {
             headers.setContentDisposition(ContentDisposition.builder("attachment")
                     .filename(fileName)
                     .build());
-            String contentType = URLConnection.guessContentTypeFromName(fileName);
-            headers.add(HttpHeaders.CONTENT_TYPE, contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE);
+            headers.add(HttpHeaders.CONTENT_TYPE, URLConnection.guessContentTypeFromName(fileName));
             headers.setContentLength(s3InputStream.response().contentLength());
             return ResponseEntity.ok()
                     .headers(headers)
