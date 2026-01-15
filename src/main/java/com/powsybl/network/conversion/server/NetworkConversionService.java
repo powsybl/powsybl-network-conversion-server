@@ -51,10 +51,7 @@ import software.amazon.awssdk.services.s3.model.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLConnection;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -295,7 +292,8 @@ public class NetworkConversionService {
             headers.setContentDisposition(ContentDisposition.builder("attachment")
                     .filename(fileName)
                     .build());
-            headers.add(HttpHeaders.CONTENT_TYPE, URLConnection.guessContentTypeFromName(fileName));
+            String contentType = URLConnection.guessContentTypeFromName(fileName);
+            headers.add(HttpHeaders.CONTENT_TYPE, contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE);
             headers.setContentLength(s3InputStream.response().contentLength());
             return ResponseEntity.ok()
                     .headers(headers)
