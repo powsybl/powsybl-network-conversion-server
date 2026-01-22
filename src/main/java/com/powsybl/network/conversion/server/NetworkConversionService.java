@@ -243,9 +243,9 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, null, exportRootPath);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, null, s3Key);
             } catch (Exception e) {
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, String.format("Export failed for network %s", fileName), exportRootPath);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, String.format("Export failed for network %s", fileName), null);
                 LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
