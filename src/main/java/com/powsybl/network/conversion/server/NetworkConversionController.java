@@ -7,6 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.ExportInfos;
 import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import io.swagger.v3.oas.annotations.Operation;
@@ -89,7 +90,7 @@ public class NetworkConversionController {
                                               ) {
         LOGGER.debug("Exporting asynchronously network {} ...", networkUuid);
         UUID exportUuid = UUID.randomUUID();
-        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, fileName, format, receiver, exportInfos, exportUuid, formatParameters);
+        networkConversionService.exportNetworkAsynchronously(networkUuid, variantId, new ExportInfos(fileName, exportUuid, format, receiver, formatParameters, exportInfos));
         return ResponseEntity.ok().body(exportUuid);
     }
 

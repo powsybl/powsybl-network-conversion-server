@@ -179,8 +179,8 @@ public class NetworkConversionService {
         notificationService.emitCaseImportStart(caseUuid, variantId, reportUuid, caseFormat, importParameters, receiver);
     }
 
-    void exportNetworkAsynchronously(UUID networkUuid, String variantId, String fileName, String format, String receiver, String exportInfos, UUID exportUuid, Map<String, Object> formatParameters) {
-        notificationService.emitNetworkExportStart(networkUuid, variantId, fileName, format, receiver, exportInfos, exportUuid, formatParameters);
+    void exportNetworkAsynchronously(UUID networkUuid, String variantId, ExportInfos exportInfos) {
+        notificationService.emitNetworkExportStart(networkUuid, variantId, exportInfos);
     }
 
     void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
