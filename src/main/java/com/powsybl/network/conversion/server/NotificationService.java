@@ -10,6 +10,7 @@ package com.powsybl.network.conversion.server;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
+import com.powsybl.network.conversion.server.dto.ExportInfos;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class NotificationService {
     public static final String HEADER_NETWORK_ID = "networkId";
     public static final String HEADER_NETWORK_UUID = "networkUuid";
     public static final String HEADER_RECEIVER = "receiver";
+    public static final String HEADER_EXPORT_INFOS = "exportInfos";
     public static final String HEADER_IMPORT_PARAMETERS = "importParameters";
     public static final String HEADER_CASE_FORMAT = "caseFormat";
     public static final String HEADER_CASE_NAME = "caseName";
@@ -41,6 +43,7 @@ public class NotificationService {
     public static final String HEADER_USER_ID = "userId";
     public static final String HEADER_EXPORT_UUID = "exportUuid";
     public static final String HEADER_ERROR = "error";
+    public static final String HEADER_S3_KEY = "s3Key";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -96,9 +99,11 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportFinished(UUID exportUuid, String receiver, String error) {
+    public void emitNetworkExportFinished(UUID exportUuid, String receiver, String exportInfos, String error, String s3Key) {
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_RECEIVER, receiver)
+                .setHeader(HEADER_EXPORT_INFOS, exportInfos)
+                .setHeader(HEADER_S3_KEY, s3Key)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_ERROR, error)
                 .build());
@@ -112,14 +117,15 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportStart(UUID networkUuid, String variantId, String fileName, String format, String receiver, UUID exportUuid, Map<String, Object> formatParameters) {
+    public void emitNetworkExportStart(UUID networkUuid, String variantId, ExportInfos exportInfos) {
         sendNetworkExportStartMessage(MessageBuilder.withPayload(networkUuid)
                 .setHeader(HEADER_VARIANT_ID, variantId)
-                .setHeader(HEADER_FILE_NAME, fileName)
-                .setHeader(HEADER_FORMAT, format)
-                .setHeader(HEADER_RECEIVER, receiver)
-                .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
-                .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
+                .setHeader(HEADER_FILE_NAME, exportInfos.getFilename())
+                .setHeader(HEADER_FORMAT, exportInfos.getFormat())
+                .setHeader(HEADER_RECEIVER, exportInfos.getReceiver())
+                .setHeader(HEADER_EXPORT_INFOS, exportInfos.getExtraData())
+                .setHeader(HEADER_EXPORT_UUID, exportInfos.getExportUuid() != null ? exportInfos.getExportUuid().toString() : null)
+                .setHeader(HEADER_EXPORT_PARAMETERS, exportInfos.getFormatParameters())
                 .build());
     }
 
