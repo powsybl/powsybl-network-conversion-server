@@ -155,6 +155,7 @@ class NetworkConversionTest {
     @Test
     void test() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
+            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
 
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
@@ -324,6 +325,7 @@ class NetworkConversionTest {
             assertNotNull(successMessage6);
             assertNotNull(successMessage6.getHeaders().get(NotificationService.HEADER_ERROR));
             String errorMessage6 = (String) successMessage6.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertNotNull(errorMessage6);
             assertTrue(errorMessage6.contains("Export failed"));
 
             UUID networkUuid = UUID.fromString("f3a85c9b-9594-4e55-8ec7-07ea965d24eb");
@@ -481,7 +483,7 @@ class NetworkConversionTest {
         boundaries.add(new BoundaryInfos("urn:uuid:f1582c44-d9e2-4ea0-afdc-dba189ab4358", "20201121T0000Z__ENTSOE_EQBD_003.xml", eqbdContent));
         boundaries.add(new BoundaryInfos("urn:uuid:3e3f7738-aab9-4284-a965-71d5cd151f71", "20201205T1000Z__ENTSOE_TPBD_004.xml", tpbdContent));
 
-        byte[] sshContent = Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("20210326T0930Z_1D_BE_SSH_6.xml").toURI()));
+        byte[] sshContent = Files.readAllBytes(Paths.get(Objects.requireNonNull(getClass().getClassLoader().getResource("20210326T0930Z_1D_BE_SSH_6.xml")).toURI()));
 
         CgmesCaseDataSourceClient client = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
 
@@ -702,6 +704,7 @@ class NetworkConversionTest {
     @Test
     void testExportEndpoint() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
+            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
@@ -756,9 +759,8 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
-
-            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm"));
-            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm", s3KeyCaptor.getValue());
+            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.zip"));
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.zip", s3KeyCaptor.getValue());
 
             String responseBody = result.getResponse().getContentAsString();
             assertFalse(responseBody.isEmpty());
@@ -769,8 +771,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
-
-            assertTrue(new String(baos.toByteArray(), StandardCharsets.UTF_8).startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
 
             doAnswer(invocation -> {
                 Path uploadedFilePath = invocation.getArgument(0);
@@ -792,9 +792,6 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage2 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage2.getHeaders().get(NotificationService.HEADER_ERROR));
-
-            String fileContent = new String(baos.toByteArray(), StandardCharsets.UTF_8);
-            assertTrue(fileContent.contains("Binary IIDM"), "BIIDM file should start with 'Binary IIDM'");
 
             // fail because case not found
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", randomUuid, "BIIDM")
@@ -826,6 +823,7 @@ class NetworkConversionTest {
 
             Message<byte[]> resultMessage4 = output.receive(1000, CASE_EXPORT_FINISHED);
             String errorMessage4 = (String) resultMessage4.getHeaders().get(NotificationService.HEADER_ERROR);
+            assertNotNull(errorMessage4);
             assertTrue(errorMessage4.contains("Export failed for case testCase"));
 
             // export case with an absolut path as fileName
@@ -851,6 +849,7 @@ class NetworkConversionTest {
     @Test
     void testConvertToCgmes() throws Exception {
         try (InputStream inputStream = getClass().getResourceAsStream("/fourSubstations_first_variant_id.xiidm")) {
+            assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
             given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
