@@ -44,6 +44,7 @@ public class NotificationService {
     public static final String HEADER_EXPORT_UUID = "exportUuid";
     public static final String HEADER_ERROR = "error";
     public static final String HEADER_S3_KEY = "s3Key";
+    public static final String HEADER_EXPORT_CONTENT_TYPE = "exportContentType";
 
     @Autowired
     private StreamBridge networkConversionPublisher;
@@ -99,13 +100,14 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitNetworkExportFinished(UUID exportUuid, String receiver, String exportInfos, String error, String s3Key) {
+    public void emitNetworkExportFinished(UUID exportUuid, String receiver, String exportInfos, String error, String s3Key, String exportContentType) {
         sendNetworkExportFinishedMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_RECEIVER, receiver)
                 .setHeader(HEADER_EXPORT_INFOS, exportInfos)
                 .setHeader(HEADER_S3_KEY, s3Key)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_ERROR, error)
+                .setHeader(HEADER_EXPORT_CONTENT_TYPE, exportContentType)
                 .build());
     }
 

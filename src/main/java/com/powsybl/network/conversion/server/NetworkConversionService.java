@@ -232,6 +232,7 @@ public class NetworkConversionService {
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             String exportInfos = message.getHeaders().get(NotificationService.HEADER_EXPORT_INFOS, String.class);
+            String exportContentType = "application/zip";
             UUID exportUuid = exportUuidStr != null ? UUID.fromString(exportUuidStr) : null;
             Map<String, Object> formatParameters = extractFormatParameters(message);
             ExportNetworkInfos exportNetworkInfos = null;
@@ -243,9 +244,9 @@ public class NetworkConversionService {
                 );
                 String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, null, s3Key);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, null, s3Key, exportContentType);
             } catch (Exception e) {
-                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, String.format("Export failed for network %s", fileName), null);
+                notificationService.emitNetworkExportFinished(exportUuid, receiver, exportInfos, String.format("Export failed for network %s", fileName), null, exportContentType);
                 LOGGER.error(String.format("Export failed for network %s (uuid: %s):", fileName, networkUuid), e);
             } finally {
                 if (exportNetworkInfos != null) {
