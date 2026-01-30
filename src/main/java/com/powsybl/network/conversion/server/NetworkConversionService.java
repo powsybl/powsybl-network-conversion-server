@@ -480,7 +480,7 @@ public class NetworkConversionService {
         }
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, false);
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
@@ -530,7 +530,7 @@ public class NetworkConversionService {
                 importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
         long networkSize = network.getBusView().getBusStream().count();
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize, true);
+        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
     }
 
     private String getNetworkName(Network network, String variantId) {
@@ -739,7 +739,7 @@ public class NetworkConversionService {
 
     private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
                                                      String fileOrNetworkName, Properties exportProperties,
-                                                     long networkSize, boolean withNotZipFileName) {
+                                                     long networkSize) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory(fileSystem.getPath(TMP_DIR), "export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
@@ -751,13 +751,7 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-
-            Path filePath;
-            if (fileNames.size() == 1 && withNotZipFileName) {
-                filePath = tempDir.resolve(fileNames.iterator().next());
-            } else {
-                filePath = createZipFile(tempDir, fileOrNetworkName, fileNames);
-            }
+            Path filePath = createZipFile(tempDir, finalFileOrNetworkName, fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
