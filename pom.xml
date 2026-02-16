@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powsybl-ws-dependencies.version>2.30.0</powsybl-ws-dependencies.version>
         <spring-cloud-aws.version>3.2.0</spring-cloud-aws.version>
-        <!-- FIXME to remove at next upgrade of powsybl-ws-dependencies -->
+        <!-- FIXME to remove when powsybl-ws-dependencies upgrades to springboot 3.5.9 -->
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
@@ -63,6 +63,12 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
+            <!-- FIXME to remove when powsybl-ws-dependencies upgrades to springboot 3.5.9 -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
 
             <!-- imports -->
             <dependency>
