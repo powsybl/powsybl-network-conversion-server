@@ -26,6 +26,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powsybl-ws-dependencies.version>2.30.0</powsybl-ws-dependencies.version>
         <spring-cloud-aws.version>3.2.0</spring-cloud-aws.version>
+        <!-- FIXME to remove at next upgrade of powsybl-ws-dependencies -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <build>
