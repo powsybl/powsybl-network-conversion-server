@@ -28,6 +28,8 @@
         <spring-cloud-aws.version>3.2.0</spring-cloud-aws.version>
         <!-- FIXME to remove when powsybl-ws-dependencies upgrades to springboot 3.5.9 -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <sonar.organization>powsybl-ci-github</sonar.organization>
+        <sonar.projectKey>com.powsybl:powsybl-network-conversion-server</sonar.projectKey>
     </properties>
 
     <build>
