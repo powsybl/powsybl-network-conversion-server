@@ -14,6 +14,7 @@ import com.powsybl.cases.datasource.CaseDataSourceClient;
 import com.powsybl.commons.PowsyblException;
 import com.powsybl.commons.datasource.DataSourceUtil;
 import com.powsybl.commons.datasource.DirectoryDataSource;
+import com.powsybl.commons.parameters.Parameter;
 import com.powsybl.commons.parameters.ParameterScope;
 import com.powsybl.commons.report.ReportNode;
 import com.powsybl.commons.report.ReportNodeDeserializer;
@@ -556,12 +557,22 @@ public class NetworkConversionService {
     ImportExportFormatMeta getCaseImportParameters(UUID caseUuid) {
         CaseInfos caseInfos = getCaseInfos(caseUuid);
         Importer importer = Importer.find(caseInfos.getFormat());
+        // TODO remove this line
+        boolean dieFormat = caseInfos.getFormat().equals("DIE");
         List<ParamMeta> paramsMeta = importer.getParameters()
                 .stream()
                 .filter(pp -> pp.getScope().equals(ParameterScope.FUNCTIONAL))
-                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), pp.getDefaultValue(), pp.getPossibleValues()))
+                .map(pp -> new ParamMeta(pp.getName(), pp.getType(), pp.getDescription(), getImportParamDefaultValue(dieFormat, pp), pp.getPossibleValues()))
                 .collect(Collectors.toList());
         return new ImportExportFormatMeta(caseInfos.getFormat(), paramsMeta);
+    }
+
+    // TODO Remove this method
+    private Object getImportParamDefaultValue(boolean dieFormat, Parameter parameter) {
+        if (dieFormat && parameter.getName().equals("iidm.die.type-of-active-current-limits")) {
+            return "STUDY";
+        }
+        return parameter.getDefaultValue();
     }
 
     CaseInfos getCaseInfos(UUID caseUuid) {
