@@ -37,7 +37,7 @@ import static com.powsybl.network.conversion.server.NotificationService.HEADER_U
 
 @RestController
 @RequestMapping(value = "/" + NetworkConversionConstants.API_VERSION + "/")
-@Tag(name = "network-converter-server")
+@Tag(name = "network-conversion-server")
 @ComponentScan(basePackageClasses = NetworkConversionService.class)
 public class NetworkConversionController {
 
