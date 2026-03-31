@@ -9,9 +9,8 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Configuration
 public class RabbitConsumerConfiguration {
@@ -25,16 +24,26 @@ public class RabbitConsumerConfiguration {
      */
     @Bean
     public ListenerContainerCustomizer<MessageListenerContainer> customizer(BindingServiceProperties bindingServiceProperties) {
+        List<String> loadBalancedGroups = List.of("importGroup", "exportNetworkGroup", "exportCaseGroup");
+        Map<String, AtomicInteger> groupIndexes = new ConcurrentHashMap<>();
         /*
          * Using AtomicInteger as in org/springframework/cloud/stream/binder/rabbit/RabbitMessageChannelBinder.java
          * We expect cloud stream to call our customizer exactly once in order for each container so it will produce a sequence of increasing priorities
          */
-        List<String> consumersToBalance = List.of("importGroup", "exportNetworkGroup", "exportCaseGroup");
-        Map<String, AtomicInteger> consumerCounters = consumersToBalance.stream().collect(Collectors.toMap(Function.identity(), c -> new AtomicInteger(0)));
         return (container, destination, group) -> {
-            if (container instanceof SimpleMessageListenerContainer smlc && consumerCounters.containsKey(group)) {
-                smlc.setConsumerArguments(Map.of("x-priority", consumerCounters.get(group).getAndIncrement()));
+            if (!(container instanceof SimpleMessageListenerContainer smlc) || loadBalancedGroups == null) {
+                return;
             }
+
+            if (!loadBalancedGroups.contains(group)) {
+                return;
+            }
+
+            AtomicInteger index = groupIndexes.computeIfAbsent(group, g -> new AtomicInteger());
+
+            smlc.setConsumerArguments(Map.of(
+                "x-priority", index.getAndIncrement()
+            ));
         };
     }
 }
