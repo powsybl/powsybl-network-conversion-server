@@ -31,11 +31,7 @@ public class RabbitConsumerConfiguration {
          * We expect cloud stream to call our customizer exactly once in order for each container so it will produce a sequence of increasing priorities
          */
         return (container, destination, group) -> {
-            if (!(container instanceof SimpleMessageListenerContainer smlc) || loadBalancedGroups == null) {
-                return;
-            }
-
-            if (!loadBalancedGroups.contains(group)) {
+            if (!loadBalancedGroups.contains(group) || !(container instanceof SimpleMessageListenerContainer smlc)) {
                 return;
             }
 
