@@ -187,13 +187,12 @@ public class NetworkConversionService {
         notificationService.emitCaseExportStart(caseUuid, fileName, format, userId, exportUuid, formatParameters);
     }
 
-    Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
+    Map<String, Object> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
-        Map<String, String> defaultValues = new HashMap<>();
+        Map<String, Object> defaultValues = new HashMap<>();
         importer.getParameters()
                 .stream()
-                .forEach(parameter -> defaultValues.put(parameter.getName(),
-                        parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue()));
         return defaultValues;
     }
 
@@ -221,7 +220,7 @@ public class NetworkConversionService {
                 rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
             }
 
-            Map<String, String> allImportParameters = new HashMap<>();
+            Map<String, Object> allImportParameters = new HashMap<>();
             changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
