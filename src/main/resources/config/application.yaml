@@ -4,43 +4,47 @@ spring:
 
   cloud:
     function:
-      definition: consumeCaseImportStart;consumeNetworkExportStart;consumeCaseExportStart
+      definition: consumeCaseImportStart1;consumeCaseImportStart2;consumeNetworkExportStart1;consumeNetworkExportStart2;consumeCaseExportStart1;consumeCaseExportStart2
     stream:
       bindings:
         publishCaseImportStart-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
         publishCaseImportSucceeded-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.succeeded
-        consumeCaseImportStart-in-0:
+        # pay attention to max-concurrent-import-export parameter
+        consumeCaseImportStart1-in-0: &consumeCaseImportStartConfig
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start
           group: importGroup
           consumer:
-            concurrency: 2 # pay attention to max-concurrent-import-export parameter
             max-attempts: 1
+        consumeCaseImportStart2-in-0:
+          <<: *consumeCaseImportStartConfig
         publishNetworkExportStart-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.start
         publishNetworkExportFinished-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.finished
-        consumeNetworkExportStart-in-0:
+        consumeNetworkExportStart1-in-0: &consumeNetworkExportStartConfig
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.start
-          group: exportGroup
+          group: exportNetworkGroup
           consumer:
-            concurrency: 2
             max-attempts: 1
+        consumeNetworkExportStart2-in-0:
+          <<: *consumeNetworkExportStartConfig
         publishCaseExportStart-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.start
         publishCaseExportFinished-out-0:
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.finished
-        consumeCaseExportStart-in-0:
+        consumeCaseExportStart1-in-0: &consumeCaseExportStartConfig
           destination: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.start
-          group: exportGroup
+          group: exportCaseGroup
           consumer:
-            concurrency: 2
             max-attempts: 1
+        consumeCaseExportStart2-in-0:
+          <<: *consumeCaseExportStartConfig
       output-bindings: publishCaseImportStart-out-0;publishCaseImportSucceeded-out-0;publishNetworkExportStart-out-0;publishNetworkExportFinished-out-0;publishCaseExportStart-out-0;publishCaseExportFinished-out-0
       rabbit:
         bindings:
-          consumeCaseImportStart-in-0:
+          consumeCaseImportStart1-in-0: &consumeCaseImportStartRabbitConfig
             consumer:
               auto-bind-dlq: true
               dead-letter-exchange: ${powsybl-ws.rabbitmq.destination.prefix:}case.import.start.dlx
@@ -49,7 +53,9 @@ spring:
               quorum:
                 enabled: true
                 delivery-limit: 2
-          consumeNetworkExportStart-in-0:
+          consumeCaseImportStart2-in-0:
+            <<: *consumeCaseImportStartRabbitConfig
+          consumeNetworkExportStart1-in-0: &consumeNetworkExportStartRabbitConfig
             consumer:
               auto-bind-dlq: true
               dead-letter-exchange: ${powsybl-ws.rabbitmq.destination.prefix:}network.export.start.dlx
@@ -58,7 +64,9 @@ spring:
               quorum:
                 enabled: true
                 delivery-limit: 2
-          consumeCaseExportStart-in-0:
+          consumeNetworkExportStart2-in-0:
+            <<: *consumeNetworkExportStartRabbitConfig
+          consumeCaseExportStart1-in-0: &consumeCaseExportStartRabbitConfig
             consumer:
               auto-bind-dlq: true
               dead-letter-exchange: ${powsybl-ws.rabbitmq.destination.prefix:}case.export.start.dlx
@@ -67,6 +75,8 @@ spring:
               quorum:
                 enabled: true
                 delivery-limit: 2
+          consumeCaseExportStart2-in-0:
+            <<: *consumeCaseExportStartRabbitConfig
 
 powsybl:
   services:

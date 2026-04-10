@@ -1,0 +1,5 @@
+spring:
+  cloud:
+    function:
+      # disable all #2 consumers during test - all messages are consumed multiple times otherwise
+      definition: consumeCaseImportStart1;consumeNetworkExportStart1;consumeCaseExportStart1
