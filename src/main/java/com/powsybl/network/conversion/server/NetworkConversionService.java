@@ -218,7 +218,11 @@ public class NetworkConversionService {
             // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
             Map<String, Object> changedImportParameters = new HashMap<>();
             if (rawParameters != null) {
-                rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
+                rawParameters.forEach((key, value) -> {
+                    if (!value.toString().equals("") && !value.toString().equals("[]")) {
+                        changedImportParameters.put(key, value.toString());
+                    }
+                });
             }
 
             Map<String, String> allImportParameters = new HashMap<>();
