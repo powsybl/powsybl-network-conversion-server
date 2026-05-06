@@ -94,7 +94,7 @@ public class NetworkConversionService {
             IdentifiableType.BATTERY,
             IdentifiableType.LOAD,
             IdentifiableType.SHUNT_COMPENSATOR,
-            IdentifiableType.DANGLING_LINE,
+            IdentifiableType.BOUNDARY_LINE,
             IdentifiableType.STATIC_VAR_COMPENSATOR,
             IdentifiableType.HVDC_CONVERTER_STATION);
 
@@ -198,6 +198,15 @@ public class NetworkConversionService {
     }
 
     @Bean
+    Consumer<Message<UUID>> consumeCaseImportStart1() {
+        return consumeCaseImportStart();
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseImportStart2() {
+        return consumeCaseImportStart();
+    }
+
     Consumer<Message<UUID>> consumeCaseImportStart() {
         return message -> {
             UUID caseUuid = message.getPayload();
@@ -223,6 +232,15 @@ public class NetworkConversionService {
     }
 
     @Bean
+    Consumer<Message<UUID>> consumeNetworkExportStart1() {
+        return consumeNetworkExportStart();
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeNetworkExportStart2() {
+        return consumeNetworkExportStart();
+    }
+
     Consumer<Message<UUID>> consumeNetworkExportStart() {
         return message -> {
             UUID networkUuid = message.getPayload();
@@ -307,6 +325,15 @@ public class NetworkConversionService {
     }
 
     @Bean
+    Consumer<Message<UUID>> consumeCaseExportStart1() {
+        return consumeCaseExportStart();
+    }
+
+    @Bean
+    Consumer<Message<UUID>> consumeCaseExportStart2() {
+        return consumeCaseExportStart();
+    }
+
     Consumer<Message<UUID>> consumeCaseExportStart() {
         return message -> {
             UUID caseUuid = message.getPayload();
