@@ -13,22 +13,24 @@
     <parent>
         <groupId>com.powsybl</groupId>
         <artifactId>powsybl-parent-ws</artifactId>
-        <version>22</version>
+        <version>26</version>
         <relativePath/>
     </parent>
 
     <artifactId>powsybl-network-conversion-server</artifactId>
     <name>Network conversion server</name>
     <packaging>jar</packaging>
-    <version>2.34.0-SNAPSHOT</version>
+    <version>2.35.0-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <powsybl-ws-dependencies.version>2.31.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.32.0</powsybl-ws-dependencies.version>
         <spring-cloud-aws.version>3.4.2</spring-cloud-aws.version>
         <sonar.organization>powsybl-ci-github</sonar.organization>
         <sonar.projectKey>com.powsybl:powsybl-network-conversion-server</sonar.projectKey>
         <aws-sdk.version>2.29.52</aws-sdk.version>
+        <!-- FIXME: to remove at next version of powsybl-ws-dependencies -->
+        <powsybl-network-store.version>1.43.0</powsybl-network-store.version>
     </properties>
 
     <build>
@@ -64,7 +66,24 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
-
+            <!-- FIXME : to remove at next version of powsybl-ws-dependencies -->
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-client</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <!-- FIXME : to remove at next version of powsybl-ws-dependencies -->
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-iidm-impl</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <!-- FIXME : to remove at next version of powsybl-ws-dependencies -->
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-model</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
