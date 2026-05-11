@@ -216,7 +216,7 @@ public class NetworkConversionService {
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
             Map<String, Object> allImportParameters = new HashMap<>();
-            rawParameters.forEach((k, v) -> allImportParameters.put(k, v));
+            rawParameters.forEach(allImportParameters::put);
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
