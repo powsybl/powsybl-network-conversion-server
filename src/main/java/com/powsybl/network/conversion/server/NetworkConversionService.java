@@ -24,6 +24,7 @@ import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import com.rabbitmq.client.LongString;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -404,10 +405,10 @@ public class NetworkConversionService {
                 Properties importProperties = new Properties();
                 importParameters.forEach((k, v) -> {
                     if (v != null) {
-                        importProperties.put(k, v);
+                        // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
+                        importProperties.put(k, (v instanceof LongString) ? v.toString() : v);
                     }
                 });
-                importProperties.putAll(importParameters);
                 return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
             } else {
                 return networkStoreService.importNetwork(dataSource, finalReporter, false);
