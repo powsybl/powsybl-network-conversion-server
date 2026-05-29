@@ -8,17 +8,15 @@ package com.powsybl.network.conversion.server;
 
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.context.ContextSnapshotFactory;
+import jakarta.annotation.PreDestroy;
+import lombok.NonNull;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Supplier;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import jakarta.annotation.PreDestroy;
-import lombok.NonNull;
 
 /**
  * @author Sylvain Bouzols <sylvain.bouzols_externe at rte-france.com>

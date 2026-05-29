@@ -50,8 +50,10 @@ class EquipmentInfosServiceTests {
     @Test
     void testAddDeleteEquipmentInfos() {
         List<EquipmentInfos> infos = List.of(
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("name1").type(IdentifiableType.LOAD.name()).voltageLevels(
+                    Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("name2").type(IdentifiableType.LOAD.name()).voltageLevels(
+                    Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
         );
         equipmentInfosService.addAll(infos);
         List<EquipmentInfos> infosDB = equipmentInfosService.findAll(NETWORK_UUID);
@@ -61,8 +63,10 @@ class EquipmentInfosServiceTests {
 
         // Change names but uniqueIds are same
         infos = List.of(
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("newName1").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
-            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("newName2").type(IdentifiableType.LOAD.name()).voltageLevels(Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id1").name("newName1").type(IdentifiableType.LOAD.name()).voltageLevels(
+                    Set.of(VoltageLevelInfos.builder().id("vl1").name("vl1").build())).substations(Set.of(SubstationInfos.builder().id("s1").name("s1").build())).build(),
+            EquipmentInfos.builder().networkUuid(NETWORK_UUID).variantId(VariantManagerConstants.INITIAL_VARIANT_ID).id("id2").name("newName2").type(IdentifiableType.LOAD.name()).voltageLevels(
+                    Set.of(VoltageLevelInfos.builder().id("vl2").name("vl2").build())).substations(Set.of(SubstationInfos.builder().id("s2").name("s2").build())).build()
         );
         equipmentInfosService.addAll(infos);
         infosDB = equipmentInfosService.findAll(NETWORK_UUID);
@@ -198,7 +202,8 @@ class EquipmentInfosServiceTests {
                 .id("BBE1AA_w3t")
                 .name("BBE1AA_w3t")
                 .type(IdentifiableType.THREE_WINDINGS_TRANSFORMER.name())
-                .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(), VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(), VoltageLevelInfos.builder().id("BBE1TR3").name("BBE1TR3").build()))
+                .voltageLevels(Set.of(VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(), VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(),
+                        VoltageLevelInfos.builder().id("BBE1TR3").name("BBE1TR3").build()))
                 .substations(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()))
                 .build();
         assertEquals(expectedEquipmentInfos, equipmentInfos);
@@ -251,12 +256,16 @@ class EquipmentInfosServiceTests {
         assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getVoltageLevel("BBE1AA1")));
         assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getGenerator("BBE1AA1 _generator")));
         assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getLoad("BBE1AA1 _load")));
-        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build(), VoltageLevelInfos.builder().id("BBE2AA1").name("BBE2AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getLine("BBE1AA1  BBE2AA1  1")));
-        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA2").name("BBE1AA2").build(), VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
+        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build(), VoltageLevelInfos.builder().id("BBE2AA1").name("BBE2AA1").build()),
+                EquipmentInfos.getVoltageLevelsInfos(network.getLine("BBE1AA1  BBE2AA1  1")));
+        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA2").name("BBE1AA2").build(), VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()),
+                EquipmentInfos.getVoltageLevelsInfos(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
         assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1AA1").name("BBE1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getBusBreakerView().getBus("BBE1AA1 ")));
         assertEquals(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build()), EquipmentInfos.getVoltageLevelsInfos(network.getSwitch("FRA1AA1_switch")));
-        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(), VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(), VoltageLevelInfos.builder().id("BBE1TR3").name("BBE1TR3").build()), EquipmentInfos.getVoltageLevelsInfos(network.getThreeWindingsTransformer("BBE1AA_w3t")));
-        assertEquals(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()), EquipmentInfos.getVoltageLevelsInfos(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
+        assertEquals(Set.of(VoltageLevelInfos.builder().id("BBE1TR1").name("BBE1TR1").build(), VoltageLevelInfos.builder().id("BBE1TR2").name("BBE1TR2").build(),
+                VoltageLevelInfos.builder().id("BBE1TR3").name("BBE1TR3").build()), EquipmentInfos.getVoltageLevelsInfos(network.getThreeWindingsTransformer("BBE1AA_w3t")));
+        assertEquals(Set.of(VoltageLevelInfos.builder().id("FRA1AA1").name("FRA1AA1").build(), VoltageLevelInfos.builder().id("BBE1AA5").name("BBE1AA5").build()),
+                EquipmentInfos.getVoltageLevelsInfos(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
     }
 
     @Test
@@ -268,12 +277,14 @@ class EquipmentInfosServiceTests {
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getVoltageLevel("BBE1AA1")));
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getGenerator("BBE1AA1 _generator")));
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getLoad("BBE1AA1 _load")));
-        assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build(), SubstationInfos.builder().id("BBE2AA").name("BBE2AA").build()), EquipmentInfos.getSubstationsInfos(network.getLine("BBE1AA1  BBE2AA1  1")));
+        assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build(), SubstationInfos.builder().id("BBE2AA").name("BBE2AA").build()),
+                EquipmentInfos.getSubstationsInfos(network.getLine("BBE1AA1  BBE2AA1  1")));
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getTwoWindingsTransformer("BBE1AA2  BBE3AA1  2")));
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getBusBreakerView().getBus("BBE1AA1 ")));
         assertEquals(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build()), EquipmentInfos.getSubstationsInfos(network.getSwitch("FRA1AA1_switch")));
         assertEquals(Set.of(SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getThreeWindingsTransformer("BBE1AA_w3t")));
-        assertEquals(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()), EquipmentInfos.getSubstationsInfos(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
+        assertEquals(Set.of(SubstationInfos.builder().id("FRA1AA").name("FRA1AA").build(), SubstationInfos.builder().id("BBE1AA").name("BBE1AA").build()),
+                EquipmentInfos.getSubstationsInfos(network.getHvdcLine("FRA1AA_BBE1AA_hvdcline")));
     }
 
     @Test
