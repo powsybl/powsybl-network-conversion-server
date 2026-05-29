@@ -11,8 +11,6 @@ package com.powsybl.network.conversion.server.dto;
  * @author Kevin Le Saulnier <kevin.lesaulnier at rte-france.com>
  */
 
-import java.util.UUID;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,6 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
+import java.util.UUID;
 
 @NoArgsConstructor
 @AllArgsConstructor

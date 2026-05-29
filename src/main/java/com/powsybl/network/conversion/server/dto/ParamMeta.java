@@ -6,15 +6,14 @@
  */
 package com.powsybl.network.conversion.server.dto;
 
-import java.util.List;
-
 import com.powsybl.commons.parameters.ParameterType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import java.util.List;
 
 /**
  * Class to convey an export format setting parameter description
- * @author Laurent Garnier <laurent.garnier@rte-france.com>
+ * @author Laurent Garnier <laurent.garnier at rte-france.com>
  */
 @Getter
 @AllArgsConstructor
