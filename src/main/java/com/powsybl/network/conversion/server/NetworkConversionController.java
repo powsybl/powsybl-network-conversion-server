@@ -59,7 +59,8 @@ public class NetworkConversionController {
                                                    @Parameter(description = "Report UUID") @RequestParam(value = "reportUuid", required = false) UUID reportUuid,
                                                    @Parameter(description = "Import parameters") @RequestBody(required = false) Map<String, Object> importParameters,
                                                    @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
-                                                   @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false, defaultValue = "true") boolean isAsyncRun) {
+                                                   @Parameter(description = "Is import running asynchronously ?") @RequestParam(name = "isAsyncRun", required = false,
+                                                           defaultValue = "true") boolean isAsyncRun) {
         LOGGER.debug("Importing case {} {}...", caseUuid, isAsyncRun ? ASYNCHRONOUSLY : SYNCHRONOUSLY);
         Map<String, Object> nonNullImportParameters = importParameters == null ? new HashMap<>() : importParameters;
         if (!isAsyncRun) {
