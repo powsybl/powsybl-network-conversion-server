@@ -778,7 +778,7 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            Path filePath = createZipFile(tempDir, finalFileOrNetworkName, fileNames);
+            Path filePath = createZipFile(tempDir, finalFileOrNetworkName + "." + format.toLowerCase(), fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
