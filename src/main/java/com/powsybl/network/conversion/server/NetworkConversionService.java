@@ -778,7 +778,10 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            Path filePath = createZipFile(tempDir, finalFileOrNetworkName + "." + format.toLowerCase(), fileNames);
+            boolean isFormatIIDM = format.contains("IIDM");
+            Path filePath = createZipFile(tempDir,
+                isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
+                fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
