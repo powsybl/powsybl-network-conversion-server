@@ -220,6 +220,11 @@ public class NetworkConversionService {
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
+            //TODO: to be removed when upgrade to next powsybl-core release (should be v7.3).
+            // iidm.die.excluded-extensions default value will be changed to null so that we can import a network with all the default values.
+            if (caseInfos.getFormat().equals("DIE")) {
+                allImportParameters.remove("iidm.die.excluded-extensions");
+            }
             NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), allImportParameters);
             notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
