@@ -782,7 +782,13 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            Path filePath = createZipFile(tempDir, finalFileOrNetworkName, fileNames);
+            /* For iidm formats we put the format extension before compression extension
+             to solve the issue of filenames containing "." see the link below on how powsybl works
+             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource */
+            boolean isFormatIIDM = format.contains("IIDM");
+            Path filePath = createZipFile(tempDir,
+                isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
+                fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
