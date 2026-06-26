@@ -14,10 +14,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.NonNull;
-
-import java.util.concurrent.ThreadPoolExecutor;
-
 import org.springframework.stereotype.Service;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author Anis Touri <anis.touri at rte-france.com>

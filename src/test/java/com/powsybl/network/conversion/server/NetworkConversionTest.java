@@ -394,10 +394,10 @@ class NetworkConversionTest {
 
     private static IdentifiableType getExtendedIdentifiableType(EquipmentInfos equipmentInfos) {
         String type = equipmentInfos.getType();
-        if (type.equals("HVDC_LINE_VSC") || type.equals("HVDC_LINE_LCC")) {
+        if ("HVDC_LINE_VSC".equals(type) || "HVDC_LINE_LCC".equals(type)) {
             return IdentifiableType.HVDC_LINE;
         }
-        if (type.equals("VSC_CONVERTER_STATION") || type.equals("LCC_CONVERTER_STATION")) {
+        if ("VSC_CONVERTER_STATION".equals(type) || "LCC_CONVERTER_STATION".equals(type)) {
             return IdentifiableType.HVDC_CONVERTER_STATION;
         }
         return IdentifiableType.valueOf(type);
@@ -453,7 +453,8 @@ class NetworkConversionTest {
         String caseUuid = UUID.randomUUID().toString();
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
-        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class), any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
+        given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class),
+                any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
         given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
         given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
             eq(HttpMethod.GET),
@@ -670,7 +671,8 @@ class NetworkConversionTest {
         networkConversionService.reindexAllEquipments(networkUuid);
         // Initial variant has 12 indexed elements (no switches, bbs, bus)
         List<EquipmentInfos> equipmentInfos = networkConversionService.getAllEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
-        List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid, VariantManagerConstants.INITIAL_VARIANT_ID);
+        List<TombstonedEquipmentInfos> tombstonedEquipmentInfos = networkConversionService.getAllTombstonedEquipmentInfosByNetworkUuidAndVariantId(networkUuid,
+                VariantManagerConstants.INITIAL_VARIANT_ID);
         assertEquals(12, equipmentInfos.size());
         assertTrue(equipmentInfos.stream()
                 .allMatch(equipments -> TYPES_FOR_INDEXING.contains(getExtendedIdentifiableType(equipments))));

@@ -80,6 +80,7 @@ import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipm
 
 @Service
 @ComponentScan(basePackageClasses = {NetworkStoreService.class})
+@SuppressWarnings("checkstyle:LambdaBodyLength")
 public class NetworkConversionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConversionService.class);
