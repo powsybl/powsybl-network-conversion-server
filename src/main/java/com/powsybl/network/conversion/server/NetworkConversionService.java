@@ -24,6 +24,7 @@ import com.powsybl.network.conversion.server.dto.*;
 import com.powsybl.network.conversion.server.elasticsearch.EquipmentInfosService;
 import com.powsybl.network.store.client.NetworkStoreService;
 import com.powsybl.network.store.client.PreloadingStrategy;
+import com.rabbitmq.client.LongString;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -188,13 +189,12 @@ public class NetworkConversionService {
         notificationService.emitCaseExportStart(caseUuid, fileName, format, userId, exportUuid, formatParameters);
     }
 
-    Map<String, String> getDefaultImportParameters(CaseInfos caseInfos) {
+    Map<String, Object> getDefaultImportParameters(CaseInfos caseInfos) {
         Importer importer = Importer.find(caseInfos.getFormat());
-        Map<String, String> defaultValues = new HashMap<>();
+        Map<String, Object> defaultValues = new HashMap<>();
         importer.getParameters()
                 .stream()
-                .forEach(parameter -> defaultValues.put(parameter.getName(),
-                        parameter.getDefaultValue() != null ? parameter.getDefaultValue().toString() : ""));
+                .forEach(parameter -> defaultValues.put(parameter.getName(), parameter.getDefaultValue()));
         return defaultValues;
     }
 
@@ -216,18 +216,17 @@ public class NetworkConversionService {
             UUID reportUuid = reportUuidStr != null ? UUID.fromString(reportUuidStr) : null;
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             Map<String, Object> rawParameters = (Map<String, Object>) message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS);
-            // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
-            Map<String, Object> changedImportParameters = new HashMap<>();
-            if (rawParameters != null) {
-                rawParameters.forEach((key, value) -> changedImportParameters.put(key, value.toString()));
-            }
-
-            Map<String, String> allImportParameters = new HashMap<>();
-            changedImportParameters.forEach((k, v) -> allImportParameters.put(k, v.toString()));
+            Map<String, Object> allImportParameters = new HashMap<>();
+            rawParameters.forEach(allImportParameters::put);
             CaseInfos caseInfos = getCaseInfos(caseUuid);
             getDefaultImportParameters(caseInfos).forEach(allImportParameters::putIfAbsent);
 
-            NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), changedImportParameters);
+            //TODO: to be removed when upgrade to next powsybl-core release (should be v7.3).
+            // iidm.die.excluded-extensions default value will be changed to null so that we can import a network with all the default values.
+            if (caseInfos.getFormat().equals("DIE")) {
+                allImportParameters.remove("iidm.die.excluded-extensions");
+            }
+            NetworkInfos networkInfos = importCase(caseUuid, variantId, reportUuid, caseInfos.getFormat(), allImportParameters);
             notificationService.emitCaseImportSucceeded(networkInfos, caseInfos.getName(), caseInfos.getFormat(), receiver, allImportParameters);
         };
     }
@@ -404,7 +403,12 @@ public class NetworkConversionService {
         Network network = networkConversionObserver.observeImportProcessing(caseFormat, () -> {
             if (!importParameters.isEmpty()) {
                 Properties importProperties = new Properties();
-                importProperties.putAll(importParameters);
+                importParameters.forEach((k, v) -> {
+                    if (v != null) {
+                        // String longer than 1024 bytes are converted to com.rabbitmq.client.LongString (https://docs.spring.io/spring-amqp/docs/3.0.0/reference/html/#message-properties-converters)
+                        importProperties.put(k, (v instanceof LongString) ? v.toString() : v);
+                    }
+                });
                 return networkStoreService.importNetwork(dataSource, finalReporter, importProperties, false);
             } else {
                 return networkStoreService.importNetwork(dataSource, finalReporter, false);
@@ -779,7 +783,13 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            Path filePath = createZipFile(tempDir, finalFileOrNetworkName, fileNames);
+            /* For iidm formats we put the format extension before compression extension
+             to solve the issue of filenames containing "." see the link below on how powsybl works
+             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource */
+            boolean isFormatIIDM = format.contains("IIDM");
+            Path filePath = createZipFile(tempDir,
+                isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
+                fileNames);
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {

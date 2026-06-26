@@ -89,7 +89,7 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseImportSucceeded(NetworkInfos networkInfos, String caseNameStr, String caseFormatStr, String receiver, Map<String, String> importParameters) {
+    public void emitCaseImportSucceeded(NetworkInfos networkInfos, String caseNameStr, String caseFormatStr, String receiver, Map<String, Object> importParameters) {
         sendCaseImportSucceededMessage(MessageBuilder.withPayload("")
                 .setHeader(HEADER_NETWORK_ID, networkInfos.getNetworkId())
                 .setHeader(HEADER_NETWORK_UUID, networkInfos.getNetworkUuid().toString())

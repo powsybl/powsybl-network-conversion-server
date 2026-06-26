@@ -421,7 +421,7 @@ class NetworkConversionTest {
             .willReturn(ResponseEntity.ok("testCase"));
 
         Map<String, Object> importParameters = new HashMap<>();
-        importParameters.put("randomImportParameters", "randomImportValue");
+        importParameters.put("iidm.import.xml.with-automation-systems", false);
 
         mvc.perform(post("/v1/networks")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -437,6 +437,11 @@ class NetworkConversionTest {
         assertEquals(randomUuid.toString(), message.getHeaders().get(NotificationService.HEADER_NETWORK_UUID));
         assertEquals(receiver, message.getHeaders().get(NotificationService.HEADER_RECEIVER));
         assertEquals("20140116_0830_2D4_UX1_pst", message.getHeaders().get(NotificationService.HEADER_NETWORK_ID));
+
+        Map<String, Object> expectedParams = new HashMap<>();
+        Importer.find("XIIDM").getParameters().stream().forEach(parameter -> expectedParams.put(parameter.getName(), parameter.getDefaultValue()));
+        expectedParams.put("iidm.import.xml.with-automation-systems", false);
+        assertEquals(expectedParams, message.getHeaders().get(NotificationService.HEADER_IMPORT_PARAMETERS));
     }
 
     @Test
@@ -761,8 +766,8 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
             UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
-            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.zip"));
-            assertEquals("network_exports/" + exportUuid + "/" + "testCase.zip", s3KeyCaptor.getValue());
+            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm\\.zip"));
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm.zip", s3KeyCaptor.getValue());
 
             String responseBody = result.getResponse().getContentAsString();
             assertFalse(responseBody.isEmpty());
