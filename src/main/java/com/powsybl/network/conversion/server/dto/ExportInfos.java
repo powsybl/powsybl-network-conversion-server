@@ -25,6 +25,8 @@ public class ExportInfos {
 
     private String format;
 
+    private String compression;
+
     private String receiver;
 
     private Map<String, Object> formatParameters;

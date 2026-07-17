@@ -229,6 +229,7 @@ class NetworkConversionTest {
             assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals("zip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
 
             Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage1);
@@ -757,7 +758,7 @@ class NetworkConversionTest {
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
             }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
-            // convert to iidm
+            // convert to iidm (zip compression)
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
                     .header("userId", "userId")
@@ -774,6 +775,7 @@ class NetworkConversionTest {
             Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals("zip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
@@ -784,6 +786,42 @@ class NetworkConversionTest {
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
             }).when(networkConversionService).uploadFile(any(Path.class), anyString());
+
+            // convert to iidm (in gzip)
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
+            result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                    .param("fileName", "testCase")
+                    .param("compression", "gzip")
+                    .header("userId", "userId")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+            exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
+            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm\\.gz"));
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm.gz", s3KeyCaptor.getValue());
+
+            responseBody = result.getResponse().getContentAsString();
+            assertFalse(responseBody.isEmpty());
+            startMessage1 = output.receive(1000, CASE_EXPORT_START);
+            assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
+            assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals("gzip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
+            assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage1.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(any(Path.class), anyString());
+
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -1158,6 +1196,7 @@ class NetworkConversionTest {
         String variantId = "variantId";
         String fileName = "fileName";
         String format = "XIIDM";
+        String compression = "zip";
         Path dummyFileToKeep = fileSystem.getPath("/tmp/dummyFile.txt");
         Map<String, Object> formatParameters = Collections.emptyMap();
         Files.createFile(dummyFileToKeep);
@@ -1174,7 +1213,7 @@ class NetworkConversionTest {
             throw new IOException();
         }).when(dummyNetwork).write(eq(format), any(Properties.class), any(DirectoryDataSource.class));
 
-        Executable executable = () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters);
+        Executable executable = () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, compression, formatParameters);
 
         assertThrowsExactly(NetworkConversionException.class, executable, "Failed to stream network to file");
         assertFalse(Files.exists(directoryDataSource.get().getDirectory()));

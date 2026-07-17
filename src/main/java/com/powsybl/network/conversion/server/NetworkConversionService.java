@@ -64,13 +64,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.powsybl.commons.parameters.ParameterType.STRING_LIST;
 import static com.powsybl.network.conversion.server.NetworkConversionConstants.*;
+import static com.powsybl.network.conversion.server.NetworkConversionException.createCompressionNotAllowed;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedDownloadExportFile;
 import static com.powsybl.network.conversion.server.NetworkConversionException.createFailedNetworkReindex;
+import static com.powsybl.network.conversion.server.NetworkConversionException.createGzipWithMultipleFilesNotAllowed;
 import static com.powsybl.network.conversion.server.dto.EquipmentInfos.getEquipmentTypeName;
 
 /**
@@ -185,8 +188,8 @@ public class NetworkConversionService {
         notificationService.emitNetworkExportStart(networkUuid, variantId, exportInfos);
     }
 
-    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
-        notificationService.emitCaseExportStart(caseUuid, fileName, format, userId, exportUuid, formatParameters);
+    void exportCaseAsynchronously(UUID caseUuid, String fileName, String format, String compression, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+        notificationService.emitCaseExportStart(caseUuid, fileName, format, compression, userId, exportUuid, formatParameters);
     }
 
     Map<String, Object> getDefaultImportParameters(CaseInfos caseInfos) {
@@ -247,6 +250,7 @@ public class NetworkConversionService {
             String variantId = message.getHeaders().get(NotificationService.HEADER_VARIANT_ID, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
+            String compression = message.getHeaders().get(NotificationService.HEADER_COMPRESSION, String.class);
             String receiver = message.getHeaders().get(NotificationService.HEADER_RECEIVER, String.class);
             String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
             String exportInfos = message.getHeaders().get(NotificationService.HEADER_EXPORT_INFOS, String.class);
@@ -258,7 +262,7 @@ public class NetworkConversionService {
                 LOGGER.debug("Processing export for network {} with format {}...", networkUuid, format);
                 exportNetworkInfos = networkConversionObserver.observeExportProcessing(
                         format,
-                        () -> exportNetwork(networkUuid, variantId, fileName, format, formatParameters)
+                        () -> exportNetwork(networkUuid, variantId, fileName, format, compression, formatParameters)
                 );
                 String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
@@ -338,6 +342,7 @@ public class NetworkConversionService {
         return message -> {
             UUID caseUuid = message.getPayload();
             String format = message.getHeaders().get(NotificationService.HEADER_FORMAT, String.class);
+            String compression = message.getHeaders().get(NotificationService.HEADER_COMPRESSION, String.class);
             String fileName = message.getHeaders().get(NotificationService.HEADER_FILE_NAME, String.class);
             String userId = message.getHeaders().get(NotificationService.HEADER_USER_ID, String.class);
             String exportUuidStr = message.getHeaders().get(NotificationService.HEADER_EXPORT_UUID, String.class);
@@ -345,10 +350,10 @@ public class NetworkConversionService {
             Map<String, Object> formatParameters = extractFormatParameters(message);
             ExportNetworkInfos exportNetworkInfos = null;
             try {
-                LOGGER.debug("Processing export for case {} with format {}...", caseUuid, format);
+                LOGGER.debug("Processing export for case {} with format {} and compression {} ...", caseUuid, format, compression);
                 exportNetworkInfos = networkConversionObserver.observeExportProcessing(
                         format,
-                        () -> exportCase(caseUuid, format, fileName, formatParameters)
+                        () -> exportCase(caseUuid, format, compression, fileName, formatParameters)
                 );
                 String s3Key = exportRootPath + DELIMITER + exportUuid + DELIMITER + exportNetworkInfos.getTempFilePath().getFileName();
                 uploadFile(exportNetworkInfos.getTempFilePath(), s3Key);
@@ -500,7 +505,7 @@ public class NetworkConversionService {
     }
 
     private ExportNetworkInfos exportNetworkExec(UUID networkUuid, String variantId, String fileName,
-        String format, Map<String, Object> formatParameters) {
+        String format, String compression, Map<String, Object> formatParameters) {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         Network network = getNetwork(networkUuid);
         if (variantId != null) {
@@ -512,17 +517,17 @@ public class NetworkConversionService {
         }
         String fileOrNetworkName = fileName != null ? fileName : getNetworkName(network, variantId);
         long networkSize = network.getBusView().getBusStream().count();
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
+        return getExportNetworkInfos(network, format, compression, fileOrNetworkName, exportProperties, networkSize);
     }
 
     public ExportNetworkInfos exportNetwork(UUID networkUuid, String variantId, String fileName,
-        String format, Map<String, Object> formatParameters) {
+        String format, String compression, Map<String, Object> formatParameters) {
         try {
             return networkConversionObserver.observeExportTotal(format, () ->
                     importExportExecutionService.supplyAsync(() ->
                         networkConversionObserver.observeExportProcessing(
                             format,
-                            () -> exportNetworkExec(networkUuid, variantId, fileName, format, formatParameters)))
+                            () -> exportNetworkExec(networkUuid, variantId, fileName, format, compression, formatParameters)))
                         .join()
             );
         } catch (CompletionException e) {
@@ -533,11 +538,11 @@ public class NetworkConversionService {
         }
     }
 
-    public ExportNetworkInfos exportCase(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+    public ExportNetworkInfos exportCase(UUID caseUuid, String format, String compression, String fileName, Map<String, Object> formatParameters) {
         try {
             return networkConversionObserver.observeExportTotal(format, () ->
                 importExportExecutionService.supplyAsync(() ->
-                    networkConversionObserver.observeExportProcessing(format, () -> exportCaseExec(caseUuid, format, fileName, formatParameters)))
+                    networkConversionObserver.observeExportProcessing(format, () -> exportCaseExec(caseUuid, format, compression, fileName, formatParameters)))
                     .join());
         } catch (CompletionException e) {
             if (e.getCause() instanceof NetworkConversionException exception) {
@@ -547,7 +552,7 @@ public class NetworkConversionService {
         }
     }
 
-    public ExportNetworkInfos exportCaseExec(UUID caseUuid, String format, String fileName, Map<String, Object> formatParameters) {
+    public ExportNetworkInfos exportCaseExec(UUID caseUuid, String format, String compression, String fileName, Map<String, Object> formatParameters) {
         Properties exportProperties = initializePropertiesAndCheckFormat(format, formatParameters);
         CaseDataSourceClient dataSource = new CaseDataSourceClient(caseServerRest, caseUuid);
 
@@ -562,7 +567,7 @@ public class NetworkConversionService {
                 importProperties, NetworkFactory.find("NetworkStore"), new ImportersServiceLoader(), ReportNode.NO_OP);
         String fileOrNetworkName = fileName != null ? fileName : DataSourceUtil.getBaseName(dataSource.getBaseName());
         long networkSize = network.getBusView().getBusStream().count();
-        return getExportNetworkInfos(network, format, fileOrNetworkName, exportProperties, networkSize);
+        return getExportNetworkInfos(network, format, compression, fileOrNetworkName, exportProperties, networkSize);
     }
 
     private String getNetworkName(Network network, String variantId) {
@@ -769,9 +774,9 @@ public class NetworkConversionService {
         return exportProperties;
     }
 
-    private ExportNetworkInfos getExportNetworkInfos(Network network, String format,
-                                                     String fileOrNetworkName, Properties exportProperties,
-                                                     long networkSize) {
+    private ExportNetworkInfos getExportNetworkInfos(Network network, String format, String compression,
+                                                      String fileOrNetworkName, Properties exportProperties,
+                                                      long networkSize) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory(fileSystem.getPath(TMP_DIR), "export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
@@ -787,9 +792,19 @@ public class NetworkConversionService {
              to solve the issue of filenames containing "." see the link below on how powsybl works
              https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource */
             boolean isFormatIIDM = format.contains("IIDM");
-            Path filePath = createZipFile(tempDir,
-                isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
-                fileNames);
+
+            Path filePath;
+            if ("zip".equals(compression)) {
+                filePath = createZipFile(tempDir,
+                    isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
+                    fileNames);
+            } else if ("gzip".equals(compression)) {
+                filePath = createGzipFile(tempDir,
+                    isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName,
+                    fileNames);
+            } else {
+                throw createCompressionNotAllowed();
+            }
             return new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize);
         } catch (Exception e) {
             if (tempDir != null) {
@@ -812,6 +827,21 @@ public class NetworkConversionService {
             }
         }
         return zipFile;
+    }
+
+    private Path createGzipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
+        if (fileNames.size() > 1) {
+            throw createGzipWithMultipleFilesNotAllowed();
+        }
+        Path gzipFile = tempDir.resolve(fileOrNetworkName + ".gz");
+        try (
+            InputStream is = Files.newInputStream(tempDir.resolve(fileNames.iterator().next()));
+            GZIPOutputStream gos = new GZIPOutputStream(Files.newOutputStream(gzipFile))
+        ) {
+            is.transferTo(gos);
+        }
+
+        return gzipFile;
     }
 
     private void cleanUpTempDir(Path tempDirPath) {

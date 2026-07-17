@@ -39,6 +39,7 @@ public class NotificationService {
     public static final String HEADER_CASE_NAME = "caseName";
     public static final String HEADER_EXPORT_PARAMETERS = "exportParameters";
     public static final String HEADER_FORMAT = "format";
+    public static final String HEADER_COMPRESSION = "compression";
     public static final String HEADER_FILE_NAME = "fileName";
     public static final String HEADER_USER_ID = "userId";
     public static final String HEADER_EXPORT_UUID = "exportUuid";
@@ -124,6 +125,7 @@ public class NotificationService {
                 .setHeader(HEADER_VARIANT_ID, variantId)
                 .setHeader(HEADER_FILE_NAME, exportInfos.getFilename())
                 .setHeader(HEADER_FORMAT, exportInfos.getFormat())
+                .setHeader(HEADER_COMPRESSION, exportInfos.getCompression())
                 .setHeader(HEADER_RECEIVER, exportInfos.getReceiver())
                 .setHeader(HEADER_EXPORT_INFOS, exportInfos.getExtraData())
                 .setHeader(HEADER_EXPORT_UUID, exportInfos.getExportUuid() != null ? exportInfos.getExportUuid().toString() : null)
@@ -131,10 +133,11 @@ public class NotificationService {
                 .build());
     }
 
-    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
+    public void emitCaseExportStart(UUID caseUuid, String fileName, String format, String compression, String userId, UUID exportUuid, Map<String, Object> formatParameters) {
         sendCaseExportStartMessage(MessageBuilder.withPayload(caseUuid)
                 .setHeader(HEADER_FILE_NAME, fileName)
                 .setHeader(HEADER_FORMAT, format)
+                .setHeader(HEADER_COMPRESSION, compression)
                 .setHeader(HEADER_USER_ID, userId)
                 .setHeader(HEADER_EXPORT_UUID, exportUuid != null ? exportUuid.toString() : null)
                 .setHeader(HEADER_EXPORT_PARAMETERS, formatParameters)
