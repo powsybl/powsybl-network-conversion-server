@@ -75,12 +75,4 @@ public final class NetworkConversionException extends RuntimeException {
     public static NetworkConversionException createFailedDownloadExportFile(String exportUuid) {
         return new NetworkConversionException(String.format("Failed to download file for export UUID '%s'", exportUuid));
     }
-
-    public static NetworkConversionException createGzipWithMultipleFilesNotAllowed() {
-        return new NetworkConversionException("Cannot create gzip file for multiple files");
-    }
-
-    public static NetworkConversionException createCompressionNotAllowed() {
-        return new NetworkConversionException("Only zip or gzip compression is allowed");
-    }
 }

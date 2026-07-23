@@ -25,7 +25,7 @@ public class ExportInfos {
 
     private String format;
 
-    private String compression;
+    private CompressionType compression;
 
     private String receiver;
 

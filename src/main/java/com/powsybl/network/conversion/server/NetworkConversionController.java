@@ -7,6 +7,7 @@
 package com.powsybl.network.conversion.server;
 
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
+import com.powsybl.network.conversion.server.dto.CompressionType;
 import com.powsybl.network.conversion.server.dto.ExportInfos;
 import com.powsybl.network.conversion.server.dto.ImportExportFormatMeta;
 import com.powsybl.network.conversion.server.dto.NetworkInfos;
@@ -83,7 +84,7 @@ public class NetworkConversionController {
     )
     public ResponseEntity<UUID> exportNetwork(@Parameter(description = "Network UUID") @PathVariable("mainNetworkUuid") UUID networkUuid,
                                               @Parameter(description = "Export format")@PathVariable("format") String format,
-                                              @Parameter(description = "Compression") @RequestParam(name = "compression", required = false, defaultValue = "zip") String compression,
+                                              @Parameter(description = "Compression") @RequestParam(name = "compression", required = false, defaultValue = "ZIP") CompressionType compression,
                                               @Parameter(description = "Variant Id") @RequestParam(name = "variantId", required = false) String variantId,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @Parameter(description = "Result receiver") @RequestParam(name = "receiver", required = false) String receiver,
@@ -104,7 +105,7 @@ public class NetworkConversionController {
     )
     public ResponseEntity<UUID> convertCase(@Parameter(description = "case UUID") @PathVariable("caseUuid") UUID caseUuid,
                                               @Parameter(description = "Export format")@PathVariable("format") String format,
-                                              @Parameter(description = "Compression") @RequestParam(name = "compression", required = false, defaultValue = "zip") String compression,
+                                              @Parameter(description = "Compression") @RequestParam(name = "compression", required = false, defaultValue = "ZIP") CompressionType compression,
                                               @Parameter(description = "File name") @RequestParam(name = "fileName", required = false) String fileName,
                                               @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> formatParameters,
                                               @RequestHeader(HEADER_USER_ID) String userId) {

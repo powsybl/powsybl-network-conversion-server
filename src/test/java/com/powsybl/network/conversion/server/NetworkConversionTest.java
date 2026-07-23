@@ -24,6 +24,7 @@ import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
+import com.powsybl.network.conversion.server.dto.CompressionType;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
@@ -229,7 +230,7 @@ class NetworkConversionTest {
             assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
-            assertEquals("zip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
+            assertEquals(CompressionType.ZIP.name(), startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
 
             Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage1);
@@ -775,7 +776,7 @@ class NetworkConversionTest {
             Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
-            assertEquals("zip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
+            assertEquals(CompressionType.ZIP.name(), startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
@@ -795,7 +796,7 @@ class NetworkConversionTest {
             }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
             result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
-                    .param("compression", "gzip")
+                    .param("compression", CompressionType.GZIP.name())
                     .header("userId", "userId")
                     .contentType(MediaType.APPLICATION_JSON_VALUE)
                     .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
@@ -810,7 +811,7 @@ class NetworkConversionTest {
             startMessage1 = output.receive(1000, CASE_EXPORT_START);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
-            assertEquals("gzip", startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
+            assertEquals(CompressionType.GZIP.name(), startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
@@ -1196,7 +1197,7 @@ class NetworkConversionTest {
         String variantId = "variantId";
         String fileName = "fileName";
         String format = "XIIDM";
-        String compression = "zip";
+        CompressionType compression = CompressionType.ZIP;
         Path dummyFileToKeep = fileSystem.getPath("/tmp/dummyFile.txt");
         Map<String, Object> formatParameters = Collections.emptyMap();
         Files.createFile(dummyFileToKeep);
