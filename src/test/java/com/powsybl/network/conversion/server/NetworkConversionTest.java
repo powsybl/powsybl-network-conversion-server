@@ -24,6 +24,7 @@ import com.powsybl.iidm.network.*;
 import com.powsybl.iidm.serde.XMLImporter;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import com.powsybl.network.conversion.server.dto.CaseInfos;
+import com.powsybl.network.conversion.server.dto.CompressionType;
 import com.powsybl.network.conversion.server.dto.EquipmentInfos;
 import com.powsybl.network.conversion.server.dto.TombstonedEquipmentInfos;
 import com.powsybl.network.store.client.NetworkStoreService;
@@ -229,6 +230,7 @@ class NetworkConversionTest {
             assertNotNull(startMessage1);
             assertEquals(String.valueOf(exportNetworkUuid1), mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals(CompressionType.ZIP.name(), startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
 
             Message<byte[]> successMessage1 = output.receive(1000, NETWORK_EXPORT_FINISHED);
             assertNotNull(successMessage1);
@@ -757,7 +759,7 @@ class NetworkConversionTest {
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
             }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
-            // convert to iidm
+            // convert to iidm (zip compression)
             MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
                     .param("fileName", "testCase")
                     .header("userId", "userId")
@@ -774,6 +776,7 @@ class NetworkConversionTest {
             Message<byte[]> startMessage1 = output.receive(1000, CASE_EXPORT_START);
             assertEquals(caseUuid, mapper.readValue(startMessage1.getPayload(), String.class));
             assertEquals("XIIDM", startMessage1.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals(CompressionType.ZIP.name(), startMessage1.getHeaders().get(NotificationService.HEADER_COMPRESSION));
             assertEquals("testCase", startMessage1.getHeaders().get(NotificationService.HEADER_FILE_NAME));
 
             Message<byte[]> resultMessage1 = output.receive(1000, CASE_EXPORT_FINISHED);
@@ -784,6 +787,7 @@ class NetworkConversionTest {
                 baos.write(Files.readAllBytes(uploadedFilePath));
                 return null;
             }).when(networkConversionService).uploadFile(any(Path.class), anyString());
+
             // convert to biidm
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "BIIDM")
                     .param("fileName", "testCase")
@@ -848,6 +852,87 @@ class NetworkConversionTest {
             Message<byte[]> resultMessage5 = output.receive(1000, CASE_EXPORT_FINISHED);
             assertNull(resultMessage5.getHeaders().get(NotificationService.HEADER_ERROR));
             // check that no temporary export directory is still present after conversions
+            List<Path> filesInWorkDir = Files.list(fileSystem.getPath(TMP_DIR)).toList();
+            assertTrue(filesInWorkDir.isEmpty());
+        }
+    }
+
+    @Test
+    void testExportEndpointInGzip() throws Exception {
+        try (InputStream inputStream = getClass().getResourceAsStream("/testCase.xiidm")) {
+            assertNotNull(inputStream);
+            byte[] networkByte = inputStream.readAllBytes();
+            String caseUuid = UUID.randomUUID().toString();
+
+            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
+
+            // test convert format
+            String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
+                .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path),
+                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+                .willReturn(ResponseEntity.ok(Collections.emptySet()));
+
+            String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
+                .buildAndExpand(caseUuid)
+                .toUriString();
+            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class))).willReturn(ResponseEntity.ok(true));
+
+            mockCaseExist("txt", caseUuid, false);
+            mockCaseExist("uct", caseUuid, false);
+            mockCaseExist("UCT", caseUuid, false);
+            mockCaseExist("mat", caseUuid, false);
+            mockCaseExist("biidm", caseUuid, false);
+            mockCaseExist("bin", caseUuid, false);
+            mockCaseExist("jiidm", caseUuid, false);
+            mockCaseExist("json", caseUuid, false);
+            mockCaseExist("xiidm", caseUuid, true);
+            mockCaseExist("iidm", caseUuid, true);
+            mockCaseExist("xml", caseUuid, true);
+            mockCaseExist("csv", "_mapping", caseUuid, false);
+
+            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+
+            ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
+            ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
+
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            doAnswer(invocation -> {
+                Path uploadedFilePath = invocation.getArgument(0);
+                baos.write(Files.readAllBytes(uploadedFilePath));
+                return null;
+            }).when(networkConversionService).uploadFile(filePathCaptor.capture(), s3KeyCaptor.capture());
+
+            // convert to iidm (in gzip)
+            MvcResult result = mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
+                    .param("fileName", "testCase")
+                    .param("compression", CompressionType.GZIP.name())
+                    .header("userId", "userId")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+            UUID exportUuid = mapper.readValue(result.getResponse().getContentAsString(), UUID.class);
+            assertTrue(filePathCaptor.getValue().toString().matches("/tmp/export_\\d+/testCase\\.xiidm\\.gz"));
+            assertEquals("network_exports/" + exportUuid + "/" + "testCase.xiidm.gz", s3KeyCaptor.getValue());
+
+            String responseBody = result.getResponse().getContentAsString();
+            assertFalse(responseBody.isEmpty());
+
+            Message<byte[]> startMessage = output.receive(1000, CASE_EXPORT_START);
+            assertEquals(caseUuid, mapper.readValue(startMessage.getPayload(), String.class));
+            assertEquals("XIIDM", startMessage.getHeaders().get(NotificationService.HEADER_FORMAT));
+            assertEquals(CompressionType.GZIP.name(), startMessage.getHeaders().get(NotificationService.HEADER_COMPRESSION));
+            assertEquals("testCase", startMessage.getHeaders().get(NotificationService.HEADER_FILE_NAME));
+
+            Message<byte[]> resultMessage = output.receive(1000, CASE_EXPORT_FINISHED);
+            assertNull(resultMessage.getHeaders().get(NotificationService.HEADER_ERROR));
+
+            // check that no temporary export directory is still present after conversion
             List<Path> filesInWorkDir = Files.list(fileSystem.getPath(TMP_DIR)).toList();
             assertTrue(filesInWorkDir.isEmpty());
         }
@@ -1158,6 +1243,7 @@ class NetworkConversionTest {
         String variantId = "variantId";
         String fileName = "fileName";
         String format = "XIIDM";
+        CompressionType compression = CompressionType.ZIP;
         Path dummyFileToKeep = fileSystem.getPath("/tmp/dummyFile.txt");
         Map<String, Object> formatParameters = Collections.emptyMap();
         Files.createFile(dummyFileToKeep);
@@ -1174,7 +1260,7 @@ class NetworkConversionTest {
             throw new IOException();
         }).when(dummyNetwork).write(eq(format), any(Properties.class), any(DirectoryDataSource.class));
 
-        Executable executable = () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, formatParameters);
+        Executable executable = () -> networkConversionService.exportNetwork(networkUuid, variantId, fileName, format, compression, formatParameters);
 
         assertThrowsExactly(NetworkConversionException.class, executable, "Failed to stream network to file");
         assertFalse(Files.exists(directoryDataSource.get().getDirectory()));
