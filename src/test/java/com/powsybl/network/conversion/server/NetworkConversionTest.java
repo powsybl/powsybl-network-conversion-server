@@ -142,7 +142,6 @@ class NetworkConversionTest {
 
         networkConversionService.setFileSystem(fileSystem);
         networkConversionService.setCaseServerRest(caseServerRest);
-        networkConversionService.setGeoDataServerRest(geoDataRest);
         networkConversionService.setReportServerRest(reportServerRest);
 
         createStorageDir();
