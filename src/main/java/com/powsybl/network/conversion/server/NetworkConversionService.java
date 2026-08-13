@@ -42,7 +42,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -106,8 +105,6 @@ public class NetworkConversionService {
 
     private RestTemplate caseServerRest;
 
-    private RestTemplate geoDataServerRest;
-
     private RestTemplate reportServerRest;
 
     private final NetworkStoreService networkStoreService;
@@ -130,7 +127,6 @@ public class NetworkConversionService {
     private final String exportRootPath;
 
     public NetworkConversionService(@Value("${powsybl.services.case-server.base-uri:http://case-server/}") String caseServerBaseUri,
-                                    @Value("${gridsuite.services.geo-data-server.base-uri:http://geo-data-server/}") String geoDataServerBaseUri,
                                     @Value("${gridsuite.services.report-server.base-uri:http://report-server}") String reportServerURI,
                                     NetworkStoreService networkStoreService,
                                     EquipmentInfosService equipmentInfosService,
@@ -153,14 +149,13 @@ public class NetworkConversionService {
         this.exportRootPath = exportRootPath;
         this.fileSystem = FileSystems.getDefault();
 
-        caseServerRest = restTemplateBuilder.build();
-        caseServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(caseServerBaseUri));
+        caseServerRest = restTemplateBuilder
+                .rootUri(caseServerBaseUri)
+                .build();
 
-        geoDataServerRest = restTemplateBuilder.build();
-        geoDataServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(geoDataServerBaseUri));
-
-        reportServerRest = restTemplateBuilder.build();
-        reportServerRest.setUriTemplateHandler(new DefaultUriBuilderFactory(reportServerURI));
+        reportServerRest = restTemplateBuilder
+                .rootUri(reportServerURI)
+                .build();
 
         objectMapper = Jackson2ObjectMapperBuilder.json().build();
         objectMapper.registerModule(new ReportNodeJsonModule());
@@ -606,10 +601,6 @@ public class NetworkConversionService {
 
     void setCaseServerRest(RestTemplate caseServerRest) {
         this.caseServerRest = Objects.requireNonNull(caseServerRest, "caseServerRest can't be null");
-    }
-
-    void setGeoDataServerRest(RestTemplate geoDataServerRest) {
-        this.geoDataServerRest = Objects.requireNonNull(geoDataServerRest, "geoDataServerRest can't be null");
     }
 
     NetworkInfos importCgmesCase(UUID caseUuid, List<BoundaryInfos> boundaries) {
