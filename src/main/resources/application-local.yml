@@ -18,7 +18,7 @@ powsybl:
     network-store-server:
       base-uri: http://localhost:8080/
     case-server:
-      base-uri: http://localhost:5000
+      base-uri: http://localhost:5000/
 
 gridsuite:
   services:
