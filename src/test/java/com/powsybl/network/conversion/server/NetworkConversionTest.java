@@ -110,7 +110,7 @@ class NetworkConversionTest {
     @Autowired
     private MockMvc mvc;
 
-    @MockitoBean
+    @MockitoBean(answers = Answers.RETURNS_DEEP_STUBS)
     @Qualifier("caseServerRest")
     private RestClient caseServerRest;
 
