@@ -72,7 +72,11 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
-
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-case-datasource-client</artifactId>
+                <version>${powsybl-case-datasource-client.version}</version>
+            </dependency>
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
@@ -111,7 +115,6 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-case-datasource-client</artifactId>
-            <version>${powsybl-case-datasource-client.version}</version>
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
