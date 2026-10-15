@@ -22,7 +22,7 @@ import java.util.Map;
 public class EmbeddedElasticsearch {
 
     private static final String ES_DOCKER_IMAGE_NAME = "docker.elastic.co/elasticsearch/elasticsearch";
-    private static final String ES_DOCKER_IMAGE_VERSION = "8.19.10";
+    private static final String ES_DOCKER_IMAGE_VERSION = "9.2.8";
 
     private static ElasticsearchContainer elasticsearchContainer;
 
@@ -36,7 +36,7 @@ public class EmbeddedElasticsearch {
         Map<String, String> envMap = elasticsearchContainer.getEnvMap();
         envMap.put("discovery.type", "single-node");
         envMap.put("LOGSPOUT", "ignore");
-        //Els 8 has security enabled by default
+        // Elasticsearch has security enabled by default
         envMap.put("xpack.security.enabled", Boolean.FALSE.toString());
         envMap.put("ingest.geoip.downloader.enabled", Boolean.FALSE.toString());
         envMap.put("ES_JAVA_OPTS", "-Xms128m -Xmx128m");

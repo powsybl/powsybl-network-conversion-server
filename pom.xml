@@ -30,8 +30,8 @@
         <maven.jib.version>3.5.1</maven.jib.version>
         <jib.from.image>powsybl/java:4.0.0</jib.from.image>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <powsybl-ws-dependencies.version>2.34.0</powsybl-ws-dependencies.version>
-        <spring-cloud-aws.version>3.4.2</spring-cloud-aws.version>
+        <powsybl-ws-dependencies.version>2.35.0-SNAPSHOT</powsybl-ws-dependencies.version>
+        <spring-cloud-aws.version>4.0.0</spring-cloud-aws.version>
         <sonar.organization>powsybl-ci-github</sonar.organization>
         <sonar.projectKey>com.powsybl:powsybl-network-conversion-server</sonar.projectKey>
         <aws-sdk.version>2.29.52</aws-sdk.version>
@@ -79,6 +79,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>2.0.5</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
             <!-- project specific dependencies -->
         </dependencies>
@@ -93,6 +100,14 @@
         </dependency>
 
         <!-- Compilation dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jackson2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <!-- downgrade of sdk from 2.31.78 to 2.29.52 is needed since spring-cloud-aws-starter-s3 3.3 to 3.4 upgrade -->
         <!-- See https://github.com/aws/aws-sdk-java-v2/discussions/5802  -->
         <!-- Is there an easier way to to be compatible with 3rd party aws implementations? -->
@@ -154,8 +169,8 @@
 
         <!-- elasticsearch -->
         <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-elasticsearch</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
 
         <!-- Runtime dependencies -->
@@ -222,13 +237,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>elasticsearch</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-elasticsearch</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
