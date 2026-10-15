@@ -31,7 +31,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.InputStreamResource;
@@ -40,9 +39,8 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.util.UriComponentsBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -103,9 +101,9 @@ public class NetworkConversionService {
 
     private FileSystem fileSystem;
 
-    private RestTemplate caseServerRest;
+    private RestClient caseServerRest;
 
-    private RestTemplate reportServerRest;
+    private RestClient reportServerRest;
 
     private final NetworkStoreService networkStoreService;
 
@@ -134,7 +132,7 @@ public class NetworkConversionService {
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
                                     ImportExportExecutionService importExportExecutionService,
-                                    RestTemplateBuilder restTemplateBuilder,
+                                    RestClient.Builder restClientBuilder,
                                     S3Client s3Client,
                                     @Value("${spring.cloud.aws.bucket:ws-bucket}") String bucketName,
                                     @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}") String exportRootPath) {
@@ -149,12 +147,12 @@ public class NetworkConversionService {
         this.exportRootPath = exportRootPath;
         this.fileSystem = FileSystems.getDefault();
 
-        caseServerRest = restTemplateBuilder
-                .rootUri(caseServerBaseUri)
+        caseServerRest = restClientBuilder
+                .baseUrl(caseServerBaseUri)
                 .build();
 
-        reportServerRest = restTemplateBuilder
-                .rootUri(reportServerURI)
+        reportServerRest = restClientBuilder
+                .baseUrl(reportServerURI)
                 .build();
 
         objectMapper = Jackson2ObjectMapperBuilder.json().build();
@@ -591,10 +589,12 @@ public class NetworkConversionService {
     }
 
     CaseInfos getCaseInfos(UUID caseUuid) {
-        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/infos", CaseInfos.class).getBody();
+        return caseServerRest.get().uri("/v1/cases/" + caseUuid + "/infos")
+            .retrieve()
+            .body(CaseInfos.class);
     }
 
-    void setCaseServerRest(RestTemplate caseServerRest) {
+    void setCaseServerRest(RestClient caseServerRest) {
         this.caseServerRest = Objects.requireNonNull(caseServerRest, "caseServerRest can't be null");
     }
 
@@ -640,12 +640,14 @@ public class NetworkConversionService {
 
     private void sendReport(UUID networkUuid, ReportNode reportNode, UUID reportUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        var headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
-        var uriBuilder = UriComponentsBuilder.fromPath(resourceUrl);
         try {
-            reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reportNode), headers), ReportNode.class);
+            reportServerRest.put()
+                    .uri(resourceUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(objectMapper.writeValueAsString(reportNode))
+                    .retrieve()
+                    .toEntity(ReportNode.class);
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
         } finally {
@@ -655,11 +657,14 @@ public class NetworkConversionService {
 
     private void deleteReport(UUID reportUuid) {
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
-        reportServerRest.delete(resourceUrl);
+        reportServerRest.delete()
+                .uri(resourceUrl)
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    public void setReportServerRest(RestTemplate reportServerRest) {
-        this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
+    public void setReportServerRest(RestClient reportServerRest) {
+        this.reportServerRest = Objects.requireNonNull(reportServerRest, "reportServerRest can't be null");
     }
 
     public void reindexAllEquipments(UUID networkUuid) {
