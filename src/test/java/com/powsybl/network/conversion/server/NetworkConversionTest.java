@@ -793,8 +793,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(any(String.class))
                 .retrieve()
-                .body(eq(Resource.class)))
-                .willReturn(new InputStreamResource(new ByteArrayInputStream(networkByte)));
+                .toEntity(eq(Resource.class)))
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
@@ -813,8 +813,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(eq(path2))
                 .retrieve()
-                .body(eq(Boolean.class)))
-                .willReturn(true);
+                .toEntity(eq(Boolean.class)))
+                .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -952,8 +952,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(any(String.class))
                 .retrieve()
-                .body(eq(Resource.class)))
-                .willReturn(new InputStreamResource(new ByteArrayInputStream(networkByte)));
+                .toEntity(eq(Resource.class)))
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
@@ -972,8 +972,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(eq(path2))
                 .retrieve()
-                .body(eq(Boolean.class)))
-                .willReturn(true);
+                .toEntity(eq(Boolean.class)))
+                .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -1046,8 +1046,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(any(String.class))
                 .retrieve()
-                .body(any(Class.class)))
-                .willAnswer(invocation -> new InputStreamResource(new ByteArrayInputStream(networkByte)));
+                .toEntity(eq(Resource.class)))
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
@@ -1057,8 +1057,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(eq(path))
                 .retrieve()
-                .body(any(ParameterizedTypeReference.class)))
-                .willReturn(Collections.emptySet());
+                .toEntity(any(ParameterizedTypeReference.class)))
+                .willReturn(ResponseEntity.ok(Collections.emptySet()));
 
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=fourSubstations_first_variant_id.xiidm")
                 .buildAndExpand(caseUuid)
@@ -1066,8 +1066,8 @@ class NetworkConversionTest {
             given(caseServerRest.get()
                 .uri(eq(path2))
                 .retrieve()
-                .body(eq(Boolean.class)))
-                .willReturn(true);
+                .toEntity(eq(Boolean.class)))
+                .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -1392,8 +1392,8 @@ class NetworkConversionTest {
         given(caseServerRest.get()
             .uri(eq(path))
             .retrieve()
-            .body(eq(Boolean.class)))
-            .willReturn(returnValue);
+            .toEntity(eq(Boolean.class)))
+            .willReturn(ResponseEntity.ok(returnValue));
     }
 
     private void createStorageDir() throws IOException {
