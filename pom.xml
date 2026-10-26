@@ -37,6 +37,7 @@
         <aws-sdk.version>2.29.52</aws-sdk.version>
         <!-- FIXME: to remove at next version of powsybl-ws-dependencies -->
         <powsybl-case-datasource-client.version>1.23.0</powsybl-case-datasource-client.version>
+        <powsybl-network-store.version>1.52.0</powsybl-network-store.version>
     </properties>
 
     <build>
@@ -72,6 +73,21 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-iidm-impl</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-model</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-client</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.powsybl</groupId>
                 <artifactId>powsybl-case-datasource-client</artifactId>
