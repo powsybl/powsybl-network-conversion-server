@@ -30,13 +30,11 @@
         <maven.jib.version>3.5.1</maven.jib.version>
         <jib.from.image>powsybl/java:4.0.0</jib.from.image>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <powsybl-ws-dependencies.version>2.34.0</powsybl-ws-dependencies.version>
+        <powsybl-ws-dependencies.version>2.35.0-SNAPSHOT</powsybl-ws-dependencies.version>
         <spring-cloud-aws.version>3.4.2</spring-cloud-aws.version>
         <sonar.organization>powsybl-ci-github</sonar.organization>
         <sonar.projectKey>com.powsybl:powsybl-network-conversion-server</sonar.projectKey>
         <aws-sdk.version>2.29.52</aws-sdk.version>
-        <!-- FIXME: to remove at next version of powsybl-ws-dependencies -->
-        <powsybl-case-datasource-client.version>1.23.0</powsybl-case-datasource-client.version>
     </properties>
 
     <build>
@@ -72,11 +70,6 @@
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
-            <dependency>
-                <groupId>com.powsybl</groupId>
-                <artifactId>powsybl-case-datasource-client</artifactId>
-                <version>${powsybl-case-datasource-client.version}</version>
-            </dependency>
             <!-- imports -->
             <dependency>
                 <groupId>com.powsybl</groupId>
