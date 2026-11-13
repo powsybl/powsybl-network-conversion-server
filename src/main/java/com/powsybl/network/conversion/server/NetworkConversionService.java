@@ -778,11 +778,7 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            /* For iidm formats we put the format extension before compression extension
-             to solve the issue of filenames containing "." see the link below on how powsybl works
-             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource */
-            boolean isFormatIIDM = format.contains("IIDM");
-            String adjustedFileOrNetworkName = isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName;
+            String adjustedFileOrNetworkName = adjustFileOrNetworkName(format, compression, finalFileOrNetworkName);
 
             Path filePath = null;
             if (compression == CompressionType.ZIP) {
@@ -797,6 +793,19 @@ public class NetworkConversionService {
             }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
+    }
+
+    private String adjustFileOrNetworkName(String format, CompressionType compression, String finalFileOrNetworkName) {
+        /* For iidm formats we put the format extension before compression extension
+             to solve the issue of filenames containing "." see the link below on how powsybl works
+             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource
+
+             We also need it for DIE in GZIP compression that only recognizes .die, .arc or .xml file format */
+        boolean isGzippedDie = format.contains("DIE") && compression == CompressionType.GZIP;
+        if (format.contains("IIDM") || isGzippedDie) {
+            return finalFileOrNetworkName + "." + format.toLowerCase();
+        }
+        return finalFileOrNetworkName;
     }
 
     private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
