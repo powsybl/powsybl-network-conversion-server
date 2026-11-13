@@ -801,7 +801,8 @@ public class NetworkConversionService {
              https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource
 
              We also need it for DIE in GZIP compression that only recognizes .die, .arc or .xml file format */
-        if (format.contains("IIDM") || (format.contains("DIE") && compression == CompressionType.GZIP)) {
+        boolean isGzippedDie = format.contains("DIE") && compression == CompressionType.GZIP;
+        if (format.contains("IIDM") || isGzippedDie) {
             return finalFileOrNetworkName + "." + format.toLowerCase();
         }
         return finalFileOrNetworkName;
