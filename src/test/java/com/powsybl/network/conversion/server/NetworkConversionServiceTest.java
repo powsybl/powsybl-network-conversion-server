@@ -146,7 +146,7 @@ class NetworkConversionServiceTest {
     }
 
     @Test
-    void testGetExportNetworkInfosFailsWhenZipHasNoMatchingFileOutsideCgmes() throws Exception {
+    void testGetExportNetworkInfosFailsWhenZipHasNoMatchingFileOutsideCgmes() {
         Network network = mock(Network.class);
         mockNetworkWrite(network, "network_other.xml");
 
@@ -158,7 +158,7 @@ class NetworkConversionServiceTest {
     }
 
     @Test
-    void testGetExportNetworkInfosFailsWhenGzipHasNoMatchingFile() throws Exception {
+    void testGetExportNetworkInfosFailsWhenGzipHasNoMatchingFile() {
         Network network = mock(Network.class);
         mockNetworkWrite(network, "network_other.xml");
 
