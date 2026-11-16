@@ -764,9 +764,9 @@ public class NetworkConversionService {
         return exportProperties;
     }
 
-    private ExportNetworkInfos getExportNetworkInfos(Network network, String format, CompressionType compression,
-                                                      String fileOrNetworkName, Properties exportProperties,
-                                                      long networkSize) {
+    ExportNetworkInfos getExportNetworkInfos(Network network, String format, CompressionType compression,
+                                              String fileOrNetworkName, Properties exportProperties,
+                                              long networkSize) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory(fileSystem.getPath(TMP_DIR), "export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
