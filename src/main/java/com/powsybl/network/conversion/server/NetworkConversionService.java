@@ -778,13 +778,18 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            String adjustedFileOrNetworkName = adjustFileOrNetworkName(format, compression, finalFileOrNetworkName);
 
+            Optional<String> mainFileNameWithExtension = getMainFileNameWithExtension(finalFileOrNetworkName, fileNames);
             Path filePath = null;
             if (compression == CompressionType.ZIP) {
-                filePath = createZipFile(tempDir, adjustedFileOrNetworkName, fileNames);
+                if (!"CGMES".equals(format) && mainFileNameWithExtension.isEmpty()) {
+                    throw createNoAppropriateFileNameException(compression, fileNames);
+                }
+                // We assume that if no correct filename was found it's a CGMES where it is what we expect, so we fall back
+                filePath = createZipFile(tempDir, mainFileNameWithExtension.orElse(finalFileOrNetworkName), fileNames);
             } else if (compression == CompressionType.GZIP) {
-                filePath = createGzipFile(tempDir, adjustedFileOrNetworkName, fileNames.iterator().next());
+                String fileName = mainFileNameWithExtension.orElseThrow(() -> createNoAppropriateFileNameException(compression, fileNames));
+                filePath = createGzipFile(tempDir, fileName);
             }
             return filePath != null ? new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize) : null;
         } catch (Exception e) {
@@ -795,17 +800,28 @@ public class NetworkConversionService {
         }
     }
 
-    private String adjustFileOrNetworkName(String format, CompressionType compression, String finalFileOrNetworkName) {
-        /* For iidm formats we put the format extension before compression extension
-             to solve the issue of filenames containing "." see the link below on how powsybl works
-             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource
+    /*
+    We have several cases here:
+    - The exporter exports a simple file with the extension, so we retrieve the entire name with the extension
+    - The exporter exports the main file with companion files (with anonymized data for example),
+    the only file that should match the regex is the main file with the extension
+    - The case of CGMES where several files are exported that does not match the regex, so we return Optional.empty(),
+    and it should fall back for CGMES case where it is the expected bahavior.
 
-             We also need it for DIE in GZIP compression that only recognizes .die, .arc or .xml file format */
-        boolean isGzippedDie = format.contains("DIE") && compression == CompressionType.GZIP;
-        if (format.contains("IIDM") || isGzippedDie) {
-            return finalFileOrNetworkName + "." + format.toLowerCase();
-        }
-        return finalFileOrNetworkName;
+    This is sensitive because it relies on exporters implementation since APIs are not complete enough to be sure
+    we retrieve the main file if there is one
+     */
+    static Optional<String> getMainFileNameWithExtension(String finalFileOrNetworkName, Set<String> fileNames) {
+        String fileNamePrefix = finalFileOrNetworkName + ".";
+        return fileNames.stream()
+                .filter(fileName -> fileName.startsWith(fileNamePrefix) && fileName.length() > fileNamePrefix.length())
+                .findFirst();
+    }
+
+    static IllegalStateException createNoAppropriateFileNameException(CompressionType compressionType, Set<String> fileNames) {
+        return new IllegalStateException(
+                "Impossible to create a %s because the exporter didn't create an appropriate file name: %s"
+                        .formatted(compressionType, String.join(", ", fileNames)));
     }
 
     private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
@@ -823,8 +839,8 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    private Path createGzipFile(Path tempDir, String fileOrNetworkName, String fileName) throws IOException {
-        Path gzipFile = tempDir.resolve(fileOrNetworkName + ".gz");
+    private Path createGzipFile(Path tempDir, String fileName) throws IOException {
+        Path gzipFile = tempDir.resolve(fileName + ".gz");
         try (
             InputStream is = Files.newInputStream(tempDir.resolve(fileName));
             GZIPOutputStream gos = new GZIPOutputStream(Files.newOutputStream(gzipFile))
