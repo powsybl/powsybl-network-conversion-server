@@ -808,7 +808,7 @@ public class NetworkConversionService {
     We have several cases here:
     - The exporter exports a simple file with the extension, so we retrieve the entire name with the extension
     - The exporter exports the main file with companion files (with anonymized data for example),
-    the only file that should match the regex is the main file with the extension
+    the only file that should match is the main file with the extension
     - The case of CGMES where several files are exported that does not match the regex, so we return Optional.empty(),
     and it should fall back for CGMES case where it is the expected bahavior.
 
