@@ -809,7 +809,7 @@ public class NetworkConversionService {
     - The exporter exports a simple file with the extension, so we retrieve the entire name with the extension
     - The exporter exports the main file with companion files (with anonymized data for example),
     the only file that should match is the main file with the extension
-    - The case of CGMES where several files are exported that does not match the regex, so we return Optional.empty(),
+    - The case of CGMES where several files are exported that does not match, so we return Optional.empty(),
     and it should fall back for CGMES case where it is the expected bahavior.
 
     This is sensitive because it relies on exporters implementation since APIs are not complete enough to be sure
