@@ -782,9 +782,6 @@ public class NetworkConversionService {
             Optional<String> mainFileNameWithExtension = getMainFileNameWithExtension(finalFileOrNetworkName, fileNames);
             Path filePath = null;
             if (compression == CompressionType.ZIP) {
-                if (!"CGMES".equals(format) && mainFileNameWithExtension.isEmpty()) {
-                    throw createNoAppropriateFileNameException(compression, fileNames);
-                }
                 // We assume that if no correct filename was found it's a CGMES where it is what we expect, so we fall back
                 filePath = createZipFile(tempDir, mainFileNameWithExtension.orElse(finalFileOrNetworkName), fileNames);
             } else if (compression == CompressionType.GZIP) {

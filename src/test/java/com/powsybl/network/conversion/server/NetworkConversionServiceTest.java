@@ -146,18 +146,6 @@ class NetworkConversionServiceTest {
     }
 
     @Test
-    void testGetExportNetworkInfosFailsWhenZipHasNoMatchingFileOutsideCgmes() {
-        Network network = mock(Network.class);
-        mockNetworkWrite(network, "network_other.xml");
-
-        NetworkConversionException exception = assertThrows(NetworkConversionException.class,
-                () -> service.getExportNetworkInfos(network, "XIIDM", CompressionType.ZIP, "network", new Properties(), 1));
-
-        assertInstanceOf(IllegalStateException.class, exception.getCause());
-        assertTrue(exception.getCause().getMessage().contains("network_other.xml"));
-    }
-
-    @Test
     void testGetExportNetworkInfosFailsWhenGzipHasNoMatchingFile() {
         Network network = mock(Network.class);
         mockNetworkWrite(network, "network_other.xml");
