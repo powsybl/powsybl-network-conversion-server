@@ -136,6 +136,32 @@ class NetworkConversionServiceTest {
     }
 
     @Test
+    void testGetExportNetworkInfosUsesNetworkNameForZipWithoutMatchingFile() throws Exception {
+        Network network = mock(Network.class);
+        mockNetworkWrite(network, "network_other.xml");
+
+        ExportNetworkInfos infos = service.getExportNetworkInfos(network, "XIIDM", CompressionType.ZIP, "network", new Properties(), 1);
+        tempDirectories.add(infos.getTempFilePath().getParent());
+
+        assertEquals("network.zip", infos.getNetworkName());
+        assertEquals(Set.of("network_other.xml"), readZipEntryNames(infos.getTempFilePath()));
+    }
+
+    @Test
+    void testGetExportNetworkInfosCreatesGzipFromSingleUnmatchedFile() throws Exception {
+        Network network = mock(Network.class);
+        mockNetworkWrite(network, "network_other.xml");
+
+        ExportNetworkInfos infos = service.getExportNetworkInfos(network, "XIIDM", CompressionType.GZIP, "network", new Properties(), 1);
+        tempDirectories.add(infos.getTempFilePath().getParent());
+
+        try (GZIPInputStream input = new GZIPInputStream(Files.newInputStream(infos.getTempFilePath()))) {
+            assertEquals("network_other.xml", new String(input.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        assertEquals("network_other.xml.gz", infos.getNetworkName());
+    }
+
+    @Test
     void testGetExportNetworkInfosFailsWhenNoFilesAreWritten() {
         Network network = mock(Network.class);
 
@@ -148,13 +174,14 @@ class NetworkConversionServiceTest {
     @Test
     void testGetExportNetworkInfosFailsWhenGzipHasNoMatchingFile() {
         Network network = mock(Network.class);
-        mockNetworkWrite(network, "network_other.xml");
+        mockNetworkWrite(network, "network_other.xml", "network_another.xml");
 
         NetworkConversionException exception = assertThrows(NetworkConversionException.class,
                 () -> service.getExportNetworkInfos(network, "XIIDM", CompressionType.GZIP, "network", new Properties(), 1));
 
         assertInstanceOf(IllegalStateException.class, exception.getCause());
         assertTrue(exception.getCause().getMessage().contains("network_other.xml"));
+        assertTrue(exception.getCause().getMessage().contains("network_another.xml"));
     }
 
     private static void mockNetworkWrite(Network network, String... fileNames) {

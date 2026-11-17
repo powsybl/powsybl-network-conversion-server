@@ -785,7 +785,14 @@ public class NetworkConversionService {
                 // We assume that if no correct filename was found it's a CGMES where it is what we expect, so we fall back
                 filePath = createZipFile(tempDir, mainFileNameWithExtension.orElse(finalFileOrNetworkName), fileNames);
             } else if (compression == CompressionType.GZIP) {
-                String fileName = mainFileNameWithExtension.orElseThrow(() -> createNoAppropriateFileNameException(compression, fileNames));
+                String fileName;
+                if (fileNames.size() == 1) {
+                    // only one file, it we take it as is, it doesn't have to be the main file.
+                    fileName = fileNames.iterator().next();
+                } else {
+                    // in this case we ignore other files, user asked for gz which can only have one file. In the future we may want to error or switch to zip instead.
+                    fileName = mainFileNameWithExtension.orElseThrow(() -> createNoAppropriateFileNameException(compression, fileNames));
+                }
                 filePath = createGzipFile(tempDir, fileName);
             }
             return filePath != null ? new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize) : null;
