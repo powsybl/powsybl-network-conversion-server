@@ -11,7 +11,7 @@ import com.powsybl.commons.PowsyblException;
 import com.powsybl.network.conversion.server.dto.BoundaryInfos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -31,8 +31,8 @@ public class CgmesCaseDataSourceClient extends CaseDataSourceClient {
 
     private List<BoundaryInfos> boundaries;
 
-    public CgmesCaseDataSourceClient(RestTemplate restTemplate, UUID caseUuid, List<BoundaryInfos> boundaries) {
-        super(restTemplate, caseUuid);
+    public CgmesCaseDataSourceClient(RestClient restClient, UUID caseUuid, List<BoundaryInfos> boundaries) {
+        super(restClient, caseUuid);
         this.boundaries = boundaries;
     }
 

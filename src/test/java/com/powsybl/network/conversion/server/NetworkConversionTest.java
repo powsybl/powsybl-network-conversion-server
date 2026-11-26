@@ -35,6 +35,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.http.AbortableInputStream;
@@ -109,17 +110,17 @@ class NetworkConversionTest {
     @Autowired
     private MockMvc mvc;
 
-    @MockitoBean
+    @MockitoBean(answers = Answers.RETURNS_DEEP_STUBS)
     @Qualifier("caseServerRest")
-    private RestTemplate caseServerRest;
+    private RestClient caseServerRest;
 
-    @MockitoBean
+    @MockitoBean(answers = Answers.RETURNS_DEEP_STUBS)
     @Qualifier("geoDataRest")
-    private RestTemplate geoDataRest;
+    private RestClient geoDataRest;
 
-    @MockitoBean
+    @MockitoBean(answers = Answers.RETURNS_DEEP_STUBS)
     @Qualifier("reportServer")
-    private RestTemplate reportServerRest;
+    private RestClient reportServerRest;
 
     @MockitoSpyBean
     private NetworkConversionService networkConversionService;
@@ -158,7 +159,7 @@ class NetworkConversionTest {
             assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
 
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).willReturn(new ResponseEntity<>(networkByte, HttpStatus.OK));
+            given(caseServerRest.get().uri(any(String.class)).retrieve().body(byte[].class)).willReturn(networkByte);
 
             ReadOnlyDataSource dataSource = new ResourceDataSource("testCase", new ResourceSet("", "testCase.xiidm"));
             Network network = new XMLImporter().importData(dataSource, new NetworkFactoryImpl(), null);
@@ -168,16 +169,26 @@ class NetworkConversionTest {
             given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
 
             UUID reportUuid = UUID.fromString("11111111-f351-4c2e-a383-2ad08dd5f8fb");
-            given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
+            given(reportServerRest.put()
+                    .uri(eq("/v1/reports/" + reportUuid))
+                    .contentType(eq(MediaType.APPLICATION_JSON))
+                    .body(any(String.class))
+                    .retrieve()
+                    .toEntity(ReportNode.class))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
 
             String caseUuid = UUID.randomUUID().toString();
-            given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(String.class), eq(UUID.fromString(caseUuid))))
-                .willReturn(ResponseEntity.ok("testCase"));
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase.xiidm", "XIIDM")));
+            given(caseServerRest.get()
+                    .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(UUID.fromString(caseUuid)))
+                    .retrieve()
+                    .body(String.class))
+                .willReturn("testCase");
+
+            given(caseServerRest.get()
+                    .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                    .retrieve()
+                    .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase.xiidm", "XIIDM"));
 
             MvcResult mvcResult = mvc.perform(post("/v1/networks")
                 .param("caseUuid", caseUuid)
@@ -350,7 +361,11 @@ class NetworkConversionTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+            given(caseServerRest.get()
+                    .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                    .retrieve()
+                    .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
 
             // test get case import parameters
             mvcResult = mvc.perform(get("/v1/cases/{caseUuid}/import-parameters", caseUuid))
@@ -414,12 +429,18 @@ class NetworkConversionTest {
         String receiver = "test receiver";
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class), any(Boolean.class))).willReturn(network);
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(UUID.fromString(caseUuid))))
-            .willReturn(ResponseEntity.ok("testCase"));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+            .retrieve()
+            .body(CaseInfos.class))
+            .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(UUID.fromString(caseUuid)))
+            .retrieve()
+            .body(String.class))
+            .willReturn("testCase");
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("iidm.import.xml.with-automation-systems", false);
@@ -456,12 +477,18 @@ class NetworkConversionTest {
         given(networkStoreClient.getNetworkUuid(network)).willReturn(randomUuid);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Properties.class),
                 any(Boolean.class))).willThrow(new NullPointerException(IMPORT_CASE_ERROR_MESSAGE));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(UUID.fromString(caseUuid))))
-            .willReturn(ResponseEntity.ok("testCase"));
+
+        given(caseServerRest.get()
+                    .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                    .retrieve()
+                    .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
+
+        given(caseServerRest.get()
+                    .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(UUID.fromString(caseUuid)))
+                    .retrieve()
+                    .body(String.class))
+                .willReturn("testCase");
 
         Map<String, Object> importParameters = new HashMap<>();
         importParameters.put("randomImportParameters", "randomImportValue");
@@ -494,11 +521,11 @@ class NetworkConversionTest {
 
         CgmesCaseDataSourceClient client = new CgmesCaseDataSourceClient(caseServerRest, caseUuid, boundaries);
 
-        given(caseServerRest.exchange(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(Resource.class)))
-                .willReturn(ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(sshContent))));
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/" + caseUuid + "/datasource?fileName=20210326T0930Z_1D_BE_SSH_6.xml"))
+            .retrieve()
+            .toEntity(Resource.class))
+            .willReturn(ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(sshContent))));
 
         InputStream input = client.newInputStream("20210326T0930Z_1D_BE_SSH_6.xml");
         assertArrayEquals(sshContent, org.apache.commons.io.IOUtils.toByteArray(input));
@@ -528,12 +555,18 @@ class NetworkConversionTest {
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class))).willReturn(network);
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class))).willReturn(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(caseUuid)))
-            .willReturn(ResponseEntity.ok("testCase"));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
+
+        given(caseServerRest.get()
+                    .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(caseUuid))
+                    .retrieve()
+                    .body(String.class))
+                .willReturn("testCase");
+
+        given(caseServerRest.get()
+                    .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                    .retrieve()
+                    .body(CaseInfos.class))
+                .willReturn(new CaseInfos(caseUuid, "testCase", "XIIDM"));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks/cgmes")
                 .param("caseUuid", caseUuid.toString())
@@ -572,14 +605,26 @@ class NetworkConversionTest {
             return network;
         });
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
-            .willReturn(new ResponseEntity<>(HttpStatus.OK));
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(caseUuid)))
-            .willReturn(ResponseEntity.ok("testCase"));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
+
+        given(reportServerRest.put()
+                    .uri(eq("/v1/reports/" + reportUuid))
+                    .contentType(eq(MediaType.APPLICATION_JSON))
+                    .body(any(String.class))
+                    .retrieve()
+                    .toEntity(ReportNode.class))
+                .willReturn(new ResponseEntity<>(HttpStatus.OK));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(caseUuid))
+            .retrieve()
+            .body(String.class))
+            .willReturn("testCase");
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+            .retrieve()
+            .body(CaseInfos.class))
+            .willReturn(new CaseInfos(caseUuid, "testCase", "XIIDM"));
 
         MvcResult mvcResult = mvc.perform(post("/v1/networks")
             .param("caseUuid", caseUuid.toString())
@@ -599,19 +644,31 @@ class NetworkConversionTest {
         UUID networkUuid = UUID.fromString("7928181c-7977-4592-ba19-88027e4254e7");
         UUID reportUuid = UUID.fromString("11111111-7977-4592-ba19-88027e4254e7");
         networkConversionService.setReportServerRest(reportServerRest);
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(caseUuid)))
-            .willReturn(ResponseEntity.ok("testCase"));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(caseUuid))
+            .retrieve()
+            .body(String.class))
+            .willReturn("testCase");
 
         Network network = createNetwork("test");
         given(networkStoreClient.importNetwork(any(ReadOnlyDataSource.class), any(ReportNode.class), any(Boolean.class)))
                 .willThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())));
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
+
+        given(reportServerRest.put()
+                    .uri(eq("/v1/reports/" + reportUuid))
+                    .contentType(eq(MediaType.APPLICATION_JSON))
+                    .body(any(String.class))
+                    .retrieve()
+                    .toEntity(ReportNode.class))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+            .retrieve()
+            .body(CaseInfos.class))
+            .willReturn(new CaseInfos(caseUuid, "testCase", "XIIDM"));
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
@@ -629,16 +686,32 @@ class NetworkConversionTest {
         doThrow(NetworkConversionException.createFailedNetworkSaving(networkUuid, NetworkConversionException.createEquipmentTypeUnknown(NetworkImpl.class.getSimpleName())))
                 .when(networkStoreClient).flush(network);
         given(networkStoreClient.getNetworkUuid(network)).willReturn(networkUuid);
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.PUT), any(HttpEntity.class), eq(ReportNode.class)))
+
+        given(reportServerRest.put()
+                    .uri(eq("/v1/reports/" + reportUuid))
+                    .contentType(eq(MediaType.APPLICATION_JSON))
+                    .body(any(String.class))
+                    .retrieve()
+                    .toEntity(ReportNode.class))
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
-        given(reportServerRest.exchange(eq("/v1/reports/" + reportUuid), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
+
+        given(reportServerRest.delete()
+                    .uri(eq("/v1/reports/" + reportUuid))
+                    .retrieve()
+                    .toBodilessEntity())
                 .willReturn(new ResponseEntity<>(HttpStatus.OK));
-        given(caseServerRest.exchange(eq("/v1/cases/{caseUuid}/datasource/baseName"),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(String.class), eq(caseUuid)))
-            .willReturn(ResponseEntity.ok("testCase"));
-        given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid.toString()), "testCase", "XIIDM")));
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/{caseUuid}/datasource/baseName"), eq(caseUuid))
+            .retrieve()
+            .body(String.class))
+            .willReturn("testCase");
+
+        given(caseServerRest.get()
+            .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+            .retrieve()
+            .body(CaseInfos.class))
+            .willReturn(new CaseInfos(caseUuid, "testCase", "XIIDM"));
 
         String message = assertThrows(NetworkConversionException.class, () -> networkConversionService.importCase(caseUuid, null, reportUuid, "XIIDM", EMPTY_PARAMETERS)).getMessage();
         assertTrue(message.contains(String.format("The save of network '%s' has failed", networkUuid)));
@@ -717,7 +790,10 @@ class NetworkConversionTest {
             String caseUuid = UUID.randomUUID().toString();
             UUID randomUuid = UUID.fromString("78e13f90-f351-4c2e-a383-2ad08dd5f8fb");
 
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+            given(caseServerRest.get()
+                .uri(any(String.class))
+                .retrieve()
+                .toEntity(Resource.class))
                 .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
@@ -725,14 +801,20 @@ class NetworkConversionTest {
                 .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path),
-                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+            given(caseServerRest.get()
+                .uri(eq(path))
+                .retrieve()
+                .toEntity(any(ParameterizedTypeReference.class)))
                 .willReturn(ResponseEntity.ok(Collections.emptySet()));
 
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class))).willReturn(ResponseEntity.ok(true));
+            given(caseServerRest.get()
+                .uri(eq(path2))
+                .retrieve()
+                .toEntity(Boolean.class))
+                .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -747,7 +829,11 @@ class NetworkConversionTest {
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
 
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+            given(caseServerRest.get()
+                .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                .retrieve()
+                .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
 
             ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
@@ -838,12 +924,12 @@ class NetworkConversionTest {
 
             // export case with an absolut path as fileName
             mvc.perform(post("/v1/cases/{caseUuid}/convert/{format}", caseUuid, "XIIDM")
-                            .param("fileName", "/tmp/testCase")
-                            .header("userId", "userId")
-                            .contentType(MediaType.APPLICATION_JSON_VALUE)
-                            .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
-                    .andExpect(status().isOk())
-                    .andReturn();
+                    .param("fileName", "/tmp/testCase")
+                    .header("userId", "userId")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content("{ \"iidm.export.xml.indent\" : \"false\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
 
             Message<byte[]> startMessage5 = output.receive(1000, CASE_EXPORT_START);
             assertEquals("/tmp/testCase", startMessage5.getHeaders().get(NotificationService.HEADER_FILE_NAME));
@@ -863,7 +949,10 @@ class NetworkConversionTest {
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
 
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+            given(caseServerRest.get()
+                .uri(any(String.class))
+                .retrieve()
+                .toEntity(Resource.class))
                 .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
@@ -871,14 +960,20 @@ class NetworkConversionTest {
                 .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path),
-                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+            given(caseServerRest.get()
+                .uri(eq(path))
+                .retrieve()
+                .toEntity(any(ParameterizedTypeReference.class)))
                 .willReturn(ResponseEntity.ok(Collections.emptySet()));
 
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=testCase.xiidm")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class))).willReturn(ResponseEntity.ok(true));
+            given(caseServerRest.get()
+                .uri(eq(path2))
+                .retrieve()
+                .toEntity(Boolean.class))
+                .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
             mockCaseExist("uct", caseUuid, false);
@@ -893,7 +988,11 @@ class NetworkConversionTest {
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
 
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+            given(caseServerRest.get()
+                .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                .retrieve()
+                .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
 
             ArgumentCaptor<Path> filePathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<String> s3KeyCaptor = ArgumentCaptor.forClass(String.class);
@@ -943,22 +1042,31 @@ class NetworkConversionTest {
             assertNotNull(inputStream);
             byte[] networkByte = inputStream.readAllBytes();
             String caseUuid = UUID.randomUUID().toString();
-            given(caseServerRest.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
-                    .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
+
+            given(caseServerRest.get()
+                .uri(any(String.class))
+                .retrieve()
+                .toEntity(Resource.class))
+                .willAnswer(invocation -> ResponseEntity.ok(new InputStreamResource(new ByteArrayInputStream(networkByte))));
 
             // test convert format
             String path = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/list")
                 .queryParam("regex", "(?i)^.*\\.(XML|ZIP)$")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path),
-                eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class)))
+            given(caseServerRest.get()
+                .uri(eq(path))
+                .retrieve()
+                .toEntity(any(ParameterizedTypeReference.class)))
                 .willReturn(ResponseEntity.ok(Collections.emptySet()));
 
             String path2 = UriComponentsBuilder.fromPath("/v1/cases/{caseUuid}/datasource/exists?fileName=fourSubstations_first_variant_id.xiidm")
                 .buildAndExpand(caseUuid)
                 .toUriString();
-            given(caseServerRest.exchange(eq(path2), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
+            given(caseServerRest.get()
+                .uri(eq(path2))
+                .retrieve()
+                .toEntity(Boolean.class))
                 .willReturn(ResponseEntity.ok(true));
 
             mockCaseExist("txt", caseUuid, false);
@@ -974,7 +1082,11 @@ class NetworkConversionTest {
             mockCaseExist("xml", caseUuid, true);
             mockCaseExist("csv", "_mapping", caseUuid, false);
 
-            given(caseServerRest.getForEntity(eq("/v1/cases/" + caseUuid + "/infos"), any())).willReturn(ResponseEntity.ok(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM")));
+            given(caseServerRest.get()
+                .uri(eq("/v1/cases/" + caseUuid + "/infos"))
+                .retrieve()
+                .body(CaseInfos.class))
+                .willReturn(new CaseInfos(UUID.fromString(caseUuid), "testCase", "XIIDM"));
 
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
             doAnswer(invocation -> {
@@ -1277,7 +1389,10 @@ class NetworkConversionTest {
             .queryParam("ext", ext)
             .buildAndExpand(caseUuid)
             .toUriString();
-        given(caseServerRest.exchange(eq(path), eq(HttpMethod.GET), any(HttpEntity.class), eq(Boolean.class)))
+        given(caseServerRest.get()
+            .uri(eq(path))
+            .retrieve()
+            .toEntity(Boolean.class))
             .willReturn(ResponseEntity.ok(returnValue));
     }
 

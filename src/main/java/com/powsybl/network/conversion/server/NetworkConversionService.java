@@ -31,7 +31,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.InputStreamResource;
@@ -40,9 +39,8 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.util.UriComponentsBuilder;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -103,9 +101,9 @@ public class NetworkConversionService {
 
     private FileSystem fileSystem;
 
-    private RestTemplate caseServerRest;
+    private RestClient caseServerRest;
 
-    private RestTemplate reportServerRest;
+    private RestClient reportServerRest;
 
     private final NetworkStoreService networkStoreService;
 
@@ -134,7 +132,7 @@ public class NetworkConversionService {
                                     NotificationService notificationService,
                                     NetworkConversionObserver networkConversionObserver,
                                     ImportExportExecutionService importExportExecutionService,
-                                    RestTemplateBuilder restTemplateBuilder,
+                                    RestClient.Builder restClientBuilder,
                                     S3Client s3Client,
                                     @Value("${spring.cloud.aws.bucket:ws-bucket}") String bucketName,
                                     @Value("${powsybl-ws.s3.subpath.prefix:}${export-subpath}") String exportRootPath) {
@@ -149,12 +147,12 @@ public class NetworkConversionService {
         this.exportRootPath = exportRootPath;
         this.fileSystem = FileSystems.getDefault();
 
-        caseServerRest = restTemplateBuilder
-                .rootUri(caseServerBaseUri)
+        caseServerRest = restClientBuilder
+                .baseUrl(caseServerBaseUri)
                 .build();
 
-        reportServerRest = restTemplateBuilder
-                .rootUri(reportServerURI)
+        reportServerRest = restClientBuilder
+                .baseUrl(reportServerURI)
                 .build();
 
         objectMapper = Jackson2ObjectMapperBuilder.json().build();
@@ -591,10 +589,12 @@ public class NetworkConversionService {
     }
 
     CaseInfos getCaseInfos(UUID caseUuid) {
-        return caseServerRest.getForEntity("/v1/cases/" + caseUuid + "/infos", CaseInfos.class).getBody();
+        return caseServerRest.get().uri("/v1/cases/" + caseUuid + "/infos")
+            .retrieve()
+            .body(CaseInfos.class);
     }
 
-    void setCaseServerRest(RestTemplate caseServerRest) {
+    void setCaseServerRest(RestClient caseServerRest) {
         this.caseServerRest = Objects.requireNonNull(caseServerRest, "caseServerRest can't be null");
     }
 
@@ -640,12 +640,14 @@ public class NetworkConversionService {
 
     private void sendReport(UUID networkUuid, ReportNode reportNode, UUID reportUuid) {
         AtomicReference<Long> startTime = new AtomicReference<>(System.nanoTime());
-        var headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
-        var uriBuilder = UriComponentsBuilder.fromPath(resourceUrl);
         try {
-            reportServerRest.exchange(uriBuilder.toUriString(), HttpMethod.PUT, new HttpEntity<>(objectMapper.writeValueAsString(reportNode), headers), ReportNode.class);
+            reportServerRest.put()
+                    .uri(resourceUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(objectMapper.writeValueAsString(reportNode))
+                    .retrieve()
+                    .toEntity(ReportNode.class);
         } catch (JsonProcessingException error) {
             throw new PowsyblException("error creating report", error);
         } finally {
@@ -655,11 +657,14 @@ public class NetworkConversionService {
 
     private void deleteReport(UUID reportUuid) {
         var resourceUrl = DELIMITER + REPORT_API_VERSION + DELIMITER + "reports" + DELIMITER + reportUuid.toString();
-        reportServerRest.delete(resourceUrl);
+        reportServerRest.delete()
+                .uri(resourceUrl)
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    public void setReportServerRest(RestTemplate reportServerRest) {
-        this.reportServerRest = Objects.requireNonNull(reportServerRest, "caseServerRest can't be null");
+    public void setReportServerRest(RestClient reportServerRest) {
+        this.reportServerRest = Objects.requireNonNull(reportServerRest, "reportServerRest can't be null");
     }
 
     public void reindexAllEquipments(UUID networkUuid) {
@@ -759,9 +764,9 @@ public class NetworkConversionService {
         return exportProperties;
     }
 
-    private ExportNetworkInfos getExportNetworkInfos(Network network, String format, CompressionType compression,
-                                                      String fileOrNetworkName, Properties exportProperties,
-                                                      long networkSize) {
+    ExportNetworkInfos getExportNetworkInfos(Network network, String format, CompressionType compression,
+                                              String fileOrNetworkName, Properties exportProperties,
+                                              long networkSize) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory(fileSystem.getPath(TMP_DIR), "export_", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
@@ -773,17 +778,22 @@ public class NetworkConversionService {
             if (fileNames.isEmpty()) {
                 throw new IOException("No files were created during export");
             }
-            /* For iidm formats we put the format extension before compression extension
-             to solve the issue of filenames containing "." see the link below on how powsybl works
-             https://powsybl.readthedocs.io/projects/powsybl-core/en/stable/grid_exchange_formats/going_further/datasources.html#archive-datasource */
-            boolean isFormatIIDM = format.contains("IIDM");
-            String adjustedFileOrNetworkName = isFormatIIDM ? finalFileOrNetworkName + "." + format.toLowerCase() : finalFileOrNetworkName;
 
+            Optional<String> mainFileNameWithExtension = getMainFileNameWithExtension(finalFileOrNetworkName, fileNames);
             Path filePath = null;
             if (compression == CompressionType.ZIP) {
-                filePath = createZipFile(tempDir, adjustedFileOrNetworkName, fileNames);
+                // We assume that if no main file was produced, then it's a format where the data extension doesn't have to be repeated in the name of the zip file
+                filePath = createZipFile(tempDir, mainFileNameWithExtension.orElse(finalFileOrNetworkName), fileNames);
             } else if (compression == CompressionType.GZIP) {
-                filePath = createGzipFile(tempDir, adjustedFileOrNetworkName, fileNames.iterator().next());
+                String fileName;
+                if (fileNames.size() == 1) {
+                    // Only one file, we take it as is, it doesn't have to be the main file.
+                    fileName = fileNames.iterator().next();
+                } else {
+                    // In this case we ignore other files, user asked for gz which can only have one file. In the future we may want to error or switch to zip instead.
+                    fileName = mainFileNameWithExtension.orElseThrow(() -> createNoAppropriateFileNameException(compression, fileNames));
+                }
+                filePath = createGzipFile(tempDir, fileName);
             }
             return filePath != null ? new ExportNetworkInfos(filePath.getFileName().toString(), filePath, networkSize) : null;
         } catch (Exception e) {
@@ -792,6 +802,30 @@ public class NetworkConversionService {
             }
             throw NetworkConversionException.failedToStreamNetworkToFile(e);
         }
+    }
+
+    /*
+    We have several cases here:
+    - The exporter exports a simple file with the extension, so we retrieve the entire name with the extension
+    - The exporter exports the main file with companion files (with anonymized data for example),
+    the only file that should match is the main file with the extension
+    - The case of CGMES where several files are exported that does not match, so we return Optional.empty(),
+    and it should fall back for CGMES case where it is the expected bahavior.
+
+    This is sensitive because it relies on exporters implementation since APIs are not complete enough to be sure
+    we retrieve the main file if there is one
+     */
+    static Optional<String> getMainFileNameWithExtension(String finalFileOrNetworkName, Set<String> fileNames) {
+        String fileNamePrefix = finalFileOrNetworkName + ".";
+        return fileNames.stream()
+                .filter(fileName -> fileName.startsWith(fileNamePrefix) && fileName.length() > fileNamePrefix.length())
+                .findFirst();
+    }
+
+    static IllegalStateException createNoAppropriateFileNameException(CompressionType compressionType, Set<String> fileNames) {
+        return new IllegalStateException(
+                "Impossible to create a %s because the exporter didn't create an appropriate file name: %s"
+                        .formatted(compressionType, String.join(", ", fileNames)));
     }
 
     private Path createZipFile(Path tempDir, String fileOrNetworkName, Set<String> fileNames) throws IOException {
@@ -809,8 +843,8 @@ public class NetworkConversionService {
         return zipFile;
     }
 
-    private Path createGzipFile(Path tempDir, String fileOrNetworkName, String fileName) throws IOException {
-        Path gzipFile = tempDir.resolve(fileOrNetworkName + ".gz");
+    private Path createGzipFile(Path tempDir, String fileName) throws IOException {
+        Path gzipFile = tempDir.resolve(fileName + ".gz");
         try (
             InputStream is = Files.newInputStream(tempDir.resolve(fileName));
             GZIPOutputStream gos = new GZIPOutputStream(Files.newOutputStream(gzipFile))
